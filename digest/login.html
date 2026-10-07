@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="群报">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F5F3EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon.png">
+<title>登录 · 群报</title>
+<style>
+:root{
+  --bg:#F5F3EE; --card:#FFFFFF; --ink:#1B1A17; --sub:#6E6A62; --faint:#A8A399; --line:#E7E3DA;
+  --accent:#C2412D; --chip:#EFEBE3;
+  --shadow:0 1px 2px rgba(27,26,23,.04),0 6px 20px rgba(27,26,23,.05);
+  --serif:"Songti SC","Noto Serif SC","Source Han Serif SC","STSong",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --ease:cubic-bezier(.2,.9,.25,1);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141413; --card:#1E1D1B; --ink:#F1EEE7; --sub:#A39E94; --faint:#6B675F; --line:#2C2A27;
+  --accent:#E8664F; --chip:#282623; --shadow:0 1px 2px rgba(0,0,0,.3);
+}}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);min-height:100%}
+body{font-family:var(--sans);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased;
+  padding:calc(env(safe-area-inset-top) + 9vh) 24px calc(env(safe-area-inset-bottom) + 40px)}
+.lg{max-width:380px;margin:0 auto;animation:in .5s var(--ease)}
+@keyframes in{from{opacity:0;transform:translateY(8px)}}
+.rule{border-top:3px double var(--ink);margin-bottom:18px}
+.lg-mast{font-family:var(--serif);font-weight:900;font-size:56px;letter-spacing:.1em;line-height:1}
+.lg-sub{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--ink);
+  padding:10px 0 9px;margin-bottom:30px;font-size:13px;color:var(--sub)}
+.lg-sub b{font-family:var(--serif);color:var(--ink);font-weight:700;font-size:14px}
+.lg-lead{font-family:var(--serif);font-size:21px;font-weight:700;line-height:1.45;margin-bottom:6px}
+.lg-note{font-size:14px;color:var(--sub);margin-bottom:26px}
+.lg-box{background:var(--card);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+.lg-f{display:flex;align-items:center;gap:12px;padding:0 16px;min-height:54px;border-bottom:1px solid var(--line)}
+.lg-f:last-child{border-bottom:0}
+.lg-f span{font-size:15px;width:52px;flex:none;color:var(--sub)}
+.lg-f input{flex:1;min-width:0;border:0;background:none;outline:none;font:inherit;font-size:16px;color:var(--ink);padding:14px 0}
+.lg-eye{border:0;background:none;color:var(--faint);padding:8px 0 8px 8px;font-size:13px;cursor:pointer}
+.lg-go{display:block;width:100%;margin-top:18px;border:0;border-radius:999px;background:var(--ink);color:var(--bg);
+  font:inherit;font-size:16px;font-weight:600;padding:15px;cursor:pointer;transition:transform .15s var(--ease),opacity .2s}
+.lg-go:active{transform:scale(.98)}
+.lg-go[disabled]{opacity:.55}
+.lg-err{min-height:22px;margin-top:12px;font-size:13.5px;color:var(--accent);text-align:center}
+.lg-shake{animation:shake .38s}
+@keyframes shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+.lg-foot{margin-top:28px;font-size:12.5px;color:var(--faint);text-align:center;line-height:1.7}
+</style>
+</head>
+<body>
+<main class="lg">
+  <div class="rule"></div>
+  <div class="lg-mast">群报</div>
+  <div class="lg-sub"><b id="lg-date">—</b><span>QQ · 微信 群消息摘要</span></div>
+  <div class="lg-lead">群不用一直看，<br>要紧的事不会漏。</div>
+  <p class="lg-note">输入部署时设置的密码，登录一次保持 30 天。</p>
+  <form id="f" autocomplete="on">
+    <div class="lg-box" id="box">
+      <label class="lg-f"><span>用户名</span><input name="username" id="u" autocomplete="username" autocapitalize="off" value="me"></label>
+      <label class="lg-f"><span>密码</span><input name="password" id="p" type="password" autocomplete="current-password" enterkeyhint="go" required><button type="button" class="lg-eye" id="eye">显示</button></label>
+    </div>
+    <button class="lg-go" id="go">登录</button>
+    <div class="lg-err" id="err" role="alert"></div>
+  </form>
+  <p class="lg-foot">在 iPhone 上：Safari 打开后点「分享 → 添加到主屏幕」，<br>从主屏幕打开时再登录一次即可。</p>
+</main>
+<script>
+const W="日一二三四五六",d=new Date();
+document.getElementById("lg-date").textContent=`${d.getMonth()+1}月${d.getDate()}日 星期${W[d.getDay()]}`;
+const f=document.getElementById("f"),p=document.getElementById("p"),err=document.getElementById("err"),go=document.getElementById("go");
+document.getElementById("eye").onclick=e=>{const s=p.type==="password";p.type=s?"text":"password";e.target.textContent=s?"隐藏":"显示";p.focus()};
+if(!p.value)setTimeout(()=>p.focus(),300);
+f.onsubmit=async e=>{
+  e.preventDefault();err.textContent="";go.disabled=true;go.textContent="登录中…";
+  try{
+    const r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({user:document.getElementById("u").value.trim(),password:p.value})});
+    if(r.ok){go.textContent="欢迎回来";location.replace("/");return}
+    const j=await r.json().catch(()=>({}));
+    err.textContent=j.detail||"登录失败，请重试";
+    const b=document.getElementById("box");b.classList.remove("lg-shake");void b.offsetWidth;b.classList.add("lg-shake");
+    p.select();
+  }catch(x){err.textContent="连不上服务器，检查一下网络"}
+  go.disabled=false;go.textContent="登录";
+};
+</script>
+</body>
+</html>
