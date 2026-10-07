@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.6.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.7.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -37,6 +37,8 @@ DEFAULTS = {
     "push_at": True,           # @我 / 重要的人 / 关键词 实时推送
     "push_digest": True,       # 每日总结推送
     "remind_hours": 3,         # 待办截止前几小时推送提醒；0 = 关闭
+    "quiet_start": -1,         # 免打扰开始（小时 0-23）；-1 = 关闭
+    "quiet_end": 7,            # 免打扰结束（小时）
 }
 
 app = FastAPI(docs_url=None, redoc_url=None)
@@ -144,8 +146,34 @@ def _client_ip(req: Request) -> str:
 
 
 # ---------------- 推送（Bark，iPhone 上收通知）----------------
-async def push(title: str, body: str, key: str = "", force=False):
+_held: list = []
+
+
+def in_quiet(s, now=None) -> bool:
+    a, b = int(s.get("quiet_start", -1)), int(s.get("quiet_end", 7))
+    if a < 0 or a == b:
+        return False
+    h = (now or datetime.now(TZ)).hour
+    return (a <= h < b) if a < b else (h >= a or h < b)
+
+
+async def flush_held():
+    """免打扰结束后，把攒着的推送合并成一条发出。"""
+    if not _held or in_quiet(settings()):
+        return 0
+    items = _held[:]
+    _held.clear()
+    body = "\n".join(f"· {t}：{b}" for t, b in items)[:300]
+    await push(f"免打扰期间 {len(items)} 条消息", body, force=True, test=True)
+    return len(items)
+
+
+async def push(title: str, body: str, key: str = "", force=False, test=False):
     s = settings()
+    if not test and s.get("bark_url") and in_quiet(s):
+        if len(_held) < 50:
+            _held.append((title, body))
+        return False
     url = (s.get("bark_url") or "").rstrip("/")
     if not url:
         return False
@@ -480,6 +508,7 @@ async def scheduler():
                 except Exception as ex:
                     print("自动总结失败:", ex)
             try:
+                await flush_held()
                 await check_reminders()
             except Exception as ex:
                 print("截止提醒失败:", ex)
@@ -620,7 +649,7 @@ async def post_settings(req: Request):
 async def push_test():
     if not settings().get("bark_url"):
         raise HTTPException(400, "先填 Bark 推送地址")
-    ok = await push("群报", "推送通了。之后有人 @你 或说到关键词，会第一时间提醒你。", force=True)
+    ok = await push("群报", "推送通了。之后有人 @你 或说到关键词，会第一时间提醒你。", force=True, test=True)
     if not ok:
         raise HTTPException(502, "推送失败，检查 Bark 地址是否正确")
     return {"ok": True}
