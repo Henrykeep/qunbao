@@ -26,10 +26,21 @@
 App Store 装 **Bark**，打开后复制它给的推送地址（形如 `https://api.day.app/xxxx`），填进群报「设置 → 推送到 iPhone」，点「测试推送」。
 
 ## 接微信（可选）
-旧安卓机登微信小号，用通知转发类 App 把通知 POST 到：
-    POST http://服务器IP:8000/ingest
-    Header  X-Token: <INGEST_TOKEN>
-    Body    {"source":"微信","chat":"群名","sender":"发送人","text":"内容"}
+QQ 和微信的群放在同一个界面里看：「原文」可以按 全部 / QQ / 微信 切换，待办和各群卡片都会标出来源。
+
+微信没有稳定的机器人协议，所以用「旧安卓机 + 微信小号 + 通知转发」的方式接入：
+1. 安卓机登录微信小号并进群；微信「设置 → 消息通知」打开「通知显示消息详情」，要看的群不要设免打扰。
+2. 装通知转发 App（如开源的 SmsForwarder），给通知使用权、关掉省电限制。
+3. 新建 Webhook 通道，POST 到群报「设置 → 接入微信」里显示的地址（形如 `http://服务器IP:8000/ingest?token=<INGEST_TOKEN>`），
+   模板 `{"title":"[title]","text":"[content]"}`（占位符以 App 为准），只转发 `com.tencent.mm`。
+
+`/ingest` 接受 JSON 或表单，能识别的格式：
+- 通知格式：`{"title":"群名","text":"[3条]张三: 内容"}` → 自动拆出群名和发送人；没有「发送人:」的当私聊
+- 原生格式：`{"source":"微信","chat":"群名","sender":"发送人","text":"内容"}`
+- 口令放 `?token=` 或 Header `X-Token`；2 分钟内重复的通知自动去重；「[有人@我]」会算作 @我
+
+## 测试
+    pip install fastapi httpx pytest && python -m pytest tests -q
 
 ## 更新
     git pull && docker compose up -d --build qunbao
