@@ -41,3 +41,34 @@ def test_wechat_formats():
     assert st["wx"]["online"] and st["wx"]["ready"]
     chats = c.get("/api/chats?source=微信", headers=AUTH).json()
     assert {x["chat"] for x in chats} == {"班级群", "私聊·妈妈", "社团"}
+
+
+def test_login_cookie_session():
+    s = TestClient(app_mod.app)
+    r = s.get("/", follow_redirects=False)
+    assert r.status_code == 303 and r.headers["location"] == "/login"
+    assert "密码" in s.get("/login").text
+    assert s.post("/api/login", json={"user": "me", "password": "wrong"}).status_code == 401
+    r = s.post("/api/login", json={"user": "me", "password": "pw"})
+    assert r.status_code == 200 and "qb_session" in r.cookies
+    assert "max-age=2592000" in r.headers["set-cookie"].lower() and "httponly" in r.headers["set-cookie"].lower()
+    assert s.get("/api/state").status_code == 200
+    assert s.get("/", follow_redirects=False).status_code == 200
+    # 改密码后旧会话失效
+    old = app_mod.WEB_PASS
+    app_mod.WEB_PASS = "new"
+    try:
+        assert s.get("/api/state").status_code == 401
+    finally:
+        app_mod.WEB_PASS = old
+    assert s.get("/api/state").status_code == 200
+    s.post("/api/logout")
+    s.cookies.clear()
+    assert s.get("/api/state").status_code == 401
+
+
+def test_login_rate_limit():
+    s = TestClient(app_mod.app, headers={"x-forwarded-for": "9.9.9.9"})
+    codes = [s.post("/api/login", json={"password": "x"}).status_code for _ in range(9)]
+    assert codes[-1] == 429
+    app_mod._fails.clear()
