@@ -1,5 +1,5 @@
 """冒烟测试：python -m pytest tests -q（需要 pip install fastapi httpx pytest）。不连真实大模型和 QQ。"""
-import importlib, os, sys, tempfile, base64
+import importlib, os, sys, tempfile, base64, json, time
 
 os.environ.update(DB_PATH=os.path.join(tempfile.mkdtemp(), "t.db"), WEB_PASS="pw", INGEST_TOKEN="tok", LLM_API_KEY="")
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "digest"))
@@ -72,3 +72,31 @@ def test_login_rate_limit():
     codes = [s.post("/api/login", json={"password": "x"}).status_code for _ in range(9)]
     assert codes[-1] == 429
     app_mod._fails.clear()
+
+
+def test_parse_due_and_reminders(monkeypatch):
+    import asyncio
+    from datetime import datetime, timedelta
+    now = datetime(2026, 10, 8, 12, 0, tzinfo=app_mod.TZ)
+    p = app_mod.parse_due
+    assert p("10月10日 23:59", now) == now.replace(day=10, hour=23, minute=59)
+    assert p("明天 18:00", now) == now.replace(day=9, hour=18, minute=0)
+    assert p("2026-10-09", now) == now.replace(day=9, hour=23, minute=59)
+    assert p("明天下午3点", now).hour == 15
+    assert p("", now) is None and p("尽快", now) is None
+    sent = []
+
+    async def fake(title, body, key="", force=False):
+        sent.append(title)
+        return True
+    monkeypatch.setattr(app_mod, "push", fake)
+    due = datetime.now(app_mod.TZ) + timedelta(hours=2)
+    body = {"todos": [{"title": "交作业", "chat": "班级群", "due": due.strftime("%m月%d日 %H:%M")}]}
+    app_mod.save_settings({"bark_url": "http://x", "remind_hours": 3})
+    with app_mod.db() as c:
+        c.execute("DELETE FROM reminded")
+        c.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (int(time.time()), 24, json.dumps(body, ensure_ascii=False)))
+    assert asyncio.run(app_mod.check_reminders()) == 1
+    assert asyncio.run(app_mod.check_reminders()) == 0  # 只提醒一次
+    assert sent and "交作业" in sent[0]
+    app_mod.save_settings({"bark_url": "", "remind_hours": 3})
