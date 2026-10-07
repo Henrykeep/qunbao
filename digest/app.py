@@ -1,6 +1,7 @@
 """群报：收集 QQ（NapCat / OneBot 11）和微信（通知转发）群消息，用大模型挑出重要的事和待办。"""
 import asyncio, json, os, re, secrets, sqlite3, time
 from datetime import datetime
+from urllib.parse import parse_qs
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -9,6 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 HERE = os.path.dirname(__file__)
+VERSION = "0.4.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -194,16 +196,80 @@ async def onebot(req: Request):
     return {}
 
 
+WX_COUNT = re.compile(r"^\[\d+条\]\s*")
+WX_SKIP = ("你收到了一条消息", "收到一条新消息", "正在运行", "条新消息")
+
+
+def _pick(d, *keys):
+    for k in keys:
+        v = d.get(k)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    return ""
+
+
+def parse_wx(d: dict):
+    """把各种通知转发 App 的格式统一成 (chat, sender, text, at_me)。
+    支持：{chat,sender,text} 原生格式；{title,content|text|msg} 通知格式；只有一个 content/msg 字段时第一行当标题。"""
+    if d.get("chat") and d.get("text"):
+        t = str(d["text"])
+        return str(d["chat"]), str(d.get("sender") or ""), t, bool(d.get("at_me")) or "@我" in t or "[有人@我]" in t
+    title = _pick(d, "title", "android.title", "name")
+    body = _pick(d, "text", "content", "msg", "message", "body", "android.text")
+    if not title and "\n" in body:
+        title, body = body.split("\n", 1)
+    title, body = title.strip(), body.strip()
+    if not body or title in ("微信", "WeChat") or any(k in body for k in WX_SKIP):
+        return None
+    body = WX_COUNT.sub("", body)
+    at_me = "[有人@我]" in body or "@所有人" in body
+    body = body.replace("[有人@我]", "").strip()
+    m = re.match(r"^([^:：\n]{1,32})[:：]\s?(.+)$", body, re.S)
+    if m:  # 群消息通知：标题是群名，内容是「发送人: 内容」
+        return title or "未知群", m.group(1).strip(), m.group(2).strip(), at_me
+    return f"私聊·{title or '未知'}", title, body, True  # 私聊通知：标题是好友名
+
+
+def mark_seen(key):
+    with db() as c:
+        c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES(?,?)", (key, str(int(time.time()))))
+
+
 @app.post("/ingest")
 async def ingest(req: Request):
-    """通用入口：微信通知转发等。JSON: {source, chat, sender, text, ts?, at_me?}"""
-    if not INGEST_TOKEN or req.headers.get("X-Token") != INGEST_TOKEN:
-        raise HTTPException(401)
-    d = await req.json()
-    text = d.get("text", "")
-    await save(d.get("source", "微信"), d.get("chat", "未知"), d.get("sender", ""), text,
-               d.get("ts"), d.get("at_me") or "@我" in text or "@所有人" in text)
-    return {"ok": True}
+    """通用入口：微信通知转发等。口令放 Header X-Token，或网址 ?token=。JSON 或表单都行。"""
+    tok = req.headers.get("X-Token") or req.query_params.get("token") or ""
+    if not INGEST_TOKEN or not secrets.compare_digest(tok, INGEST_TOKEN):
+        raise HTTPException(401, "口令不对")
+    ct = req.headers.get("content-type", "")
+    raw = (await req.body()).decode("utf-8", "ignore")
+    if "urlencoded" in ct:
+        d = {k: v[0] for k, v in parse_qs(raw).items()}
+    else:
+        try:
+            d = json.loads(raw)
+        except json.JSONDecodeError:
+            d = {"content": raw}
+    if not isinstance(d, dict):
+        raise HTTPException(400, "需要 JSON 对象")
+    source = str(d.get("source") or "微信")
+    mark_seen("seen_wx" if source == "微信" else f"seen_{source}")
+    p = parse_wx(d)
+    if not p:
+        return {"ok": True, "skipped": True}
+    chat, sender, text, at_me = p
+    with db() as c:  # 通知转发常会重复推同一条，2 分钟内同内容去重
+        dup = c.execute("SELECT 1 FROM msgs WHERE source=? AND chat=? AND sender=? AND text=? AND ts>=?",
+                        (source, chat, sender, text[:4000], int(time.time()) - 120)).fetchone()
+    if dup:
+        return {"ok": True, "dup": True}
+    await save(source, chat, sender, text, d.get("ts"), at_me)
+    return {"ok": True, "chat": chat, "sender": sender}
+
+
+@app.get("/api/ingest", dependencies=[Depends(auth)])
+def ingest_info():
+    return {"token": INGEST_TOKEN, "ready": bool(INGEST_TOKEN)}
 
 
 # ---------------- 大模型 ----------------
@@ -330,22 +396,32 @@ def state(id: int | None = None):
         today = c.execute("SELECT COUNT(*) n FROM msgs WHERE ts>=?", (now - 86400,)).fetchone()["n"]
         last = c.execute("SELECT MAX(ts) t FROM msgs").fetchone()["t"]
         hb = c.execute("SELECT v FROM kv WHERE k='heartbeat'").fetchone()
+        wx = c.execute("SELECT v FROM kv WHERE k='seen_wx'").fetchone()
+        last_qq = c.execute("SELECT MAX(ts) t FROM msgs WHERE source='QQ'").fetchone()["t"]
+        last_wx = c.execute("SELECT MAX(ts) t FROM msgs WHERE source='微信'").fetchone()["t"]
+        srcs = {r["chat"]: r["source"] for r in c.execute("SELECT chat, source FROM msgs WHERE ts>=? GROUP BY chat",
+                                                            (ref - span,)).fetchall()}
         done = [r["k"] for r in c.execute("SELECT k FROM todo_done").fetchall()]
         latest = latest_id
     hb_ts = int(hb["v"]) if hb else None
+    wx_ts = max(int(wx["v"]) if wx else 0, last_wx or 0) or None
+    qq_on = bool(hb_ts and now - hb_ts < 180) or bool(last_qq and now - last_qq < 1800)
+    wx_on = bool(wx_ts and now - wx_ts < 6 * 3600)
     return {
         "digest": digest_row(d) if d else None,
         "digest_ts": d["ts"] if d else None,
         "hours": d["hours"] if d else 24,
         "is_latest": (not d) or d["id"] == latest,
         "per_chat": {r["chat"]: r["n"] for r in per},
+        "chat_src": srcs,
         "at_me": [{"ts": r["ts"], "chat": r["chat"], "sender": r["sender"], "text": r["text"],
                    "source": r["source"]} for r in ats],
         "today": today,
         "done": done,
-        "status": {"last_msg": last, "heartbeat": hb_ts,
-                   "online": bool(hb_ts and now - hb_ts < 180) or bool(last and now - last < 1800),
-                   "llm": bool(LLM_KEY)},
+        "status": {"last_msg": last, "heartbeat": hb_ts, "online": qq_on or wx_on,
+                   "qq": {"online": qq_on, "seen": hb_ts or last_qq, "last": last_qq},
+                   "wx": {"online": wx_on, "seen": wx_ts, "last": last_wx, "ready": bool(INGEST_TOKEN)},
+                   "llm": bool(LLM_KEY), "version": VERSION},
     }
 
 
@@ -379,15 +455,16 @@ async def todo(req: Request):
 
 
 @app.get("/api/chats", dependencies=[Depends(auth)])
-def chats(hours: int = 168):
+def chats(hours: int = 168, source: str = ""):
     s = settings()
     with db() as c:
         rows = c.execute("""SELECT chat, source, COUNT(*) n, MAX(ts) last_ts, SUM(at_me) ats FROM msgs
-                            WHERE ts>=? GROUP BY chat, source ORDER BY last_ts DESC""",
-                         (int(time.time()) - hours * 3600,)).fetchall()
+                            WHERE ts>=? AND (?='' OR source=?) GROUP BY chat, source ORDER BY last_ts DESC""",
+                         (int(time.time()) - hours * 3600, source, source)).fetchall()
         out = []
         for r in rows:
-            m = c.execute("SELECT sender, text FROM msgs WHERE chat=? ORDER BY ts DESC LIMIT 1", (r["chat"],)).fetchone()
+            m = c.execute("SELECT sender, text FROM msgs WHERE chat=? AND source=? ORDER BY id DESC LIMIT 1",
+                          (r["chat"], r["source"])).fetchone()
             out.append({"chat": r["chat"], "source": r["source"], "n": r["n"], "last_ts": r["last_ts"],
                         "ats": r["ats"] or 0, "last": f"{m['sender']}：{m['text']}" if m else "",
                         "muted": r["chat"] in s["muted"]})
@@ -395,10 +472,12 @@ def chats(hours: int = 168):
 
 
 @app.get("/api/messages", dependencies=[Depends(auth)])
-def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60):
+def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, source: str = ""):
     sql, args = "SELECT * FROM msgs WHERE 1=1", []
     if chat:
         sql += " AND chat=?"; args.append(chat)
+    if source:
+        sql += " AND source=?"; args.append(source)
     if q:
         sql += " AND (text LIKE ? OR sender LIKE ?)"; args += [f"%{q}%", f"%{q}%"]
     if before:
@@ -471,4 +550,4 @@ def manifest():
 
 @app.get("/healthz")
 def healthz():
-    return {"ok": True}
+    return {"ok": True, "version": VERSION}
