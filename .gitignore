@@ -1,0 +1,4 @@
+.env
+data/
+napcat/
+__pycache__/
