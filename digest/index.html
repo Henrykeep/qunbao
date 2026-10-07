@@ -110,6 +110,7 @@ h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
 .chip{font-size:11.5px;padding:3px 9px;border-radius:999px;background:var(--chip);color:var(--sub);white-space:nowrap;display:inline-flex;align-items:center;gap:4px;border:0}
 .chip svg{width:11px;height:11px}
 .chip.due{background:color-mix(in srgb,var(--u) 13%,transparent);color:var(--u);font-weight:600}
+.chip.cal{text-decoration:none;color:var(--accent);font-weight:600}
 .chip.more{margin-left:auto;background:none;padding:3px 2px;color:var(--faint)}
 .chip.more svg{transition:transform .3s var(--ease)}
 .todo.open .chip.more svg{transform:rotate(180deg)}
@@ -609,6 +610,7 @@ function render(st){
     <button class="check" aria-label="完成"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
     <div class="tbody"><div class="t">${esc(t.title)}</div>${t.detail?`<div class="d">${esc(t.detail)}</div>`:""}
     <div class="meta">${t.due?`<span class="chip due">${ICON.clock}${esc(t.due)}</span>`:""}<span class="chip">${ICON.chat}${esc(t.chat)}${srcTag((st.chat_src||{})[t.chat])}</span>
+      ${t.due?`<a class="chip cal" href="/api/ics?${new URLSearchParams({title:t.title,due:t.due,detail:t.detail||"",chat:t.chat||""})}" aria-label="加到日历">加到日历</a>`:""}
       ${t.quote?`<button class="chip more" aria-label="原话">原话${ICON.down}</button>`:""}</div>
     ${t.quote?`<div class="quote"><div><blockquote>${hlAt(t.quote)}<cite>— ${esc(t.sender||"")}${t.sender?" · ":""}${esc(t.chat)}</cite></blockquote>
       <button class="go">去原文看上下文${ICON.arrow}</button></div></div>`:""}</div></div>`).join("")
