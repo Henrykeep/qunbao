@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.8.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.9.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -607,6 +607,37 @@ async def todo(req: Request):
         else:
             c.execute("DELETE FROM todo_done WHERE k=?", (d["key"],))
     return {"ok": True}
+
+
+def _ics_esc(t: str) -> str:
+    return (t or "").replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\r", "").replace("\n", "\\n")
+
+
+def build_ics(title: str, due: str, detail: str = "", chat: str = "") -> str:
+    now = datetime.now(TZ)
+    dt = parse_due(due, now)
+    stamp = now.astimezone(ZoneInfo("UTC")).strftime("%Y%m%dT%H%M%SZ")
+    uid = hashlib.md5(f"{title}|{due}".encode()).hexdigest() + "@qunbao"
+    if dt:
+        s = dt.astimezone(ZoneInfo("UTC"))
+        e = s + timedelta(hours=1)
+        when = f"DTSTART:{s:%Y%m%dT%H%M%SZ}\r\nDTEND:{e:%Y%m%dT%H%M%SZ}"
+    else:
+        d0 = now.date()
+        when = f"DTSTART;VALUE=DATE:{d0:%Y%m%d}\r\nDTEND;VALUE=DATE:{d0 + timedelta(days=1):%Y%m%d}"
+    desc = "\n".join(x for x in [detail, f"来自群：{chat}" if chat else "", f"原定：{due}" if due else ""] if x)
+    return ("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//qunbao//CN\r\nBEGIN:VEVENT\r\n"
+            f"UID:{uid}\r\nDTSTAMP:{stamp}\r\n{when}\r\nSUMMARY:{_ics_esc(title)}\r\n"
+            f"DESCRIPTION:{_ics_esc(desc)}\r\nBEGIN:VALARM\r\nTRIGGER:-PT1H\r\nACTION:DISPLAY\r\n"
+            "DESCRIPTION:待办提醒\r\nEND:VALARM\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
+
+
+@app.get("/api/ics", dependencies=[Depends(auth)])
+def ics(title: str = "", due: str = "", detail: str = "", chat: str = ""):
+    if not title.strip():
+        raise HTTPException(400, "缺少标题")
+    return Response(build_ics(title[:200], due[:60], detail[:500], chat[:80]), media_type="text/calendar; charset=utf-8",
+                    headers={"Content-Disposition": "inline; filename=todo.ics"})
 
 
 @app.get("/api/chats", dependencies=[Depends(auth)])
