@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="群报">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F5F3EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon.png">
+<title>群报</title>
+<style>
+:root{
+  --bg:#F5F3EE; --card:#FFFFFF; --ink:#1B1A17; --sub:#6E6A62; --faint:#A8A399; --line:#E7E3DA;
+  --accent:#C2412D; --amber:#C98A1B; --calm:#6F8A6C; --chip:#EFEBE3; --glass:rgba(245,243,238,.84);
+  --bubble:#FFFFFF; --mine:#FCEFE9;
+  --shadow:0 1px 2px rgba(27,26,23,.04),0 6px 20px rgba(27,26,23,.05);
+  --serif:"Songti SC","Noto Serif SC","Source Han Serif SC","STSong",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --ease:cubic-bezier(.2,.9,.25,1);
+  --tab:58px;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141413; --card:#1E1D1B; --ink:#F1EEE7; --sub:#A39E94; --faint:#6B675F; --line:#2C2A27;
+  --accent:#E8664F; --amber:#E0A53C; --calm:#8FAA8B; --chip:#282623; --glass:rgba(20,20,19,.82);
+  --bubble:#1E1D1B; --mine:#33221D; --shadow:0 1px 2px rgba(0,0,0,.3);
+}}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}
+body{font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.55;font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top)}
+button{font:inherit;color:inherit;cursor:pointer}
+input,textarea,select{font:inherit;color:inherit}
+.wrap{max-width:640px;margin:0 auto;padding:0 20px}
+.view{display:none;padding-bottom:calc(var(--tab) + 120px + env(safe-area-inset-bottom))}
+.view.on{display:block;animation:vin .35s var(--ease)}
+@keyframes vin{from{opacity:0;transform:translateY(6px)}}
+svg{display:block}
+
+/* 报头 */
+header{padding:24px 0 8px;display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2px solid var(--ink)}
+.mast{font-family:var(--serif);font-weight:900;font-size:44px;letter-spacing:.08em;line-height:1}
+.mast.sm{font-size:30px;letter-spacing:.12em}
+.date{font-size:12px;color:var(--sub);text-align:right}
+.date b{display:block;color:var(--ink);font-weight:600;font-size:13px}
+.rule{height:1px;background:var(--ink);margin-top:3px}
+.live{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--sub);margin-top:4px}
+.live i{width:6px;height:6px;border-radius:50%;background:var(--faint)}
+.live.ok i{background:var(--calm);box-shadow:0 0 0 3px color-mix(in srgb,var(--calm) 22%,transparent);animation:pulse 2.4s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--calm) 6%,transparent)}}
+
+.bar{display:flex;justify-content:space-between;align-items:center;padding:10px 0 0;gap:8px}
+.seg{display:inline-flex;background:var(--chip);border-radius:999px;padding:2px;position:relative;flex:none}
+.seg button{border:0;background:none;font-size:12px;padding:4px 11px;border-radius:999px;color:var(--sub);position:relative;z-index:1;transition:color .2s}
+.seg button.on{color:var(--ink);font-weight:600}
+.seg i{position:absolute;top:2px;bottom:2px;border-radius:999px;background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.08);transition:all .3s var(--ease)}
+.tools{display:flex;align-items:center;gap:2px;min-width:0}
+.ib{border:0;background:none;color:var(--sub);display:flex;align-items:center;gap:5px;padding:6px;font-size:12px;border-radius:8px;white-space:nowrap}
+.ib svg{width:16px;height:16px;flex:none}
+.ib:active{background:var(--chip)}
+.spin svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.banner{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--chip);border-radius:12px;padding:10px 14px;margin-top:16px;font-size:13px;color:var(--sub)}
+.banner button{border:0;background:var(--ink);color:var(--bg);border-radius:999px;padding:5px 12px;font-size:12px;flex:none}
+.warn{background:color-mix(in srgb,var(--amber) 12%,var(--card));border-radius:14px;padding:13px 15px;margin-top:16px;font-size:13.5px;color:var(--ink);display:flex;gap:10px}
+.warn svg{width:18px;height:18px;color:var(--amber);flex:none;margin-top:2px}
+.warn b{display:block;margin-bottom:1px}
+.warn span{color:var(--sub)}
+
+/* 头条 */
+.greet{font-size:13px;color:var(--sub);margin:24px 0 6px;letter-spacing:.04em}
+.headline{font-family:var(--serif);font-weight:700;font-size:27px;line-height:1.38;margin-bottom:20px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.stat{padding:12px 0 13px;text-align:center}
+.stat+.stat{border-left:1px solid var(--line)}
+.stat .n{font-family:var(--serif);font-size:24px;font-weight:700;line-height:1.1}
+.stat .n small{font-size:14px;color:var(--faint);font-weight:500}
+.stat .l{font-size:11px;color:var(--sub);margin-top:4px;letter-spacing:.12em}
+.prog{height:3px;background:var(--line);border-radius:3px;margin:8px 18px 0;overflow:hidden}
+.prog div{height:100%;background:var(--ink);border-radius:3px;transition:width .5s var(--ease)}
+
+section{margin-top:36px}
+h2{font-size:12px;font-weight:600;letter-spacing:.22em;color:var(--sub);display:flex;align-items:center;gap:10px;margin-bottom:12px}
+h2::after{content:"";flex:1;height:1px;background:var(--line)}
+h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
+
+/* 待办 */
+.todos{position:relative}
+.todo{display:flex;gap:14px;background:var(--card);border-radius:16px;padding:16px 16px 15px;box-shadow:var(--shadow);margin-bottom:10px;
+  position:relative;overflow:hidden;transition:opacity .3s,background .3s}
+.todo::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;background:var(--u);transition:opacity .3s}
+.todo.high{--u:var(--accent)} .todo.mid{--u:var(--amber)} .todo.low{--u:var(--calm)}
+.check{flex:none;width:24px;height:24px;border-radius:50%;border:1.5px solid var(--faint);background:none;
+  display:grid;place-items:center;margin-top:1px;transition:all .25s var(--ease)}
+.check:active{transform:scale(.85)}
+.check svg{width:13px;height:13px;color:var(--bg);stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .3s .05s}
+.todo.done{background:transparent;box-shadow:none;opacity:.55}
+.todo.done::before{opacity:0}
+.todo.done .check{background:var(--ink);border-color:var(--ink)}
+.todo.done .check svg{stroke-dashoffset:0}
+.todo.done .t{text-decoration:line-through;text-decoration-color:var(--faint)}
+.todo.done .d,.todo.done .meta,.todo.done .quote{display:none}
+.tbody{flex:1;min-width:0}
+.t{font-weight:600;font-size:16px;line-height:1.4}
+.d{font-size:14px;color:var(--sub);margin-top:3px}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;align-items:center}
+.chip{font-size:11.5px;padding:3px 9px;border-radius:999px;background:var(--chip);color:var(--sub);white-space:nowrap;display:inline-flex;align-items:center;gap:4px;border:0}
+.chip svg{width:11px;height:11px}
+.chip.due{background:color-mix(in srgb,var(--u) 13%,transparent);color:var(--u);font-weight:600}
+.chip.more{margin-left:auto;background:none;padding:3px 2px;color:var(--faint)}
+.chip.more svg{transition:transform .3s var(--ease)}
+.todo.open .chip.more svg{transform:rotate(180deg)}
+.quote{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s var(--ease)}
+.todo.open .quote{grid-template-rows:1fr}
+.quote>div{overflow:hidden}
+.quote blockquote{margin-top:12px;border-left:2px solid var(--line);padding:2px 0 2px 12px;font-size:13.5px;color:var(--sub)}
+.quote blockquote cite{display:block;font-style:normal;font-size:12px;color:var(--faint);margin-top:4px}
+.quote .go{margin-top:8px;font-size:12.5px;color:var(--accent);background:none;border:0;padding:0;display:inline-flex;align-items:center;gap:3px}
+.quote .go svg{width:12px;height:12px}
+
+/* 通知 */
+.notice{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
+.notice:last-child{border-bottom:0}
+.num{font-family:var(--serif);font-size:20px;font-weight:700;color:var(--faint);line-height:1.2;min-width:26px}
+.notice .t{font-size:15px}
+.src{font-size:11.5px;color:var(--faint);margin-top:5px}
+
+/* @我 */
+.at{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.at:last-child{border-bottom:0}
+.av{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:600;color:#fff}
+.av.sm{width:30px;height:30px;font-size:12.5px}
+.at .top{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--sub)}
+.at .top b{color:var(--ink);font-weight:600;font-size:13.5px}
+.tm{color:var(--faint);white-space:nowrap;font-size:12px}
+.at .msg{font-size:14.5px;margin-top:3px;word-break:break-word}
+em.at-hl{font-style:normal;color:var(--accent);font-weight:600}
+mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;border-radius:3px;padding:0 1px}
+.tag{font-size:10px;padding:0 5px;border-radius:4px;border:1px solid var(--line);color:var(--faint);margin-left:4px;font-weight:400;vertical-align:1px}
+
+/* 各群 */
+.groups{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.g{background:var(--card);border-radius:14px;padding:12px 13px 13px;box-shadow:var(--shadow);text-align:left;border:0;width:100%}
+.g:active{transform:scale(.98)}
+.g .gh{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.g .gn{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.g .gc{font-size:11px;color:var(--faint);flex:none}
+.g .gg{font-size:12.5px;color:var(--sub);margin-top:3px;line-height:1.45}
+.g .vol{height:2px;background:var(--line);border-radius:2px;margin-top:10px;overflow:hidden}
+.g .vol div{height:100%;background:var(--faint)}
+
+.empty{text-align:center;color:var(--faint);font-size:14px;padding:30px 0}
+.empty .big{font-family:var(--serif);font-size:20px;color:var(--ink);margin-bottom:6px}
+.more-btn{display:block;margin:8px auto 0;border:1px solid var(--line);background:none;color:var(--sub);font-size:12.5px;padding:6px 14px;border-radius:999px}
+footer{text-align:center;font-size:11px;color:var(--faint);margin-top:44px;letter-spacing:.1em}
+
+/* 消息页 */
+.search{position:relative;margin-top:16px}
+.search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--faint)}
+.search input{width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 14px 11px 38px;font-size:16px;outline:none}
+.search input:focus{border-color:var(--ink)}
+.search .clr{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:var(--chip);width:22px;height:22px;border-radius:50%;display:none;place-items:center;color:var(--sub)}
+.search .clr svg{position:static;transform:none;width:11px;height:11px;color:var(--sub)}
+.search.has .clr{display:grid}
+.clist{margin-top:10px}
+.crow{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer;width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left}
+.crow:active{opacity:.6}
+.crow .gav{flex:none;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:17px;font-family:var(--serif)}
+.crow .ci{flex:1;min-width:0}
+.crow .cn{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.crow .cn b{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crow .cl{font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;display:flex;gap:6px;align-items:center}
+.crow .cl span{overflow:hidden;text-overflow:ellipsis}
+.badge{flex:none;font-size:10.5px;font-weight:700;color:#fff;background:var(--accent);border-radius:999px;padding:1px 6px}
+.crow.muted{opacity:.45}
+.mute-ic{width:12px;height:12px;color:var(--faint);flex:none}
+
+.chat-head{position:sticky;top:0;z-index:4;background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  margin:0 -20px;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line)}
+.chat-head .ttl{flex:1;min-width:0;text-align:center;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-head .ttl small{display:block;font-size:11px;color:var(--faint);font-weight:400}
+.back{border:0;background:none;display:flex;align-items:center;gap:2px;color:var(--ink);font-size:15px;padding:6px 8px;width:70px}
+.back svg{width:20px;height:20px}
+.msgs{padding:8px 0 20px}
+.day{text-align:center;font-size:11.5px;color:var(--faint);margin:18px 0 8px}
+.m{display:flex;gap:9px;margin-top:12px;align-items:flex-start}
+.m.cont{margin-top:4px}
+.m.cont .av{visibility:hidden;height:0}
+.m .mb{min-width:0;max-width:82%}
+.m .who{font-size:11.5px;color:var(--faint);margin:0 0 3px 2px}
+.m .bub{background:var(--bubble);border-radius:4px 16px 16px 16px;padding:8px 12px;font-size:15px;line-height:1.55;word-break:break-word;box-shadow:var(--shadow);white-space:pre-wrap}
+.m.cont .bub{border-radius:16px}
+.m.atme .bub{background:var(--mine)}
+.m.flash .bub{animation:flash 1.6s}
+@keyframes flash{0%,40%{box-shadow:0 0 0 3px var(--amber)}}
+.m .mt{font-size:10.5px;color:var(--faint);margin:3px 0 0 2px}
+.sres{padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.sres .sh{display:flex;justify-content:space-between;font-size:12px;color:var(--faint)}
+.sres .sh b{color:var(--sub);font-weight:600}
+.sres .st{font-size:14.5px;margin-top:3px;word-break:break-word}
+
+/* 设置页 */
+.group{background:var(--card);border-radius:16px;box-shadow:var(--shadow);margin-top:10px;overflow:hidden}
+.gl{font-size:12px;letter-spacing:.18em;color:var(--sub);font-weight:600;margin:30px 4px 0}
+.gd{font-size:12.5px;color:var(--faint);margin:6px 4px 0;line-height:1.5}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line);min-height:50px}
+.row:last-child{border-bottom:0}
+.row .rl{font-size:15px}
+.row .rl small{display:block;font-size:12px;color:var(--faint)}
+.row input[type=text],.row input[type=url]{flex:1;min-width:0;text-align:right;border:0;background:none;outline:none;font-size:15px;color:var(--sub)}
+.row select{border:0;background:none;font-size:15px;color:var(--sub);outline:none;text-align:right;-webkit-appearance:none;appearance:none}
+textarea.area{display:block;width:100%;border:0;background:none;outline:none;resize:none;padding:14px 16px;font-size:15px;line-height:1.6;min-height:120px}
+.tagbox{display:flex;flex-wrap:wrap;gap:6px;padding:12px 14px}
+.tagbox .tg{display:inline-flex;align-items:center;gap:4px;background:var(--chip);border-radius:999px;padding:4px 6px 4px 11px;font-size:13.5px}
+.tagbox .tg button{border:0;background:none;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;color:var(--faint)}
+.tagbox .tg button svg{width:10px;height:10px}
+.tagbox input{flex:1;min-width:110px;border:0;outline:none;background:none;font-size:14.5px;padding:4px}
+.sw{position:relative;width:50px;height:30px;flex:none}
+.sw input{opacity:0;position:absolute;inset:0;margin:0;cursor:pointer;z-index:1}
+.sw span{position:absolute;inset:0;background:var(--line);border-radius:999px;transition:background .25s}
+.sw span::after{content:"";position:absolute;left:2px;top:2px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.18);transition:transform .25s var(--ease)}
+.sw input:checked+span{background:var(--calm)}
+.sw input:checked+span::after{transform:translateX(20px)}
+.btn{border:0;background:var(--ink);color:var(--bg);border-radius:999px;padding:8px 16px;font-size:13.5px;font-weight:500}
+.btn.ghost{background:var(--chip);color:var(--ink)}
+.stat-dot{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--sub)}
+.stat-dot i{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.stat-dot.ok i{background:var(--calm)} .stat-dot.bad i{background:var(--accent)}
+.savehint{font-size:12px;color:var(--faint);text-align:center;margin-top:18px;height:16px;transition:opacity .3s}
+
+/* 骨架 */
+.sk{background:linear-gradient(90deg,var(--chip) 0,var(--line) 50%,var(--chip) 100%);background-size:200% 100%;animation:sh 1.3s infinite;border-radius:8px}
+@keyframes sh{to{background-position:-200% 0}}
+
+/* 底部：提问栏 + 标签栏 */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--glass);
+  backdrop-filter:saturate(1.6) blur(20px);-webkit-backdrop-filter:saturate(1.6) blur(20px);border-top:1px solid var(--line)}
+.askbox{padding:10px 16px 2px;display:none}
+.dock.home .askbox{display:block}
+.dock.compact .suggest{max-height:0;margin-bottom:0;opacity:0}
+.askbox form,.sheet form{max-width:608px;margin:0 auto;display:flex;gap:8px}
+.inp{flex:1;font-size:16px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:11px 18px;outline:none;transition:border-color .2s;min-width:0}
+.inp:focus{border-color:var(--ink)}
+.inp::placeholder{color:var(--faint)}
+.send{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--ink);color:var(--bg);display:grid;place-items:center;transition:transform .15s}
+.send:active{transform:scale(.9)}
+.send svg{width:18px;height:18px}
+.suggest{max-height:40px;transition:max-height .3s var(--ease),margin .3s var(--ease),opacity .25s;max-width:608px;margin:0 auto 9px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;
+  -webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+.suggest::-webkit-scrollbar{display:none}
+.suggest button{flex:none;font-size:12.5px;color:var(--sub);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px 12px}
+.tabs{display:flex;max-width:640px;margin:0 auto;height:var(--tab);padding-bottom:0;margin-bottom:env(safe-area-inset-bottom)}
+.tabs button{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10.5px;color:var(--faint);letter-spacing:.06em;position:relative;transition:color .2s}
+.tabs button svg{width:22px;height:22px}
+.tabs button.on{color:var(--ink)}
+.tabs button .dot{position:absolute;top:8px;left:calc(50% + 8px);min-width:8px;height:8px;border-radius:999px;background:var(--accent);display:none}
+.tabs button .dot.on{display:block}
+
+/* 底部面板 */
+.sheet{position:fixed;inset:0;z-index:10;pointer-events:none;visibility:hidden;transition:visibility 0s .4s}
+.sheet.on{pointer-events:auto;visibility:visible;transition:none}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.32);opacity:0;transition:opacity .3s}
+.sheet.on .scrim{opacity:1}
+.panel{position:absolute;left:0;right:0;bottom:0;height:84vh;display:flex;flex-direction:column;background:var(--bg);
+  border-radius:22px 22px 0 0;transform:translateY(100%);transition:transform .42s var(--ease)}
+.sheet.on .panel{transform:none}
+.ph{flex:none;padding:10px 20px 6px;max-width:648px;width:100%;margin:0 auto;touch-action:none}
+.grab{width:38px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 10px}
+.ph .prow{display:flex;justify-content:space-between;align-items:center}
+.ph .ttl{font-size:12px;letter-spacing:.22em;color:var(--sub);font-weight:600}
+.x{border:0;background:var(--chip);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:var(--sub)}
+.x svg{width:14px;height:14px}
+.pbody{flex:1;overflow:auto;padding:4px 20px 20px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.pbody .inner{max-width:608px;margin:0 auto}
+.qq{font-family:var(--serif);font-size:20px;font-weight:700;line-height:1.45;margin-top:22px}
+.qq:first-child{margin-top:8px}
+.aa{font-size:15.5px;margin-top:10px;line-height:1.8;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.aa:last-child{border-bottom:0}
+.aa p+p{margin-top:8px}
+.aa ul{padding-left:1.1em;margin:6px 0}
+.aa li{margin:3px 0}
+.aa li::marker{color:var(--faint)}
+.aa strong{font-weight:650;background:linear-gradient(transparent 62%,color-mix(in srgb,var(--amber) 28%,transparent) 0)}
+.aa .acts{display:flex;gap:6px;margin-top:10px}
+.aa .acts button{border:0;background:var(--chip);color:var(--sub);font-size:12px;padding:4px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:4px}
+.aa .acts svg{width:12px;height:12px}
+.pfoot{flex:none;padding:10px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+.hrow{display:block;width:100%;text-align:left;border:0;background:none;padding:14px 0;border-bottom:1px solid var(--line)}
+.hrow .hh{display:flex;justify-content:space-between;font-size:12px;color:var(--faint)}
+.hrow .hh b{color:var(--sub);font-weight:600}
+.hrow .ht{font-family:var(--serif);font-size:16.5px;font-weight:700;margin-top:4px;line-height:1.45}
+.hrow.cur .hh b::after{content:" · 正在看";color:var(--accent);font-weight:500}
+
+.toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translate(-50%,-90px);background:var(--ink);color:var(--bg);
+  font-size:13px;padding:9px 16px;border-radius:999px;transition:transform .4s var(--ease);z-index:20;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+.toast.on{transform:translate(-50%,0)}
+.fade{animation:fi .5s var(--ease) both}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ============ 今日 ============ -->
+<div class="view on" id="v-home"><div class="wrap">
+  <header>
+    <div><div class="mast">群报</div></div>
+    <div class="date"><b id="today"></b><span id="week"></span><br><span class="live" id="live"><i></i><span>连接中</span></span></div>
+  </header>
+  <div class="rule"></div>
+  <div class="bar">
+    <div class="seg" id="seg"><i></i><button data-h="24">今天</button><button data-h="72">3 天</button><button data-h="168">7 天</button></div>
+    <div class="tools">
+      <button class="ib" id="regen" aria-label="重新整理">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+        <span id="updated">整理</span></button>
+      <button class="ib" id="histbtn" aria-label="往期">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13a3 3 0 0 1 3 3v11H7a3 3 0 0 1-3-3z"/><path d="M8 9h8M8 13h6"/></svg></button>
+    </div>
+  </div>
+  <div id="notes"></div>
+  <main id="main"></main>
+  <footer>群报 · 只替你读群，不替你说话</footer>
+</div></div>
+
+<!-- ============ 消息 ============ -->
+<div class="view" id="v-msgs"><div class="wrap">
+  <div id="msgs-list">
+    <header><div class="mast sm">原文</div><div class="date"><b id="chatsum">—</b><span>近 7 天</span></div></header>
+    <div class="rule"></div>
+    <div class="search" id="sbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input id="sq" type="search" placeholder="搜索所有消息、发送人" enterkeyhint="search" autocomplete="off">
+      <button class="clr" id="sclr" aria-label="清除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="clist" id="clist"></div>
+  </div>
+  <div id="msgs-chat" hidden>
+    <div class="chat-head"><button class="back" id="cback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>返回</button>
+      <div class="ttl" id="ctitle"></div><div style="width:70px"></div></div>
+    <div class="msgs" id="cmsgs"></div>
+  </div>
+</div></div>
+
+<!-- ============ 设置 ============ -->
+<div class="view" id="v-set"><div class="wrap">
+  <header><div class="mast sm">设置</div><div class="date"><b>群报</b><span>改完自动保存</span></div></header>
+  <div class="rule"></div>
+
+  <div class="gl">关于我</div>
+  <div class="group"><textarea class="area" id="s-profile" placeholder="例：我是大三学生，在计科2201班；最关心作业截止、考试安排、班会和缴费。"></textarea></div>
+  <div class="gd">写得越具体，整理越准：你的身份、在哪些群、什么事算重要。</div>
+
+  <div class="gl">重要的人</div>
+  <div class="group"><div class="tagbox" data-k="vip"><input placeholder="输入名字后回车，如 王老师"></div></div>
+  <div class="gd">他们说的话一定会被认真看，也会实时推送给你。按群名片或昵称匹配。</div>
+
+  <div class="gl">关键词</div>
+  <div class="group"><div class="tagbox" data-k="keywords"><input placeholder="输入关键词后回车"></div></div>
+
+  <div class="gl">屏蔽的群</div>
+  <div class="group" id="s-muted"></div>
+  <div class="gd">屏蔽后不进总结、不推送，原文仍然保留。</div>
+
+  <div class="gl">每日整理</div>
+  <div class="group">
+    <div class="row"><span class="rl">自动整理时间</span><select id="s-hour"></select></div>
+  </div>
+
+  <div class="gl">推送到 iPhone</div>
+  <div class="group">
+    <div class="row"><span class="rl">Bark 地址<small>App Store 装 Bark，复制它给的地址</small></span></div>
+    <div class="row" style="padding-top:0"><input type="url" id="s-bark" placeholder="https://api.day.app/你的key" style="text-align:left"></div>
+    <div class="row"><span class="rl">@我 / 重要的人 / 关键词</span><label class="sw"><input type="checkbox" id="s-pushat"><span></span></label></div>
+    <div class="row"><span class="rl">每日群报</span><label class="sw"><input type="checkbox" id="s-pushdg"><span></span></label></div>
+    <div class="row"><span class="rl">点通知打开的地址<small>一般就是现在浏览器里的这个</small></span><input type="url" id="s-site" placeholder="http://"></div>
+    <div class="row"><span class="rl">发一条试试</span><button class="btn ghost" id="s-test">测试推送</button></div>
+  </div>
+
+  <div class="gl">运行状态</div>
+  <div class="group">
+    <div class="row"><span class="rl">QQ（NapCat）</span><span class="stat-dot" id="st-qq"><i></i><span>—</span></span></div>
+    <div class="row"><span class="rl">最近一条消息</span><span class="stat-dot" id="st-last"><span>—</span></span></div>
+    <div class="row"><span class="rl">大模型</span><span class="stat-dot" id="st-llm"><i></i><span>—</span></span></div>
+  </div>
+  <div class="savehint" id="savehint"></div>
+</div></div>
+
+<!-- ============ 底部 ============ -->
+<div class="dock home" id="dock">
+  <div class="askbox">
+    <div class="suggest" id="sug">
+      <button>我今天要做什么？</button><button>有没有要交的东西？</button><button>老师说了什么？</button><button>这周有什么安排？</button><button>谁在找我？</button>
+    </div>
+    <form id="askf" autocomplete="off">
+      <input class="inp" id="q" placeholder="问问群报…" enterkeyhint="send">
+      <button class="send" aria-label="发送"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+    </form>
+  </div>
+  <nav class="tabs">
+    <button class="on" data-v="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M4 4h12v16H6a2 2 0 0 1-2-2z"/><path d="M16 8h4v10a2 2 0 0 1-4 0"/><path d="M7.5 8h5M7.5 12h5M7.5 16h3"/></svg>今日</button>
+    <button data-v="msgs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>原文<i class="dot" id="msgdot"></i></button>
+    <button data-v="set"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>设置</button>
+  </nav>
+</div>
+
+<!-- 问答面板 -->
+<div class="sheet" id="askSheet"><div class="scrim"></div>
+  <div class="panel">
+    <div class="ph"><div class="grab"></div><div class="prow"><span class="ttl">问 群 报</span>
+      <button class="x" data-close aria-label="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>
+    <div class="pbody" id="thread"><div class="inner" id="ti"></div></div>
+    <div class="pfoot"><form id="askf2" autocomplete="off">
+      <input class="inp" id="q2" placeholder="接着问…" enterkeyhint="send">
+      <button class="send" aria-label="发送"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+    </form></div>
+  </div>
+</div>
+
+<!-- 往期面板 -->
+<div class="sheet" id="histSheet"><div class="scrim"></div>
+  <div class="panel" style="height:72vh">
+    <div class="ph"><div class="grab"></div><div class="prow"><span class="ttl">往 期 群 报</span>
+      <button class="x" data-close aria-label="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>
+    <div class="pbody"><div class="inner" id="hist"></div></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- 工具 ---------- */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const now=new Date(), W="日一二三四五六";
+$("#today").textContent=`${now.getMonth()+1}月${now.getDate()}日`;
+$("#week").textContent=`星期${W[now.getDay()]}`;
+const hr=now.getHours(), GREET=hr<5?"夜深了":hr<11?"早上好":hr<13?"中午好":hr<18?"下午好":"晚上好";
+const toast=t=>{const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("on"),2300)};
+const pad=n=>String(n).padStart(2,"0");
+const hm=d=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const sameDay=(a,b)=>a.toDateString()===b.toDateString();
+const ago=ts=>{if(!ts)return"—";const s=Date.now()/1000-ts,d=new Date(ts*1000);if(s<60)return"刚刚";if(s<3600)return`${s/60|0} 分钟前`;
+  if(sameDay(d,new Date()))return`今天 ${hm(d)}`;const y=new Date(Date.now()-864e5);if(sameDay(d,y))return`昨天 ${hm(d)}`;
+  return`${d.getMonth()+1}月${d.getDate()}日 ${hm(d)}`};
+const dayLabel=ts=>{const d=new Date(ts*1000),t=new Date();if(sameDay(d,t))return"今天";if(sameDay(d,new Date(Date.now()-864e5)))return"昨天";
+  return`${d.getMonth()+1}月${d.getDate()}日 星期${W[d.getDay()]}`};
+const hue=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;return h};
+const avc=s=>`hsl(${hue(s)} 30% 52%)`;
+const first=s=>esc([...String(s||"?")].find(c=>!/[\s·@]/.test(c))||"?");
+const tick=()=>navigator.vibrate&&navigator.vibrate(8);
+const doneKey=t=>t.title+"|"+t.chat;
+const hlAt=s=>esc(s).replace(/(@我|@全体成员|@所有人)/g,'<em class="at-hl">$1</em>');
+const hlQ=(s,q)=>{const e=hlAt(s);if(!q)return e;const qq=esc(q).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");return e.replace(new RegExp(qq,"gi"),m=>`<mark>${m}</mark>`)};
+const debounce=(f,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>f(...a),ms)}};
+const ICON={
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+  arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  warn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4M12 17.5v.5"/></svg>',
+  copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
+  bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/><path d="M3 3l18 18"/></svg>',
+};
+
+async function api(path,body){
+  const r=await fetch(path,body!==undefined?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{});
+  if(!r.ok)throw new Error((await r.json().catch(()=>({}))).detail||r.statusText);
+  return r.json();
+}
+
+/* ---------- 标签页 ---------- */
+let curView="home";
+function go(v){
+  if(v===curView&&v==="msgs"&&!$("#msgs-chat").hidden){closeChat();return}
+  curView=v;$$(".view").forEach(e=>e.classList.toggle("on",e.id==="v-"+v));
+  $$(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
+  $("#dock").classList.toggle("home",v==="home");window.scrollTo(0,0);
+  if(v==="msgs")loadChats();if(v==="set")loadSettings();
+}
+$$(".tabs button").forEach(b=>b.onclick=()=>{tick();go(b.dataset.v)});
+
+/* ---------- 面板（问答 / 往期） ---------- */
+function sheetOn(el){el.classList.add("on");document.body.style.overflow="hidden"}
+function sheetOff(el){el.classList.remove("on");document.body.style.overflow=""}
+$$(".sheet").forEach(sh=>{
+  sh.querySelector(".scrim").onclick=()=>sheetOff(sh);
+  sh.querySelector("[data-close]").onclick=()=>sheetOff(sh);
+  const ph=sh.querySelector(".ph"),panel=sh.querySelector(".panel");let y0=null;
+  ph.addEventListener("touchstart",e=>{y0=e.touches[0].clientY;panel.style.transition="none"},{passive:true});
+  ph.addEventListener("touchmove",e=>{if(y0==null)return;panel.style.transform=`translateY(${Math.max(0,e.touches[0].clientY-y0)}px)`},{passive:true});
+  ph.addEventListener("touchend",e=>{const dy=e.changedTouches[0].clientY-y0;panel.style.transition="";panel.style.transform="";y0=null;if(dy>90)sheetOff(sh)});
+});
+
+/* ================= 今日 ================= */
+let hours=+(localStorage.qb_hours||24), viewId=null, ST=null;
+function setSeg(h){
+  hours=h;localStorage.qb_hours=h;
+  const b=$$("#seg button").find(x=>+x.dataset.h===h)||$$("#seg button")[0];
+  $$("#seg button").forEach(x=>x.classList.toggle("on",x===b));
+  const i=$("#seg i");i.style.left=b.offsetLeft+"px";i.style.width=b.offsetWidth+"px";
+}
+$$("#seg button").forEach(b=>b.onclick=()=>{if(+b.dataset.h===hours&&!viewId)return;setSeg(+b.dataset.h);tick();regen()});
+
+function skeleton(){
+  $("#main").innerHTML=`<div class="sk" style="height:14px;width:34%;margin:28px 0 12px"></div><div class="sk" style="height:30px;margin-bottom:10px"></div>
+  <div class="sk" style="height:30px;width:62%;margin-bottom:22px"></div><div class="sk" style="height:64px;margin-bottom:36px"></div>
+  ${'<div class="sk" style="height:96px;margin-bottom:10px;border-radius:16px"></div>'.repeat(3)}`;
+}
+function renderStatus(st){
+  const s=st.status||{},l=$("#live");
+  l.classList.toggle("ok",!!s.online);l.querySelector("span").textContent=s.online?"在线":(s.last_msg?"离线":"未连接");
+  let n="";
+  if(!s.llm)n+=`<div class="warn fade">${ICON.warn}<div><b>还没配置大模型</b><span>在服务器 .env 里填上 LLM_API_KEY，重启 qunbao 容器。</span></div></div>`;
+  else if(!s.last_msg)n+=`<div class="warn fade">${ICON.warn}<div><b>还没收到任何消息</b><span>登录 NapCat，并把 HTTP 上报地址指向群报，消息就会流进来。</span></div></div>`;
+  if(!st.is_latest&&st.digest)n+=`<div class="banner fade"><span>正在看 ${ago(st.digest_ts)} 的群报</span><button id="tolatest">回到最新</button></div>`;
+  $("#notes").innerHTML=n;
+  $("#tolatest")?.addEventListener("click",()=>{viewId=null;load()});
+}
+const RANGE={24:"今天",72:"这 3 天",168:"这一周"};
+
+function render(st){
+  ST=st;renderStatus(st);const d=st.digest;
+  if(d)setSeg(st.hours||hours);
+  $("#updated").textContent=st.digest_ts?`${ago(st.digest_ts)}`:"整理";
+  if(!d){
+    $("#main").innerHTML=`<div class="greet fade">${GREET}</div><div class="headline fade">${st.today?`过去一天收到 ${st.today} 条群消息。<br>点「整理」，看看哪些和你有关。`:"群报还没开张。<br>消息进来后，这里会是你的每日头条。"}</div>`;
+    return;
+  }
+  const done=new Set(st.done||[]);
+  const todos=d.todos||[],notices=d.notices||[],ats=st.at_me||[],per=st.per_chat||{};
+  const groups=(d.groups||[]).map(g=>({...g,n:per[g.chat]||0})).sort((a,b)=>b.n-a.n);
+  const maxN=Math.max(1,...groups.map(g=>g.n));
+  let h=`<div class="greet fade">${st.is_latest?GREET+" · ":""}${RANGE[st.hours]||"最近"}的群消息</div>
+  <div class="headline fade">${esc(d.headline)}</div>
+  <div class="stats fade"><div class="stat"><div class="n">${d.count??0}</div><div class="l">条消息</div></div>
+  <div class="stat"><div class="n">${d.chats??0}</div><div class="l">个群</div></div>
+  <div class="stat"><div class="n" id="prog-n"></div><div class="l">待办完成</div><div class="prog"><div id="prog-b"></div></div></div></div>`;
+
+  h+=`<section><h2>要你做的 <span class="c">${todos.length||""}</span></h2><div class="todos" id="todos">`;
+  h+=todos.length?todos.map((t,i)=>`<div class="todo ${esc(t.urgency||"mid")} ${done.has(doneKey(t))?"done":""} fade" style="animation-delay:${i*40}ms" data-k="${esc(doneKey(t))}" data-chat="${esc(t.chat)}" data-q="${esc(t.quote||"")}">
+    <button class="check" aria-label="完成"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+    <div class="tbody"><div class="t">${esc(t.title)}</div>${t.detail?`<div class="d">${esc(t.detail)}</div>`:""}
+    <div class="meta">${t.due?`<span class="chip due">${ICON.clock}${esc(t.due)}</span>`:""}<span class="chip">${ICON.chat}${esc(t.chat)}</span>
+      ${t.quote?`<button class="chip more" aria-label="原话">原话${ICON.down}</button>`:""}</div>
+    ${t.quote?`<div class="quote"><div><blockquote>${hlAt(t.quote)}<cite>— ${esc(t.sender||"")}${t.sender?" · ":""}${esc(t.chat)}</cite></blockquote>
+      <button class="go">去原文看上下文${ICON.arrow}</button></div></div>`:""}</div></div>`).join("")
+    :`<div class="empty"><div class="big">没有要你动手的事</div>放心不看群 ☕</div>`;
+  h+=`</div></section>`;
+
+  if(notices.length){
+    h+=`<section><h2>值得知道 <span class="c">${notices.length}</span></h2>`+notices.map((n,i)=>`<div class="notice"><div class="num">${pad(i+1)}</div>
+      <div><div class="t">${esc(n.title)}</div>${n.detail?`<div class="d">${esc(n.detail)}</div>`:""}<div class="src">${esc(n.chat)}</div></div></div>`).join("")+`</section>`;
+  }
+  if(ats.length){
+    const row=a=>`<div class="at" data-chat="${esc(a.chat)}" data-q="${esc(a.text.slice(0,30))}"><div class="av" style="background:${avc(a.sender)}">${first(a.sender)}</div>
+      <div style="flex:1;min-width:0"><div class="top"><span><b>${esc(a.sender)}</b> · ${esc(a.chat)}<span class="tag">${esc(a.source)}</span></span><span class="tm">${ago(a.ts)}</span></div>
+      <div class="msg">${hlAt(a.text)}</div></div></div>`;
+    h+=`<section><h2>@ 我的 <span class="c">${ats.length}</span></h2><div id="ats">${ats.slice(0,4).map(row).join("")}</div>
+      ${ats.length>4?`<button class="more-btn" id="moreat">展开另外 ${ats.length-4} 条</button>`:""}</section>`;
+    window._atAll=()=>{$("#ats").innerHTML=ats.map(row).join("");$("#moreat").remove();bindAts()};
+  }
+  if(groups.length){
+    h+=`<section><h2>各群在聊</h2><div class="groups">`+groups.map(g=>`<button class="g" data-chat="${esc(g.chat)}"><div class="gh"><span class="gn">${esc(g.chat)}</span>${g.n?`<span class="gc">${g.n} 条</span>`:""}</div>
+      <div class="gg">${esc(g.gist)}</div>${g.n?`<div class="vol"><div style="width:${Math.max(6,g.n/maxN*100)}%"></div></div>`:""}</button>`).join("")+`</div></section>`;
+  }
+  $("#main").innerHTML=h;
+  $("#moreat")?.addEventListener("click",()=>window._atAll());
+  bindAts();
+  $$(".g").forEach(b=>b.onclick=()=>{tick();openChat(b.dataset.chat)});
+  sortTodos(false);updateProg();
+  $$(".todo").forEach(el=>{
+    el.querySelector(".check").onclick=async()=>{
+      const on=!el.classList.contains("done");el.classList.toggle("done",on);el.classList.remove("open");tick();updateProg();
+      setTimeout(()=>sortTodos(true),on?420:0);
+      api("/api/todo",{key:el.dataset.k,done:on}).catch(()=>toast("没保存上，网络不太好"));
+    };
+    el.querySelector(".chip.more")?.addEventListener("click",()=>el.classList.toggle("open"));
+    el.querySelector(".go")?.addEventListener("click",()=>openChat(el.dataset.chat,el.dataset.q));
+  });
+}
+function bindAts(){$$(".at").forEach(a=>a.onclick=()=>openChat(a.dataset.chat,a.dataset.q))}
+function updateProg(){
+  const all=$$(".todo").length,done=$$(".todo.done").length;if(!$("#prog-n"))return;
+  $("#prog-n").innerHTML=all?`${done}<small>/${all}</small>`:"—";$("#prog-b").style.width=all?`${done/all*100}%`:"0";
+}
+function sortTodos(animate){
+  const box=$("#todos");if(!box)return;const items=$$(".todo");
+  const f=new Map(items.map(e=>[e,e.getBoundingClientRect().top]));
+  [...items.filter(e=>!e.classList.contains("done")),...items.filter(e=>e.classList.contains("done"))].forEach(e=>box.appendChild(e));
+  if(!animate)return;
+  items.forEach(e=>{const dy=f.get(e)-e.getBoundingClientRect().top;if(dy)e.animate([{transform:`translateY(${dy}px)`},{transform:"none"}],{duration:420,easing:"cubic-bezier(.2,.9,.25,1)"})});
+}
+async function load(){skeleton();try{render(await api("/api/state"+(viewId?`?id=${viewId}`:"")))}catch(e){$("#main").innerHTML=`<div class="empty">${esc(e.message)}</div>`}}
+async function regen(){
+  const b=$("#regen");if(b.classList.contains("spin"))return;b.classList.add("spin");$("#updated").textContent="整理中";skeleton();viewId=null;
+  try{await api("/api/digest",{hours});render(await api("/api/state"));toast("整理好了")}
+  catch(e){toast("整理失败："+e.message);load()}finally{b.classList.remove("spin")}
+}
+$("#regen").onclick=()=>{tick();regen()};
+
+/* 往期 */
+$("#histbtn").onclick=async()=>{
+  tick();const sh=$("#histSheet");sheetOn(sh);$("#hist").innerHTML='<div class="sk" style="height:60px;margin-top:10px"></div>'.repeat(3);
+  try{const list=await api("/api/digests");
+    $("#hist").innerHTML=list.length?list.map(x=>`<button class="hrow ${(viewId?x.id===viewId:x===list[0])?"cur":""}" data-id="${x.id}">
+      <div class="hh"><b>${ago(x.ts)} · ${{24:"日报",72:"3 天合订",168:"周报"}[x.hours]||x.hours+" 小时"}</b><span>${x.count} 条 · ${x.todos} 件待办</span></div><div class="ht">${esc(x.headline)}</div></button>`).join("")
+      :`<div class="empty">还没有往期群报</div>`;
+    $$(".hrow").forEach(b=>b.onclick=()=>{viewId=+b.dataset.id===list[0].id?null:+b.dataset.id;sheetOff(sh);load();window.scrollTo(0,0)});
+  }catch(e){$("#hist").innerHTML=`<div class="empty">${esc(e.message)}</div>`}
+};
+
+/* 问答 */
+function md(s){
+  const lines=esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").split(/\n/);let out="",ul=false;
+  for(const l of lines){const m=l.match(/^\s*(?:[-•*]|\d+[.、])\s+(.*)/);
+    if(m){if(!ul){out+="<ul>";ul=true}out+=`<li>${m[1]}</li>`;continue}
+    if(ul){out+="</ul>";ul=false}if(l.trim())out+=`<p>${l}</p>`}
+  return out+(ul?"</ul>":"");
+}
+let history=[];
+async function ask(q){
+  q=q.trim();if(!q)return;$("#q").value="";$("#q2").value="";document.activeElement.blur();
+  const sh=$("#askSheet");if(!sh.classList.contains("on")){history=[];$("#ti").innerHTML=""}sheetOn(sh);
+  const qa=document.createElement("div");
+  qa.innerHTML=`<div class="qq fade">${esc(q)}</div><div class="aa"><div class="sk" style="height:15px;margin-top:6px"></div><div class="sk" style="height:15px;width:82%;margin-top:10px"></div><div class="sk" style="height:15px;width:56%;margin-top:10px"></div></div>`;
+  $("#ti").appendChild(qa);setTimeout(()=>qa.scrollIntoView({behavior:"smooth",block:"start"}),50);
+  const a=qa.querySelector(".aa");
+  try{const r=await api("/api/ask",{q,history});
+    a.innerHTML=md(r.a)+`<div class="acts"><button>${ICON.copy}复制</button></div>`;a.classList.add("fade");
+    a.querySelector(".acts button").onclick=()=>{navigator.clipboard?.writeText(r.a);toast("已复制")};
+    history.push({role:"user",content:q},{role:"assistant",content:r.a})}
+  catch(e){a.innerHTML=`<p>出错了：${esc(e.message)}</p>`}
+}
+$("#askf").onsubmit=e=>{e.preventDefault();ask($("#q").value)};
+$("#askf2").onsubmit=e=>{e.preventDefault();ask($("#q2").value)};
+$$("#sug button").forEach(b=>b.onclick=()=>{tick();ask(b.textContent)});
+
+/* ================= 原文 ================= */
+let CHATS=[];
+async function loadChats(){
+  const q=$("#sq").value.trim();if(q)return search(q);
+  if(!CHATS.length)$("#clist").innerHTML='<div class="sk" style="height:56px;margin-top:12px"></div>'.repeat(5);
+  try{CHATS=await api("/api/chats");renderChats()}catch(e){$("#clist").innerHTML=`<div class="empty">${esc(e.message)}</div>`}
+}
+function renderChats(){
+  const total=CHATS.reduce((a,c)=>a+c.n,0);$("#chatsum").textContent=`${CHATS.length} 个群 · ${total} 条`;
+  $("#clist").innerHTML=CHATS.length?CHATS.map(c=>`<button class="crow ${c.muted?"muted":""}" data-chat="${esc(c.chat)}">
+    <div class="gav" style="background:hsl(${hue(c.chat)} 26% 46%)">${first(c.chat)}</div>
+    <div class="ci"><div class="cn"><b>${esc(c.chat)}<span class="tag">${esc(c.source)}</span></b><span class="tm">${ago(c.last_ts)}</span></div>
+    <div class="cl">${c.muted?ICON.bell.replace("<svg",'<svg class="mute-ic"'):""}<span>${esc(c.last)}</span>${c.ats?`<span class="badge">@${c.ats}</span>`:""}</div></div></button>`).join("")
+    :`<div class="empty"><div class="big">还没有消息</div>连上 QQ 后，这里能翻所有群的原始记录</div>`;
+  $$(".crow").forEach(b=>b.onclick=()=>{tick();openChat(b.dataset.chat)});
+}
+const search=debounce(async q=>{
+  if(!q){renderChats();return}
+  try{const rs=await api(`/api/messages?q=${encodeURIComponent(q)}&limit=80`);
+    $("#clist").innerHTML=rs.length?`<div class="gd" style="margin:14px 0 2px">找到 ${rs.length} 条${rs.length>=80?"（只显示最近 80 条）":""}</div>`+rs.reverse().map(m=>`<div class="sres" data-chat="${esc(m.chat)}" data-q="${esc(q)}">
+      <div class="sh"><span><b>${esc(m.sender)}</b> · ${esc(m.chat)}</span><span>${ago(m.ts)}</span></div><div class="st">${hlQ(m.text,q)}</div></div>`).join("")
+      :`<div class="empty">没搜到「${esc(q)}」</div>`;
+    $$(".sres").forEach(r=>r.onclick=()=>openChat(r.dataset.chat,r.dataset.q));
+  }catch(e){toast(e.message)}
+},250);
+$("#sq").addEventListener("input",e=>{$("#sbox").classList.toggle("has",!!e.target.value);search(e.target.value.trim())});
+$("#sclr").onclick=()=>{$("#sq").value="";$("#sbox").classList.remove("has");renderChats()};
+
+let chatName=null,oldest=0;
+async function openChat(chat,focus){
+  if(curView!=="msgs"){curView="msgs";$$(".view").forEach(e=>e.classList.toggle("on",e.id==="v-msgs"));
+    $$(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v==="msgs"));$("#dock").classList.remove("home")}
+  chatName=chat;oldest=0;$("#msgs-list").hidden=true;$("#msgs-chat").hidden=false;
+  if(!CHATS.length){try{CHATS=await api("/api/chats")}catch(e){}}
+  const c=CHATS.find(x=>x.chat===chat);
+  $("#ctitle").innerHTML=`${esc(chat)}<small>${c?`${c.n} 条 · ${esc(c.source)}`:"聊天记录"}</small>`;
+  $("#cmsgs").innerHTML='<div class="sk" style="height:44px;margin-top:14px;width:70%"></div>'.repeat(6);
+  try{const ms=await api(`/api/messages?chat=${encodeURIComponent(chat)}&limit=120`);
+    renderMsgs(ms,false);
+    let target=null;if(focus){const f=String(focus).slice(0,12);target=$$("#cmsgs .m").reverse().find(e=>e.dataset.t.includes(f))}
+    requestAnimationFrame(()=>{if(target){target.scrollIntoView({block:"center"});target.classList.add("flash")}else window.scrollTo(0,document.body.scrollHeight)});
+  }catch(e){$("#cmsgs").innerHTML=`<div class="empty">${esc(e.message)}</div>`}
+}
+function renderMsgs(ms,prepend){
+  if(!ms.length&&!prepend){$("#cmsgs").innerHTML='<div class="empty">这个群还没有消息</div>';return}
+  if(ms.length)oldest=ms[0].id;
+  let h="",lastDay="",lastSender="",lastTs=0;
+  if(ms.length>=120||prepend&&ms.length)h+=`<button class="more-btn" id="older">更早的消息</button>`;
+  for(const m of ms){
+    const dl=dayLabel(m.ts);if(dl!==lastDay){h+=`<div class="day">${dl}</div>`;lastDay=dl;lastSender=""}
+    const cont=m.sender===lastSender&&m.ts-lastTs<300;lastSender=m.sender;lastTs=m.ts;
+    h+=`<div class="m ${cont?"cont":""} ${m.at_me?"atme":""}" data-t="${esc(m.text)}"><div class="av sm" style="background:${avc(m.sender)}">${first(m.sender)}</div>
+      <div class="mb">${cont?"":`<div class="who">${esc(m.sender)} · ${hm(new Date(m.ts*1000))}</div>`}<div class="bub">${hlAt(m.text)}</div></div></div>`;
+  }
+  const box=$("#cmsgs");
+  if(prepend){$("#older")?.remove();const hBefore=document.body.scrollHeight;box.insertAdjacentHTML("afterbegin",h);window.scrollBy(0,document.body.scrollHeight-hBefore)}
+  else box.innerHTML=h;
+  $("#older")?.addEventListener("click",async()=>{const ms2=await api(`/api/messages?chat=${encodeURIComponent(chatName)}&before=${oldest}&limit=120`);
+    if(!ms2.length){$("#older").textContent="没有更早的了";return}renderMsgs(ms2,true)});
+}
+function closeChat(){$("#msgs-chat").hidden=true;$("#msgs-list").hidden=false;window.scrollTo(0,0);loadChats()}
+$("#cback").onclick=()=>{tick();closeChat()};
+
+/* ================= 设置 ================= */
+let SET=null;
+const saveSet=debounce(async()=>{
+  try{SET=await api("/api/settings",SET);const h=$("#savehint");h.textContent="已保存";h.style.opacity=1;setTimeout(()=>h.style.opacity=0,1500)}
+  catch(e){toast("保存失败："+e.message)}
+},500);
+function tagbox(el){
+  const k=el.dataset.k,inp=el.querySelector("input");
+  const draw=()=>{el.querySelectorAll(".tg").forEach(t=>t.remove());
+    (SET[k]||[]).forEach((v,i)=>{const t=document.createElement("span");t.className="tg";t.innerHTML=`${esc(v)}<button aria-label="删除">${ICON.x}</button>`;
+      t.querySelector("button").onclick=()=>{SET[k].splice(i,1);draw();saveSet()};el.insertBefore(t,inp)})};
+  inp.onkeydown=e=>{if((e.key==="Enter"||e.key===","||e.key==="，")&&inp.value.trim()){e.preventDefault();
+    const v=inp.value.trim().replace(/[,，]$/,"");if(!(SET[k]||[]).includes(v)){SET[k]=[...(SET[k]||[]),v];draw();saveSet()}inp.value=""}
+    else if(e.key==="Backspace"&&!inp.value&&SET[k]?.length){SET[k].pop();draw();saveSet()}};
+  inp.onblur=()=>{if(inp.value.trim())inp.onkeydown({key:"Enter",preventDefault(){}})};
+  el.onclick=e=>{if(e.target===el)inp.focus()};
+  draw();
+}
+async function loadSettings(){
+  try{
+    const [s,st,chats]=await Promise.all([api("/api/settings"),api("/api/state"),api("/api/chats?hours=720")]);SET=s;
+    $("#s-profile").value=s.profile||"";
+    $$(".tagbox").forEach(tagbox);
+    $("#s-hour").innerHTML=[...Array(24).keys()].map(h=>`<option value="${h}" ${h==s.digest_hour?"selected":""}>每天 ${pad(h)}:00</option>`).join("");
+    $("#s-bark").value=s.bark_url||"";$("#s-site").value=s.site_url||location.origin;
+    $("#s-pushat").checked=!!s.push_at;$("#s-pushdg").checked=!!s.push_digest;
+    const names=[...new Set([...chats.map(c=>c.chat),...s.muted])];
+    $("#s-muted").innerHTML=names.length?names.map(n=>`<div class="row"><span class="rl">${esc(n)}</span><label class="sw"><input type="checkbox" data-chat="${esc(n)}" ${s.muted.includes(n)?"checked":""}><span></span></label></div>`).join("")
+      :`<div class="row"><span class="rl" style="color:var(--faint)">有消息进来后，群会出现在这里</span></div>`;
+    $$("#s-muted input").forEach(i=>i.onchange=()=>{tick();const n=i.dataset.chat;SET.muted=i.checked?[...SET.muted,n]:SET.muted.filter(x=>x!==n);saveSet();CHATS=[]});
+    const S=st.status||{};
+    const qq=$("#st-qq");qq.className="stat-dot "+(S.online?"ok":"bad");qq.querySelector("span").textContent=S.online?"在线":(S.heartbeat?`离线 · ${ago(S.heartbeat)}`:"未连接");
+    $("#st-last span").textContent=S.last_msg?ago(S.last_msg):"还没有";
+    const l=$("#st-llm");l.className="stat-dot "+(S.llm?"ok":"bad");l.querySelector("span").textContent=S.llm?"已配置":"未配置";
+  }catch(e){toast(e.message)}
+}
+$("#s-profile").oninput=e=>{SET.profile=e.target.value;saveSet()};
+$("#s-hour").onchange=e=>{SET.digest_hour=+e.target.value;saveSet()};
+$("#s-bark").oninput=e=>{SET.bark_url=e.target.value.trim();saveSet()};
+$("#s-site").oninput=e=>{SET.site_url=e.target.value.trim();saveSet()};
+$("#s-pushat").onchange=e=>{tick();SET.push_at=e.target.checked;saveSet()};
+$("#s-pushdg").onchange=e=>{tick();SET.push_digest=e.target.checked;saveSet()};
+$("#s-test").onclick=async()=>{tick();try{SET=await api("/api/settings",SET);await api("/api/push/test",{});toast("已发送，看看手机")}catch(e){toast(e.message)}};
+
+/* 往下滑时收起快捷问题，给内容腾地方 */
+let lastY=0;window.addEventListener("scroll",()=>{const y=window.scrollY;$("#dock").classList.toggle("compact",y>120&&y>lastY-4);lastY=y},{passive:true});
+
+/* ---------- 启动 ---------- */
+setSeg(hours);load();
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&curView==="home"&&!viewId)api("/api/state").then(render).catch(()=>{})});
+</script>
+</body>
+</html>
