@@ -18,7 +18,7 @@
    - HTTP 客户端：URL `http://qunbao:8000/onebot`，消息格式 string，启用
    - HTTP 服务器：端口 3000，启用
    也可以直接改 napcat/config 下的 onebot11_<QQ号>.json，然后 `docker restart napcat`。
-7. 验证：`docker logs qunbao` 里能看到 `POST /onebot 200`；浏览器打开 `http://服务器IP:8000` 能登录。
+7. 验证：`docker logs qunbao` 里能看到 `POST /onebot 200`；浏览器打开 `http://服务器IP:8000` 会跳到登录页，用 WEB_USER / WEB_PASS 能登录（Cookie 会话保持 30 天）。
 8. 部署完成后建议关闭 6099 的公网访问。
 
 ## 更新
