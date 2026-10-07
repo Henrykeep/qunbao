@@ -100,3 +100,28 @@ def test_parse_due_and_reminders(monkeypatch):
     assert asyncio.run(app_mod.check_reminders()) == 0  # 只提醒一次
     assert sent and "交作业" in sent[0]
     app_mod.save_settings({"bark_url": "", "remind_hours": 3})
+
+
+def test_quiet_hours(monkeypatch):
+    import asyncio
+    from datetime import datetime
+    t = lambda h: datetime(2026, 10, 8, h, 0, tzinfo=app_mod.TZ)
+    s = {"quiet_start": 23, "quiet_end": 7}
+    assert app_mod.in_quiet(s, t(23)) and app_mod.in_quiet(s, t(3)) and not app_mod.in_quiet(s, t(7))
+    assert not app_mod.in_quiet({"quiet_start": -1, "quiet_end": 7}, t(3))
+    sent = []
+
+    async def fake_post(self, url, json=None):
+        sent.append(json)
+        class R: status_code = 200
+        return R()
+    monkeypatch.setattr(app_mod.httpx.AsyncClient, "post", fake_post)
+    app_mod._held.clear()
+    app_mod.save_settings({"bark_url": "http://x/k", "quiet_start": 0, "quiet_end": 23})
+    now_h = datetime.now(app_mod.TZ).hour
+    if now_h == 23:
+        app_mod.save_settings({"quiet_start": 1, "quiet_end": 23})
+    assert asyncio.run(app_mod.push("a", "b")) is False and not sent and len(app_mod._held) == 1
+    app_mod.save_settings({"quiet_start": -1})
+    assert asyncio.run(app_mod.flush_held()) == 1 and "1 条" in sent[0]["title"]
+    app_mod.save_settings({"bark_url": ""})
