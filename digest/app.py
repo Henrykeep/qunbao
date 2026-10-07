@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.7.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.8.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -32,6 +32,7 @@ DEFAULTS = {
     "keywords": ["截止", "ddl", "提交", "开会", "考试", "缴费", "通知", "报名", "@全体成员"],
     "muted": [],               # 屏蔽的群：不进总结、不推送
     "digest_hour": int(os.getenv("DIGEST_HOUR", "21")),
+    "digest_hour2": -1,        # 第二次整理时间（早报+晚报）；-1 = 关闭
     "bark_url": os.getenv("BARK_URL", ""),   # 例：https://api.day.app/你的key
     "site_url": os.getenv("SITE_URL", ""),   # 推送点开后跳转的群报地址
     "push_at": True,           # @我 / 重要的人 / 关键词 实时推送
@@ -491,15 +492,23 @@ async def check_reminders():
     return sent
 
 
+def digest_hours(s: dict) -> set:
+    hs = {int(s.get("digest_hour", 21))}
+    h2 = int(s.get("digest_hour2", -1))
+    if 0 <= h2 <= 23:
+        hs.add(h2)
+    return hs
+
+
 @app.on_event("startup")
 async def scheduler():
     async def loop():
-        last = None
+        last = set()
         while True:
             now = datetime.now(TZ)
             s = settings()
-            if now.hour == int(s["digest_hour"]) and last != now.date():
-                last = now.date()
+            if now.hour in digest_hours(s) and (now.date(), now.hour) not in last:
+                last = {(now.date(), now.hour)}
                 try:
                     d = await make_digest(24)
                     if s.get("push_digest"):
