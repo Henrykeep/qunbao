@@ -125,3 +125,8 @@ def test_quiet_hours(monkeypatch):
     app_mod.save_settings({"quiet_start": -1})
     assert asyncio.run(app_mod.flush_held()) == 1 and "1 条" in sent[0]["title"]
     app_mod.save_settings({"bark_url": ""})
+
+
+def test_digest_hours():
+    assert app_mod.digest_hours({"digest_hour": 21, "digest_hour2": 8}) == {8, 21}
+    assert app_mod.digest_hours({"digest_hour": 21, "digest_hour2": -1}) == {21}
