@@ -1,16 +1,15 @@
 """群报：收集 QQ（NapCat / OneBot 11）和微信（通知转发）群消息，用大模型挑出重要的事和待办。"""
-import asyncio, json, os, re, secrets, sqlite3, time
+import asyncio, hashlib, json, os, re, secrets, sqlite3, time
 from datetime import datetime
 from urllib.parse import parse_qs
 from zoneinfo import ZoneInfo
 
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.4.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.5.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -23,6 +22,8 @@ WEB_PASS = os.getenv("WEB_PASS", "")
 INGEST_TOKEN = os.getenv("INGEST_TOKEN", "")
 MAX_CHARS = int(os.getenv("MAX_CHARS", "60000"))
 KEEP_DAYS = int(os.getenv("KEEP_DAYS", "30"))
+SESSION_DAYS = int(os.getenv("SESSION_DAYS", "30"))  # 网页登录保持天数
+COOKIE = "qb_session"
 
 # 网页「设置」里可以改的项；.env 里的值只作为第一次启动时的默认值
 DEFAULTS = {
@@ -38,7 +39,6 @@ DEFAULTS = {
 }
 
 app = FastAPI(docs_url=None, redoc_url=None)
-security = HTTPBasic()
 _group_names: dict[int, str] = {}
 _last_push: dict[str, float] = {}
 
@@ -60,6 +60,7 @@ with db() as c:
     CREATE TABLE IF NOT EXISTS digests(id INTEGER PRIMARY KEY, ts INTEGER, hours INTEGER, body TEXT);
     CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT);
     CREATE TABLE IF NOT EXISTS todo_done(k TEXT PRIMARY KEY, ts INTEGER);
+    CREATE TABLE IF NOT EXISTS sessions(h TEXT PRIMARY KEY, ts INTEGER, exp INTEGER, pw TEXT, ua TEXT);
     """)
 
 
@@ -82,12 +83,62 @@ def save_settings(new: dict):
     return s
 
 
-def auth(cred: HTTPBasicCredentials = Depends(security)):
+# ---------------- 登录（网页登录页 + Cookie 会话；也兼容 Basic Auth 给脚本用）----------------
+_fails: dict[str, list] = {}
+
+
+def _h(tok: str) -> str:
+    return hashlib.sha256(tok.encode()).hexdigest()
+
+
+def _pw_tag() -> str:  # 改了 WEB_PASS 之后，旧会话全部失效
+    return _h("pw:" + WEB_USER + ":" + WEB_PASS)[:16]
+
+
+def _basic_ok(req: Request) -> bool:
+    a = req.headers.get("authorization", "")
+    if not a.lower().startswith("basic "):
+        return False
+    try:
+        import base64
+        u, _, p = base64.b64decode(a[6:]).decode().partition(":")
+    except Exception:
+        return False
+    return secrets.compare_digest(u, WEB_USER) and secrets.compare_digest(p, WEB_PASS)
+
+
+def _session_ok(req: Request, resp: Response | None = None) -> bool:
+    tok = req.cookies.get(COOKIE, "")
+    if not tok:
+        return False
+    now = int(time.time())
+    with db() as c:
+        r = c.execute("SELECT exp, pw FROM sessions WHERE h=?", (_h(tok),)).fetchone()
+        if not r or r["exp"] < now or r["pw"] != _pw_tag():
+            return False
+        # 滑动续期：一直在用就一直保持登录，超过一天没续才写一次库
+        if r["exp"] - now < SESSION_DAYS * 86400 - 86400 and resp is not None:
+            c.execute("UPDATE sessions SET exp=? WHERE h=?", (now + SESSION_DAYS * 86400, _h(tok)))
+            _set_cookie(resp, tok, req)
+    return True
+
+
+def _set_cookie(resp: Response, tok: str, req: Request):
+    secure = req.url.scheme == "https" or req.headers.get("x-forwarded-proto") == "https"
+    resp.set_cookie(COOKIE, tok, max_age=SESSION_DAYS * 86400, httponly=True, samesite="lax", secure=secure, path="/")
+
+
+def auth(req: Request, resp: Response):
     if not WEB_PASS:
         raise HTTPException(500, "请先在 .env 里设置 WEB_PASS")
-    ok = secrets.compare_digest(cred.username, WEB_USER) and secrets.compare_digest(cred.password, WEB_PASS)
-    if not ok:
-        raise HTTPException(401, headers={"WWW-Authenticate": "Basic"})
+    if _session_ok(req, resp) or _basic_ok(req):
+        return
+    raise HTTPException(401, "未登录")
+
+
+def _client_ip(req: Request) -> str:
+    return (req.headers.get("x-forwarded-for", "").split(",")[0].strip()
+            or (req.client.host if req.client else "?"))
 
 
 # ---------------- 推送（Bark，iPhone 上收通知）----------------
@@ -530,10 +581,56 @@ async def ask(req: Request):
     return {"a": a}
 
 
-@app.get("/", response_class=HTMLResponse, dependencies=[Depends(auth)])
-def index():
+@app.get("/", response_class=HTMLResponse)
+def index(req: Request, resp: Response):
+    if not WEB_PASS:
+        return HTMLResponse("请先在 .env 里设置 WEB_PASS", 500)
+    if not (_session_ok(req, resp) or _basic_ok(req)):
+        return RedirectResponse("/login", 303)
     with open(os.path.join(HERE, "index.html"), encoding="utf-8") as f:
         return f.read()
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page():
+    with open(os.path.join(HERE, "login.html"), encoding="utf-8") as f:
+        return f.read()
+
+
+@app.post("/api/login")
+async def login(req: Request):
+    if not WEB_PASS:
+        raise HTTPException(500, "请先在 .env 里设置 WEB_PASS")
+    ip, now = _client_ip(req), time.time()
+    fails = [t for t in _fails.get(ip, []) if now - t < 600]
+    if len(fails) >= 8:  # 10 分钟内错 8 次就先锁住
+        raise HTTPException(429, "错太多次了，10 分钟后再试")
+    d = await req.json()
+    u, p = str(d.get("user") or WEB_USER), str(d.get("password") or "")
+    if not (secrets.compare_digest(u, WEB_USER) and secrets.compare_digest(p, WEB_PASS)):
+        _fails[ip] = fails + [now]
+        await asyncio.sleep(0.6)
+        raise HTTPException(401, "用户名或密码不对")
+    _fails.pop(ip, None)
+    tok = secrets.token_urlsafe(32)
+    with db() as c:
+        c.execute("DELETE FROM sessions WHERE exp<?", (int(now),))
+        c.execute("INSERT INTO sessions VALUES(?,?,?,?,?)", (_h(tok), int(now), int(now) + SESSION_DAYS * 86400,
+                                                             _pw_tag(), req.headers.get("user-agent", "")[:200]))
+    resp = JSONResponse({"ok": True, "days": SESSION_DAYS})
+    _set_cookie(resp, tok, req)
+    return resp
+
+
+@app.post("/api/logout")
+def logout(req: Request):
+    tok = req.cookies.get(COOKIE, "")
+    if tok:
+        with db() as c:
+            c.execute("DELETE FROM sessions WHERE h=?", (_h(tok),))
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(COOKIE, path="/")
+    return resp
 
 
 @app.get("/icon.png")
