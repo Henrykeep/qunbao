@@ -402,6 +402,7 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
   <div class="gl">每日整理</div>
   <div class="group">
     <div class="row"><span class="rl">自动整理时间</span><select id="s-hour"></select></div>
+    <div class="row"><span class="rl">第二次整理（早报/晚报）</span><select id="s-hour2"></select></div>
     <div class="row"><span class="rl">截止前提醒</span><select id="s-remind"></select></div>
     <div class="row"><span class="rl">免打扰</span><span><select id="s-qs"></select> 至 <select id="s-qe"></select></span></div>
   </div>
@@ -804,7 +805,7 @@ async function loadSettings(){
     $("#s-remind").innerHTML=[[0,"不提醒"],[1,"提前 1 小时"],[3,"提前 3 小时"],[6,"提前 6 小时"],[12,"提前 12 小时"],[24,"提前 24 小时"]].map(([v,l])=>`<option value="${v}" ${v==s.remind_hours?"selected":""}>${l}</option>`).join("");
 const hs=[...Array(24).keys()].map(h=>[h,String(h).padStart(2,"0")+":00"]);
 const fill=(id,arr,cur)=>{$(id).innerHTML=arr.map(([v,l])=>`<option value="${v}" ${v==cur?"selected":""}>${l}</option>`).join("")};
-fill("#s-qs",[[-1,"关闭"],...hs],s.quiet_start??-1);fill("#s-qe",hs,s.quiet_end??7);
+fill("#s-hour2",[[-1,"关闭"],...hs],s.digest_hour2??-1);fill("#s-qs",[[-1,"关闭"],...hs],s.quiet_start??-1);fill("#s-qe",hs,s.quiet_end??7);
     $("#s-bark").value=s.bark_url||"";$("#s-site").value=s.site_url||location.origin;
     $("#s-pushat").checked=!!s.push_at;$("#s-pushdg").checked=!!s.push_digest;
     const names=[...new Set([...chats.map(c=>c.chat),...s.muted])];
@@ -821,6 +822,7 @@ fill("#s-qs",[[-1,"关闭"],...hs],s.quiet_start??-1);fill("#s-qe",hs,s.quiet_en
 }
 $("#s-profile").oninput=e=>{SET.profile=e.target.value;saveSet()};
 $("#s-hour").onchange=e=>{SET.digest_hour=+e.target.value;saveSet()};
+$("#s-hour2").onchange=e=>{SET.digest_hour2=+e.target.value;saveSet()};
 $("#s-qs").onchange=e=>{SET.quiet_start=+e.target.value;saveSet()};
 $("#s-qe").onchange=e=>{SET.quiet_end=+e.target.value;saveSet()};
 $("#s-remind").onchange=e=>{SET.remind_hours=+e.target.value;saveSet()};
