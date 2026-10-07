@@ -23,3 +23,11 @@
 
 ## 更新
 `git pull && docker compose up -d --build qunbao`
+
+## 接微信（可选）
+不需要在服务器上额外部署。确认 .env 里 INGEST_TOKEN 已设置、8000 端口可从公网访问；
+用户在网页「设置 → 接入微信」复制接收地址，填进安卓手机上的通知转发 App 即可。
+
+## 自检
+`pip install fastapi httpx pytest && python -m pytest tests -q`
+`curl http://127.0.0.1:8000/healthz` 返回版本号。
