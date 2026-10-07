@@ -130,3 +130,11 @@ def test_quiet_hours(monkeypatch):
 def test_digest_hours():
     assert app_mod.digest_hours({"digest_hour": 21, "digest_hour2": 8}) == {8, 21}
     assert app_mod.digest_hours({"digest_hour": 21, "digest_hour2": -1}) == {21}
+
+
+def test_ics():
+    r = c.get("/api/ics", params={"title": "交表, 谢谢", "due": "2026-10-10 18:00", "chat": "班级群"}, headers=AUTH)
+    assert r.status_code == 200 and "text/calendar" in r.headers["content-type"]
+    assert "BEGIN:VEVENT" in r.text and "DTSTART:20261010T100000Z" in r.text and "交表\\, 谢谢" in r.text
+    assert "VALUE=DATE" in c.get("/api/ics", params={"title": "x", "due": "随时"}, headers=AUTH).text
+    assert c.get("/api/ics", headers=AUTH).status_code == 400
