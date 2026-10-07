@@ -402,6 +402,7 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
   <div class="gl">每日整理</div>
   <div class="group">
     <div class="row"><span class="rl">自动整理时间</span><select id="s-hour"></select></div>
+    <div class="row"><span class="rl">截止前提醒</span><select id="s-remind"></select></div>
   </div>
 
   <div class="gl">推送到 iPhone</div>
@@ -799,6 +800,7 @@ async function loadSettings(){
     $("#s-profile").value=s.profile||"";
     $$(".tagbox").forEach(tagbox);
     $("#s-hour").innerHTML=[...Array(24).keys()].map(h=>`<option value="${h}" ${h==s.digest_hour?"selected":""}>每天 ${pad(h)}:00</option>`).join("");
+    $("#s-remind").innerHTML=[[0,"不提醒"],[1,"提前 1 小时"],[3,"提前 3 小时"],[6,"提前 6 小时"],[12,"提前 12 小时"],[24,"提前 24 小时"]].map(([v,l])=>`<option value="${v}" ${v==s.remind_hours?"selected":""}>${l}</option>`).join("");
     $("#s-bark").value=s.bark_url||"";$("#s-site").value=s.site_url||location.origin;
     $("#s-pushat").checked=!!s.push_at;$("#s-pushdg").checked=!!s.push_digest;
     const names=[...new Set([...chats.map(c=>c.chat),...s.muted])];
@@ -815,6 +817,7 @@ async function loadSettings(){
 }
 $("#s-profile").oninput=e=>{SET.profile=e.target.value;saveSet()};
 $("#s-hour").onchange=e=>{SET.digest_hour=+e.target.value;saveSet()};
+$("#s-remind").onchange=e=>{SET.remind_hours=+e.target.value;saveSet()};
 $("#s-bark").oninput=e=>{SET.bark_url=e.target.value.trim();saveSet()};
 $("#s-site").oninput=e=>{SET.site_url=e.target.value.trim();saveSet()};
 $("#s-pushat").onchange=e=>{tick();SET.push_at=e.target.checked;saveSet()};
