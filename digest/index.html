@@ -258,6 +258,7 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
 .sw input:checked+span::after{transform:translateX(20px)}
 .btn{border:0;background:var(--ink);color:var(--bg);border-radius:999px;padding:8px 16px;font-size:13.5px;font-weight:500}
 .btn.ghost{background:var(--chip);color:var(--ink)}
+.btn.out-btn{color:var(--accent);flex:none;white-space:nowrap}
 .stat-dot{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--sub)}
 .stat-dot i{width:8px;height:8px;border-radius:50%;background:var(--faint)}
 .stat-dot.ok i{background:var(--calm)} .stat-dot.bad i{background:var(--accent)}
@@ -437,6 +438,10 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
     </details>
   </div>
   <div class="gd">微信看到的是通知里的文字：图片、文件只会显示成 [图片] 之类的提示，长消息可能被系统截断。</div>
+  <div class="gl">账号</div>
+  <div class="group">
+    <div class="row"><span class="rl">登录状态<small>本机保持 30 天，常用会自动续期</small></span><button class="btn ghost out-btn" id="s-logout">退出登录</button></div>
+  </div>
   <div class="savehint" id="savehint"></div>
 </div></div>
 
@@ -522,6 +527,7 @@ const ICON={
 
 async function api(path,body){
   const r=await fetch(path,body!==undefined?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{});
+  if(r.status===401){location.replace("/login");throw new Error("请先登录")}
   if(!r.ok)throw new Error((await r.json().catch(()=>({}))).detail||r.statusText);
   return r.json();
 }
@@ -823,6 +829,8 @@ let lastY=0;window.addEventListener("scroll",()=>{const y=window.scrollY;$("#doc
 /* ---------- 启动 ---------- */
 setSeg(hours);load();
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&curView==="home"&&!viewId)api("/api/state").then(render).catch(()=>{})});
+$("#s-logout").onclick=async()=>{if(!confirm("退出登录？这台设备下次打开要重新输入密码。"))return;
+  await fetch("/api/logout",{method:"POST"}).catch(()=>{});location.replace("/login")};
 </script>
 </body>
 </html>
