@@ -1,6 +1,6 @@
 """群报：收集 QQ（NapCat / OneBot 11）和微信（通知转发）群消息，用大模型挑出重要的事和待办。"""
 import asyncio, hashlib, json, os, re, secrets, sqlite3, time
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import parse_qs
 from zoneinfo import ZoneInfo
 
@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.5.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.6.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -36,6 +36,7 @@ DEFAULTS = {
     "site_url": os.getenv("SITE_URL", ""),   # 推送点开后跳转的群报地址
     "push_at": True,           # @我 / 重要的人 / 关键词 实时推送
     "push_digest": True,       # 每日总结推送
+    "remind_hours": 3,         # 待办截止前几小时推送提醒；0 = 关闭
 }
 
 app = FastAPI(docs_url=None, redoc_url=None)
@@ -60,6 +61,7 @@ with db() as c:
     CREATE TABLE IF NOT EXISTS digests(id INTEGER PRIMARY KEY, ts INTEGER, hours INTEGER, body TEXT);
     CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT);
     CREATE TABLE IF NOT EXISTS todo_done(k TEXT PRIMARY KEY, ts INTEGER);
+    CREATE TABLE IF NOT EXISTS reminded(k TEXT PRIMARY KEY, ts INTEGER);
     CREATE TABLE IF NOT EXISTS sessions(h TEXT PRIMARY KEY, ts INTEGER, exp INTEGER, pw TEXT, ua TEXT);
     """)
 
@@ -401,6 +403,66 @@ async def make_digest(hours=24):
     return body
 
 
+def parse_due(text: str, now: datetime) -> datetime | None:
+    """把「10月10日 23:59」「明天 18:00」「2026-10-10」之类的自由文本解析成时间；解析不了返回 None。"""
+    t = (text or "").strip()
+    if not t:
+        return None
+    day = None
+    m = re.search(r"(?:(\d{4})[年/-])?(\d{1,2})[月/-](\d{1,2})[日号]?", t)
+    if m:
+        y = int(m.group(1) or now.year)
+        try:
+            day = datetime(y, int(m.group(2)), int(m.group(3)), tzinfo=now.tzinfo)
+        except ValueError:
+            return None
+        if not m.group(1) and day.date() < now.date() - timedelta(days=30):
+            day = day.replace(year=y + 1)
+    else:
+        for w, n in (("大后天", 3), ("后天", 2), ("明天", 1), ("明早", 1), ("今天", 0), ("今晚", 0)):
+            if w in t:
+                day = (now + timedelta(days=n)).replace(hour=0, minute=0, second=0, microsecond=0)
+                break
+    if day is None:
+        return None
+    hh, mm = 23, 59
+    m = re.search(r"(\d{1,2})[:：点时](\d{1,2})?", t)
+    if m:
+        hh, mm = int(m.group(1)), int(m.group(2) or 0)
+        if re.search(r"下午|晚|PM|pm", t) and hh < 12:
+            hh += 12
+        if hh > 23 or mm > 59:
+            return None
+    return day.replace(hour=hh, minute=mm)
+
+
+async def check_reminders():
+    s = settings()
+    n = int(s.get("remind_hours") or 0)
+    if n <= 0 or not s.get("bark_url"):
+        return 0
+    with db() as c:
+        d = c.execute("SELECT * FROM digests ORDER BY id DESC LIMIT 1").fetchone()
+        done = {r["k"] for r in c.execute("SELECT k FROM todo_done")}
+        seen = {r["k"] for r in c.execute("SELECT k FROM reminded")}
+    if not d:
+        return 0
+    now = datetime.now(TZ)
+    sent = 0
+    for t in json.loads(d["body"]).get("todos", []):
+        k = (t.get("title") or "") + "|" + (t.get("chat") or "")
+        due = parse_due(t.get("due", ""), now)
+        if not due or k in done or k in seen or not (timedelta(0) <= due - now <= timedelta(hours=n)):
+            continue
+        left = int((due - now).total_seconds() // 60)
+        when = f"{left // 60} 小时 {left % 60} 分钟" if left >= 60 else f"{left} 分钟"
+        await push("快截止了：" + t.get("title", ""), f"还剩 {when}（{t.get('due')}）· {t.get('chat', '')}", force=True)
+        with db() as c:
+            c.execute("INSERT OR REPLACE INTO reminded(k,ts) VALUES(?,?)", (k, int(time.time())))
+        sent += 1
+    return sent
+
+
 @app.on_event("startup")
 async def scheduler():
     async def loop():
@@ -417,6 +479,10 @@ async def scheduler():
                         await push("今日群报" + (f" · {n} 件待办" if n else ""), d.get("headline", ""), force=True)
                 except Exception as ex:
                     print("自动总结失败:", ex)
+            try:
+                await check_reminders()
+            except Exception as ex:
+                print("截止提醒失败:", ex)
             if now.hour == 4 and now.minute == 0:  # 每天凌晨清理过期消息
                 with db() as c:
                     c.execute("DELETE FROM msgs WHERE ts<?", (int(time.time()) - KEEP_DAYS * 86400,))
