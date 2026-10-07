@@ -140,6 +140,38 @@ h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
 em.at-hl{font-style:normal;color:var(--accent);font-weight:600}
 mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;border-radius:3px;padding:0 1px}
 .tag{font-size:10px;padding:0 5px;border-radius:4px;border:1px solid var(--line);color:var(--faint);margin-left:4px;font-weight:400;vertical-align:1px}
+:root{--qq:#3D7BD9;--wx:#1FA855}
+.tag.s-qq{color:var(--qq);border-color:color-mix(in srgb,var(--qq) 35%,transparent)}
+.tag.s-wx{color:var(--wx);border-color:color-mix(in srgb,var(--wx) 35%,transparent)}
+.srcs{display:flex;gap:6px;margin-top:12px;overflow-x:auto;scrollbar-width:none}
+.srcs button{flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 13px;font-size:13px;color:var(--sub);display:flex;gap:6px;align-items:center;transition:all .2s}
+.srcs button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.srcs button i{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.srcs button i.s-qq{background:var(--qq)} .srcs button i.s-wx{background:var(--wx)}
+.srcs button small{font-size:11px;opacity:.65}
+.crow .gav{position:relative}
+.sb{position:absolute;right:-4px;bottom:-4px;width:17px;height:17px;border-radius:50%;border:2px solid var(--bg);font-size:8.5px;font-family:var(--sans);display:grid;place-items:center;font-weight:700;color:#fff}
+.sb.s-qq{background:var(--qq)} .sb.s-wx{background:var(--wx)}
+.live .lv{display:inline-flex;align-items:center;gap:4px}
+.live .lv+.lv{margin-left:6px}
+.live .lv b{width:6px;height:6px;border-radius:50%;background:var(--line)}
+.live .lv.on b{background:var(--calm)}
+.live .lv.off b{background:var(--faint)}
+.conn{display:flex;align-items:center;gap:12px}
+.conn .ci2{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;flex:none}
+.urlbox{display:flex;gap:8px;align-items:center;padding:0 16px 14px}
+.urlbox code{flex:1;min-width:0;font-size:12.5px;background:var(--chip);border-radius:10px;padding:9px 11px;word-break:break-all;color:var(--sub);font-family:ui-monospace,Menlo,monospace;line-height:1.45}
+.steps{padding:4px 16px 14px 34px;font-size:13.5px;color:var(--sub);line-height:1.65}
+.steps li{margin-top:6px}
+.steps li b{color:var(--ink);font-weight:600}
+.steps code{font-size:12px;background:var(--chip);border-radius:5px;padding:1px 5px;font-family:ui-monospace,Menlo,monospace;word-break:break-all}
+details.howto summary{list-style:none;padding:13px 16px;font-size:15px;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+details.howto summary::-webkit-details-marker{display:none}
+details.howto summary svg{width:16px;height:16px;color:var(--faint);transition:transform .25s}
+details.howto[open] summary svg{transform:rotate(180deg)}
+.emptywx{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:22px 18px;margin-top:16px;text-align:center}
+.emptywx .big{font-family:var(--serif);font-size:19px;margin-bottom:6px}
+.emptywx p{font-size:13.5px;color:var(--sub);margin-bottom:14px}
 
 /* 各群 */
 .groups{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -308,7 +340,7 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
 <div class="view on" id="v-home"><div class="wrap">
   <header>
     <div><div class="mast">群报</div></div>
-    <div class="date"><b id="today"></b><span id="week"></span><br><span class="live" id="live"><i></i><span>连接中</span></span></div>
+    <div class="date"><b id="today"></b><span id="week"></span><br><span class="live" id="live"><span class="lv" id="lv-qq"><b></b>QQ</span><span class="lv" id="lv-wx"><b></b>微信</span></span></div>
   </header>
   <div class="rule"></div>
   <div class="bar">
@@ -329,13 +361,14 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
 <!-- ============ 消息 ============ -->
 <div class="view" id="v-msgs"><div class="wrap">
   <div id="msgs-list">
-    <header><div class="mast sm">原文</div><div class="date"><b id="chatsum">—</b><span>近 7 天</span></div></header>
+    <header><div class="mast sm">原文</div><div class="date"><b id="chatsum">—</b><span>近 7 天 · QQ + 微信</span></div></header>
     <div class="rule"></div>
     <div class="search" id="sbox">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
       <input id="sq" type="search" placeholder="搜索所有消息、发送人" enterkeyhint="search" autocomplete="off">
       <button class="clr" id="sclr" aria-label="清除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
+    <div class="srcs" id="srcs"></div>
     <div class="clist" id="clist"></div>
   </div>
   <div id="msgs-chat" hidden>
@@ -380,12 +413,30 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
     <div class="row"><span class="rl">发一条试试</span><button class="btn ghost" id="s-test">测试推送</button></div>
   </div>
 
-  <div class="gl">运行状态</div>
+  <div class="gl">接入</div>
   <div class="group">
-    <div class="row"><span class="rl">QQ（NapCat）</span><span class="stat-dot" id="st-qq"><i></i><span>—</span></span></div>
+    <div class="row"><span class="conn"><span class="ci2" style="background:var(--qq)">QQ</span><span class="rl">QQ<small>NapCat 扫码登录小号</small></span></span><span class="stat-dot" id="st-qq"><i></i><span>—</span></span></div>
+    <div class="row"><span class="conn"><span class="ci2" style="background:var(--wx)">微</span><span class="rl">微信<small>安卓备用机转发通知</small></span></span><span class="stat-dot" id="st-wx"><i></i><span>—</span></span></div>
     <div class="row"><span class="rl">最近一条消息</span><span class="stat-dot" id="st-last"><span>—</span></span></div>
     <div class="row"><span class="rl">大模型</span><span class="stat-dot" id="st-llm"><i></i><span>—</span></span></div>
+    <div class="row"><span class="rl">版本</span><span class="stat-dot" id="st-ver"><span>—</span></span></div>
   </div>
+
+  <div class="gl" id="wxsec">接入微信</div>
+  <div class="group">
+    <div class="row" style="border:0"><span class="rl">接收地址<small>填进通知转发 App 的 Webhook，口令已包含在里面</small></span></div>
+    <div class="urlbox"><code id="wx-url">—</code><button class="btn ghost" id="wx-copy">复制</button></div>
+    <details class="howto" id="wx-how"><summary>怎么接（5 步）<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <ol class="steps">
+        <li><b>准备一台旧安卓手机</b>，登录微信小号，把小号拉进你想看的群。</li>
+        <li>这台手机的微信里：<b>设置 → 消息通知</b>，打开「通知显示消息详情」；要看的群<b>不要</b>开消息免打扰，否则没有通知可转。</li>
+        <li>装一个通知转发 App（例如开源的「短信转发器 SmsForwarder」），给它<b>通知使用权</b>，并在系统里关掉它的省电限制、允许自启动。</li>
+        <li>新建发送通道选 <b>Webhook</b>，方式 POST，地址填上面的接收地址；消息模板写 <code>{"title":"[title]","text":"[content]"}</code>（占位符以 App 里的为准），转发规则只选微信 <code>com.tencent.mm</code>。</li>
+        <li>让群里有人发句话，上面「微信」变成<b>在线</b>就通了。群名、发送人会自动拆出来，重复通知会自动去重。</li>
+      </ol>
+    </details>
+  </div>
+  <div class="gd">微信看到的是通知里的文字：图片、文件只会显示成 [图片] 之类的提示，长消息可能被系统截断。</div>
   <div class="savehint" id="savehint"></div>
 </div></div>
 
@@ -452,6 +503,9 @@ const avc=s=>`hsl(${hue(s)} 30% 52%)`;
 const first=s=>esc([...String(s||"?")].find(c=>!/[\s·@]/.test(c))||"?");
 const tick=()=>navigator.vibrate&&navigator.vibrate(8);
 const doneKey=t=>t.title+"|"+t.chat;
+const SRC={"QQ":"s-qq","微信":"s-wx"};
+const srcTag=src=>src?`<span class="tag ${SRC[src]||""}">${esc(src)}</span>`:"";
+const srcBadge=src=>SRC[src]?`<span class="sb ${SRC[src]}">${src==="QQ"?"Q":"微"}</span>`:"";
 const hlAt=s=>esc(s).replace(/(@我|@全体成员|@所有人)/g,'<em class="at-hl">$1</em>');
 const hlQ=(s,q)=>{const e=hlAt(s);if(!q)return e;const qq=esc(q).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");return e.replace(new RegExp(qq,"gi"),m=>`<mark>${m}</mark>`)};
 const debounce=(f,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>f(...a),ms)}};
@@ -512,10 +566,11 @@ function skeleton(){
 }
 function renderStatus(st){
   const s=st.status||{},l=$("#live");
-  l.classList.toggle("ok",!!s.online);l.querySelector("span").textContent=s.online?"在线":(s.last_msg?"离线":"未连接");
+  const lv=(id,o)=>{const e=$(id);e.className="lv "+(o?.online?"on":o?.seen?"off":"");e.title=o?.online?"在线":o?.seen?"离线":"未连接"};
+  lv("#lv-qq",s.qq);lv("#lv-wx",s.wx);l.classList.toggle("ok",!!s.online);
   let n="";
   if(!s.llm)n+=`<div class="warn fade">${ICON.warn}<div><b>还没配置大模型</b><span>在服务器 .env 里填上 LLM_API_KEY，重启 qunbao 容器。</span></div></div>`;
-  else if(!s.last_msg)n+=`<div class="warn fade">${ICON.warn}<div><b>还没收到任何消息</b><span>登录 NapCat，并把 HTTP 上报地址指向群报，消息就会流进来。</span></div></div>`;
+  else if(!s.last_msg)n+=`<div class="warn fade">${ICON.warn}<div><b>还没收到任何消息</b><span>QQ：登录 NapCat 并把上报地址指向群报；微信：去「设置 → 接入微信」。</span></div></div>`;
   if(!st.is_latest&&st.digest)n+=`<div class="banner fade"><span>正在看 ${ago(st.digest_ts)} 的群报</span><button id="tolatest">回到最新</button></div>`;
   $("#notes").innerHTML=n;
   $("#tolatest")?.addEventListener("click",()=>{viewId=null;load()});
@@ -544,7 +599,7 @@ function render(st){
   h+=todos.length?todos.map((t,i)=>`<div class="todo ${esc(t.urgency||"mid")} ${done.has(doneKey(t))?"done":""} fade" style="animation-delay:${i*40}ms" data-k="${esc(doneKey(t))}" data-chat="${esc(t.chat)}" data-q="${esc(t.quote||"")}">
     <button class="check" aria-label="完成"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
     <div class="tbody"><div class="t">${esc(t.title)}</div>${t.detail?`<div class="d">${esc(t.detail)}</div>`:""}
-    <div class="meta">${t.due?`<span class="chip due">${ICON.clock}${esc(t.due)}</span>`:""}<span class="chip">${ICON.chat}${esc(t.chat)}</span>
+    <div class="meta">${t.due?`<span class="chip due">${ICON.clock}${esc(t.due)}</span>`:""}<span class="chip">${ICON.chat}${esc(t.chat)}${srcTag((st.chat_src||{})[t.chat])}</span>
       ${t.quote?`<button class="chip more" aria-label="原话">原话${ICON.down}</button>`:""}</div>
     ${t.quote?`<div class="quote"><div><blockquote>${hlAt(t.quote)}<cite>— ${esc(t.sender||"")}${t.sender?" · ":""}${esc(t.chat)}</cite></blockquote>
       <button class="go">去原文看上下文${ICON.arrow}</button></div></div>`:""}</div></div>`).join("")
@@ -564,7 +619,7 @@ function render(st){
     window._atAll=()=>{$("#ats").innerHTML=ats.map(row).join("");$("#moreat").remove();bindAts()};
   }
   if(groups.length){
-    h+=`<section><h2>各群在聊</h2><div class="groups">`+groups.map(g=>`<button class="g" data-chat="${esc(g.chat)}"><div class="gh"><span class="gn">${esc(g.chat)}</span>${g.n?`<span class="gc">${g.n} 条</span>`:""}</div>
+    h+=`<section><h2>各群在聊</h2><div class="groups">`+groups.map(g=>`<button class="g" data-chat="${esc(g.chat)}"><div class="gh"><span class="gn">${esc(g.chat)}${srcTag((st.chat_src||{})[g.chat])}</span>${g.n?`<span class="gc">${g.n} 条</span>`:""}</div>
       <div class="gg">${esc(g.gist)}</div>${g.n?`<div class="vol"><div style="width:${Math.max(6,g.n/maxN*100)}%"></div></div>`:""}</button>`).join("")+`</div></section>`;
   }
   $("#main").innerHTML=h;
@@ -640,43 +695,55 @@ $("#askf2").onsubmit=e=>{e.preventDefault();ask($("#q2").value)};
 $$("#sug button").forEach(b=>b.onclick=()=>{tick();ask(b.textContent)});
 
 /* ================= 原文 ================= */
-let CHATS=[];
+let CHATS=[],SRCF=localStorage.qb_src||"";
+function renderSrcs(){
+  const n=k=>CHATS.filter(c=>!k||c.source===k).length;
+  const opts=[["","全部",""],["QQ","QQ","s-qq"],["微信","微信","s-wx"]];
+  $("#srcs").innerHTML=opts.map(([k,l,c])=>`<button data-s="${k}" class="${SRCF===k?"on":""}">${c?`<i class="${c}"></i>`:""}${l}<small>${n(k)}</small></button>`).join("");
+  $$("#srcs button").forEach(b=>b.onclick=()=>{tick();SRCF=b.dataset.s;localStorage.qb_src=SRCF;const q=$("#sq").value.trim();q?search(q):renderChats()});
+}
 async function loadChats(){
   const q=$("#sq").value.trim();if(q)return search(q);
   if(!CHATS.length)$("#clist").innerHTML='<div class="sk" style="height:56px;margin-top:12px"></div>'.repeat(5);
   try{CHATS=await api("/api/chats");renderChats()}catch(e){$("#clist").innerHTML=`<div class="empty">${esc(e.message)}</div>`}
 }
 function renderChats(){
-  const total=CHATS.reduce((a,c)=>a+c.n,0);$("#chatsum").textContent=`${CHATS.length} 个群 · ${total} 条`;
-  $("#clist").innerHTML=CHATS.length?CHATS.map(c=>`<button class="crow ${c.muted?"muted":""}" data-chat="${esc(c.chat)}">
-    <div class="gav" style="background:hsl(${hue(c.chat)} 26% 46%)">${first(c.chat)}</div>
-    <div class="ci"><div class="cn"><b>${esc(c.chat)}<span class="tag">${esc(c.source)}</span></b><span class="tm">${ago(c.last_ts)}</span></div>
+  renderSrcs();
+  const L=CHATS.filter(c=>!SRCF||c.source===SRCF);
+  const total=L.reduce((a,c)=>a+c.n,0);$("#chatsum").textContent=`${L.length} 个群 · ${total} 条`;
+  if(!L.length&&SRCF==="微信"){
+    $("#clist").innerHTML=`<div class="emptywx fade"><div class="big">微信还没接上</div><p>用一台旧安卓机登录微信小号，把通知转发给群报，微信群就会和 QQ 群出现在一起。</p><button class="btn" id="towx">去设置接入</button></div>`;
+    $("#towx").onclick=()=>{tick();go("set");setTimeout(()=>{$("#wx-how").open=true;$("#wxsec").scrollIntoView({behavior:"smooth"})},250)};return}
+  if(!L.length&&SRCF==="QQ"){$("#clist").innerHTML=`<div class="empty"><div class="big">QQ 还没有消息</div>登录 NapCat 并设置上报地址后，QQ 群会出现在这里</div>`;return}
+  $("#clist").innerHTML=L.length?L.map(c=>`<button class="crow ${c.muted?"muted":""}" data-chat="${esc(c.chat)}" data-src="${esc(c.source)}">
+    <div class="gav" style="background:hsl(${hue(c.chat)} 26% 46%)">${first(c.chat)}${srcBadge(c.source)}</div>
+    <div class="ci"><div class="cn"><b>${esc(c.chat)}</b><span class="tm">${ago(c.last_ts)}</span></div>
     <div class="cl">${c.muted?ICON.bell.replace("<svg",'<svg class="mute-ic"'):""}<span>${esc(c.last)}</span>${c.ats?`<span class="badge">@${c.ats}</span>`:""}</div></div></button>`).join("")
-    :`<div class="empty"><div class="big">还没有消息</div>连上 QQ 后，这里能翻所有群的原始记录</div>`;
-  $$(".crow").forEach(b=>b.onclick=()=>{tick();openChat(b.dataset.chat)});
+    :`<div class="empty"><div class="big">还没有消息</div>连上 QQ 或微信后，这里能翻所有群的原始记录</div>`;
+  $$(".crow").forEach(b=>b.onclick=()=>{tick();openChat(b.dataset.chat,null,b.dataset.src)});
 }
 const search=debounce(async q=>{
   if(!q){renderChats();return}
-  try{const rs=await api(`/api/messages?q=${encodeURIComponent(q)}&limit=80`);
-    $("#clist").innerHTML=rs.length?`<div class="gd" style="margin:14px 0 2px">找到 ${rs.length} 条${rs.length>=80?"（只显示最近 80 条）":""}</div>`+rs.reverse().map(m=>`<div class="sres" data-chat="${esc(m.chat)}" data-q="${esc(q)}">
-      <div class="sh"><span><b>${esc(m.sender)}</b> · ${esc(m.chat)}</span><span>${ago(m.ts)}</span></div><div class="st">${hlQ(m.text,q)}</div></div>`).join("")
+  try{const rs=await api(`/api/messages?q=${encodeURIComponent(q)}&limit=80${SRCF?`&source=${encodeURIComponent(SRCF)}`:""}`);
+    $("#clist").innerHTML=rs.length?`<div class="gd" style="margin:14px 0 2px">找到 ${rs.length} 条${rs.length>=80?"（只显示最近 80 条）":""}</div>`+rs.reverse().map(m=>`<div class="sres" data-chat="${esc(m.chat)}" data-src="${esc(m.source)}" data-q="${esc(q)}">
+      <div class="sh"><span><b>${esc(m.sender)}</b> · ${esc(m.chat)}${srcTag(m.source)}</span><span>${ago(m.ts)}</span></div><div class="st">${hlQ(m.text,q)}</div></div>`).join("")
       :`<div class="empty">没搜到「${esc(q)}」</div>`;
-    $$(".sres").forEach(r=>r.onclick=()=>openChat(r.dataset.chat,r.dataset.q));
+    $$(".sres").forEach(r=>r.onclick=()=>openChat(r.dataset.chat,r.dataset.q,r.dataset.src));
   }catch(e){toast(e.message)}
 },250);
 $("#sq").addEventListener("input",e=>{$("#sbox").classList.toggle("has",!!e.target.value);search(e.target.value.trim())});
 $("#sclr").onclick=()=>{$("#sq").value="";$("#sbox").classList.remove("has");renderChats()};
 
-let chatName=null,oldest=0;
-async function openChat(chat,focus){
+let chatName=null,chatSrc="",oldest=0;
+async function openChat(chat,focus,src){
   if(curView!=="msgs"){curView="msgs";$$(".view").forEach(e=>e.classList.toggle("on",e.id==="v-msgs"));
     $$(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v==="msgs"));$("#dock").classList.remove("home")}
   chatName=chat;oldest=0;$("#msgs-list").hidden=true;$("#msgs-chat").hidden=false;
   if(!CHATS.length){try{CHATS=await api("/api/chats")}catch(e){}}
-  const c=CHATS.find(x=>x.chat===chat);
+  const c=CHATS.find(x=>x.chat===chat&&(!src||x.source===src));chatSrc=src||c?.source||"";
   $("#ctitle").innerHTML=`${esc(chat)}<small>${c?`${c.n} 条 · ${esc(c.source)}`:"聊天记录"}</small>`;
   $("#cmsgs").innerHTML='<div class="sk" style="height:44px;margin-top:14px;width:70%"></div>'.repeat(6);
-  try{const ms=await api(`/api/messages?chat=${encodeURIComponent(chat)}&limit=120`);
+  try{const ms=await api(`/api/messages?chat=${encodeURIComponent(chat)}&limit=120${chatSrc?`&source=${encodeURIComponent(chatSrc)}`:""}`);
     renderMsgs(ms,false);
     let target=null;if(focus){const f=String(focus).slice(0,12);target=$$("#cmsgs .m").reverse().find(e=>e.dataset.t.includes(f))}
     requestAnimationFrame(()=>{if(target){target.scrollIntoView({block:"center"});target.classList.add("flash")}else window.scrollTo(0,document.body.scrollHeight)});
@@ -696,7 +763,7 @@ function renderMsgs(ms,prepend){
   const box=$("#cmsgs");
   if(prepend){$("#older")?.remove();const hBefore=document.body.scrollHeight;box.insertAdjacentHTML("afterbegin",h);window.scrollBy(0,document.body.scrollHeight-hBefore)}
   else box.innerHTML=h;
-  $("#older")?.addEventListener("click",async()=>{const ms2=await api(`/api/messages?chat=${encodeURIComponent(chatName)}&before=${oldest}&limit=120`);
+  $("#older")?.addEventListener("click",async()=>{const ms2=await api(`/api/messages?chat=${encodeURIComponent(chatName)}&before=${oldest}&limit=120${chatSrc?`&source=${encodeURIComponent(chatSrc)}`:""}`);
     if(!ms2.length){$("#older").textContent="没有更早的了";return}renderMsgs(ms2,true)});
 }
 function closeChat(){$("#msgs-chat").hidden=true;$("#msgs-list").hidden=false;window.scrollTo(0,0);loadChats()}
@@ -733,7 +800,9 @@ async function loadSettings(){
       :`<div class="row"><span class="rl" style="color:var(--faint)">有消息进来后，群会出现在这里</span></div>`;
     $$("#s-muted input").forEach(i=>i.onchange=()=>{tick();const n=i.dataset.chat;SET.muted=i.checked?[...SET.muted,n]:SET.muted.filter(x=>x!==n);saveSet();CHATS=[]});
     const S=st.status||{};
-    const qq=$("#st-qq");qq.className="stat-dot "+(S.online?"ok":"bad");qq.querySelector("span").textContent=S.online?"在线":(S.heartbeat?`离线 · ${ago(S.heartbeat)}`:"未连接");
+    const dot=(id,o)=>{const e=$(id);e.className="stat-dot "+(o?.online?"ok":o?.seen?"bad":"");e.querySelector("span").textContent=o?.online?"在线":o?.seen?`离线 · ${ago(o.seen)}`:"未连接"};
+    dot("#st-qq",S.qq);dot("#st-wx",S.wx);$("#st-ver span").textContent=S.version?`v${S.version}`:"—";
+    api("/api/ingest").then(r=>{$("#wx-url").textContent=r.ready?`${location.origin}/ingest?token=${r.token}`:"服务器 .env 里还没设置 INGEST_TOKEN";$("#wx-copy").disabled=!r.ready}).catch(()=>{});
     $("#st-last span").textContent=S.last_msg?ago(S.last_msg):"还没有";
     const l=$("#st-llm");l.className="stat-dot "+(S.llm?"ok":"bad");l.querySelector("span").textContent=S.llm?"已配置":"未配置";
   }catch(e){toast(e.message)}
@@ -744,6 +813,8 @@ $("#s-bark").oninput=e=>{SET.bark_url=e.target.value.trim();saveSet()};
 $("#s-site").oninput=e=>{SET.site_url=e.target.value.trim();saveSet()};
 $("#s-pushat").onchange=e=>{tick();SET.push_at=e.target.checked;saveSet()};
 $("#s-pushdg").onchange=e=>{tick();SET.push_digest=e.target.checked;saveSet()};
+$("#wx-copy").onclick=async()=>{tick();const t=$("#wx-url").textContent;
+  try{await navigator.clipboard.writeText(t);toast("已复制接收地址")}catch(e){const r=document.createRange();r.selectNodeContents($("#wx-url"));getSelection().removeAllRanges();getSelection().addRange(r);toast("已选中，长按复制")}};
 $("#s-test").onclick=async()=>{tick();try{SET=await api("/api/settings",SET);await api("/api/push/test",{});toast("已发送，看看手机")}catch(e){toast(e.message)}};
 
 /* 往下滑时收起快捷问题，给内容腾地方 */
