@@ -97,6 +97,7 @@ h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
   display:grid;place-items:center;margin-top:1px;transition:all .25s var(--ease)}
 .check:active{transform:scale(.85)}
 .check svg{width:13px;height:13px;color:var(--bg);stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .3s .05s}
+.todo.pinned:not(.done) .chip.pinb{background:var(--ink);color:var(--card)}
 .todo.done{background:transparent;box-shadow:none;opacity:.55}
 .todo.done::before{opacity:0}
 .todo.done .check{background:var(--ink);border-color:var(--ink)}
@@ -616,7 +617,7 @@ function render(st){
     $("#main").innerHTML=`<div class="greet fade">${GREET}</div><div class="headline fade">${st.today?`过去一天收到 ${st.today} 条群消息。<br>点「整理」，看看哪些和你有关。`:"群报还没开张。<br>消息进来后，这里会是你的每日头条。"}</div>`;
     return;
   }
-  const done=new Set(st.done||[]);
+  const done=new Set(st.done||[]);const pins=new Set(st.pins||[]);
   const todos=d.todos||[],notices=d.notices||[],ats=st.at_me||[],per=st.per_chat||{};
   const groups=(d.groups||[]).map(g=>({...g,n:per[g.chat]||0})).sort((a,b)=>b.n-a.n);
   const maxN=Math.max(1,...groups.map(g=>g.n));
@@ -627,11 +628,11 @@ function render(st){
   <div class="stat"><div class="n" id="prog-n"></div><div class="l">待办完成</div><div class="prog"><div id="prog-b"></div></div></div></div>`;
 
   h+=`<section><h2>要你做的 <span class="c">${todos.length||""}</span></h2><div class="todos" id="todos">`;
-  h+=todos.length?todos.map((t,i)=>`<div class="todo ${esc(t.urgency||"mid")} ${done.has(doneKey(t))?"done":""} fade" style="animation-delay:${i*40}ms" data-k="${esc(doneKey(t))}" data-chat="${esc(t.chat)}" data-q="${esc(t.quote||"")}">
+  h+=todos.length?todos.map((t,i)=>`<div class="todo ${esc(t.urgency||"mid")} ${done.has(doneKey(t))?"done":""} ${pins.has(doneKey(t))?"pinned":""} fade" style="animation-delay:${i*40}ms" data-k="${esc(doneKey(t))}" data-chat="${esc(t.chat)}" data-q="${esc(t.quote||"")}">
     <button class="check" aria-label="完成"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
     <div class="tbody"><div class="t">${esc(t.title)}</div>${t.detail?`<div class="d">${esc(t.detail)}</div>`:""}
     <div class="meta">${t.due?`<span class="chip due">${ICON.clock}${esc(t.due)}</span>`:""}<span class="chip">${ICON.chat}${esc(t.chat)}${srcTag((st.chat_src||{})[t.chat])}</span>
-      <button class="chip snz" aria-label="稍后提醒">稍后提醒</button>${t.due?`<a class="chip cal" href="/api/ics?${new URLSearchParams({title:t.title,due:t.due,detail:t.detail||"",chat:t.chat||""})}" aria-label="加到日历">加到日历</a>`:""}
+      <button class="chip pinb" aria-label="置顶">${pins.has(doneKey(t))?"已置顶":"置顶"}</button><button class="chip snz" aria-label="稍后提醒">稍后提醒</button>${t.due?`<a class="chip cal" href="/api/ics?${new URLSearchParams({title:t.title,due:t.due,detail:t.detail||"",chat:t.chat||""})}" aria-label="加到日历">加到日历</a>`:""}
       ${t.quote?`<button class="chip more" aria-label="原话">原话${ICON.down}</button>`:""}</div>
     ${t.quote?`<div class="quote"><div><blockquote>${hlAt(t.quote)}<cite>— ${esc(t.sender||"")}${t.sender?" · ":""}${esc(t.chat)}</cite></blockquote>
       <button class="go">去原文看上下文${ICON.arrow}</button></div></div>`:""}</div></div>`).join("")
@@ -675,6 +676,11 @@ function render(st){
       const title=el.querySelector(".tt,.title,b")?.textContent||"";
       api("/api/todo/snooze",{key:el.dataset.k,title,hours:tm?1:"tomorrow"}).then(()=>toast(tm?"1 小时后提醒你":"明早 9 点提醒你")).catch(()=>toast("没设上，网络不太好"));
     });
+    el.querySelector(".chip.pinb")?.addEventListener("click",e=>{
+      e.stopPropagation();const on=!el.classList.contains("pinned");el.classList.toggle("pinned",on);
+      e.currentTarget.textContent=on?"已置顶":"置顶";tick();sortTodos(true);
+      api("/api/todo",{key:el.dataset.k,pin:on}).catch(()=>toast("没保存上，网络不太好"));
+    });
     el.querySelector(".chip.more")?.addEventListener("click",()=>el.classList.toggle("open"));
     el.querySelector(".go")?.addEventListener("click",()=>openChat(el.dataset.chat,el.dataset.q));
   });
@@ -687,7 +693,7 @@ function updateProg(){
 function sortTodos(animate){
   const box=$("#todos");if(!box)return;const items=$$(".todo");
   const f=new Map(items.map(e=>[e,e.getBoundingClientRect().top]));
-  [...items.filter(e=>!e.classList.contains("done")),...items.filter(e=>e.classList.contains("done"))].forEach(e=>box.appendChild(e));
+  [...items.filter(e=>!e.classList.contains("done")&&e.classList.contains("pinned")),...items.filter(e=>!e.classList.contains("done")&&!e.classList.contains("pinned")),...items.filter(e=>e.classList.contains("done"))].forEach(e=>box.appendChild(e));
   if(!animate)return;
   items.forEach(e=>{const dy=f.get(e)-e.getBoundingClientRect().top;if(dy)e.animate([{transform:`translateY(${dy}px)`},{transform:"none"}],{duration:420,easing:"cubic-bezier(.2,.9,.25,1)"})});
 }
