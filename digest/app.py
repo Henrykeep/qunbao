@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.12.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.13.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -804,6 +804,12 @@ def logout(req: Request):
 @app.get("/icon.png")
 def icon():
     return FileResponse(os.path.join(HERE, "icon.png"), media_type="image/png")
+
+
+@app.get("/sw.js")
+def sw():
+    return FileResponse(os.path.join(HERE, "sw.js"), media_type="application/javascript",
+                        headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
 
 
 @app.get("/manifest.json")
