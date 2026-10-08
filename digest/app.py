@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.24.0"
+VERSION = "0.25.0"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -30,6 +30,7 @@ DEFAULTS = {
     "weekly_digest": True,
     "keep_days": KEEP_DAYS,    # 消息保留天数
     "profile": os.getenv("MY_PROFILE", ""),
+    "my_names": [],            # 我的昵称/群名片：文本里出现 @昵称 就算 @我（微信通知常识别不出）
     "vip": [],                 # 重要的人（昵称/群名片），他们说话一律值得看
     "keywords": ["截止", "ddl", "提交", "开会", "考试", "缴费", "通知", "报名", "@全体成员"],
     "only_mode": False,        # 白名单模式：只总结 allowed 里的群
@@ -226,14 +227,20 @@ def hit_reason(chat, sender, text, at_me, s):
     return None
 
 
+def mentions_me(text, s) -> bool:
+    t = text.replace("＠", "@").replace("\u2005", " ").replace("@ ", "@")
+    return any(n and ("@" + n) in t for n in (s.get("my_names") or []))
+
+
 async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
     text = (text or "").strip()
     if not text:
         return
+    s = settings()
+    at_me = bool(at_me) or mentions_me(text, s)
     with db() as c:
         c.execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me,img) VALUES(?,?,?,?,?,?,?)",
                   (int(ts or time.time()), source, chat, sender, text[:4000], int(at_me), imgs[:2000]))
-    s = settings()
     why = hit_reason(chat, sender, text, at_me, s)
     if why and s.get("push_at"):
         asyncio.create_task(push(f"{chat} · {why}", f"{sender}：{text}", key=chat))
@@ -436,6 +443,8 @@ def transcript(hours: int):
 
 def about_me(s):
     parts = [f"关于用户：{s['profile'] or '（未提供）'}"]
+    if s.get("my_names"):
+        parts.append("用户在群里的昵称：" + "、".join(s["my_names"]))
     if s["vip"]:
         parts.append("对用户重要的人：" + "、".join(s["vip"]))
     imp = [k for k, v in (s.get("levels") or {}).items() if v == "important"]
