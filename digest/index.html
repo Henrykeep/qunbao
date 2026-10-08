@@ -359,6 +359,8 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
 .lk b{font-family:Georgia,"Songti SC",serif;display:block}
 .lk .lu{display:block;font-size:12px;opacity:.65;word-break:break-all}
 .lk .ls{display:block;font-size:12px;opacity:.5}
+.offbar{position:fixed;top:0;left:0;right:0;z-index:99;padding:6px 12px;text-align:center;font-size:12.5px;background:#8a3b2a;color:#fff;letter-spacing:.04em;padding-top:calc(6px + env(safe-area-inset-top))}
+.offbar[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -523,6 +525,7 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
     <div class="pbody"><div class="inner" id="hist"></div></div>
   </div>
 </div>
+<div class="offbar" id="offbar" hidden>网络已断开，正在显示上次缓存的内容</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -931,6 +934,9 @@ setSeg(hours);load();
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&curView==="home"&&!viewId)api("/api/state").then(render).catch(()=>{})});
 $("#s-logout").onclick=async()=>{if(!confirm("退出登录？这台设备下次打开要重新输入密码。"))return;
   await fetch("/api/logout",{method:"POST"}).catch(()=>{});location.replace("/login")};
+function netUI(){$("#offbar").hidden=navigator.onLine}
+window.addEventListener("online",()=>{netUI();if(curView==="home"&&!viewId)api("/api/state").then(render).catch(()=>{})});
+window.addEventListener("offline",netUI);netUI();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});
 </script>
 </body>
