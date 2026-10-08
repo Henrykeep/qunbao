@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.13.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.14.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -27,6 +27,7 @@ COOKIE = "qb_session"
 
 # 网页「设置」里可以改的项；.env 里的值只作为第一次启动时的默认值
 DEFAULTS = {
+    "weekly_digest": True,
     "profile": os.getenv("MY_PROFILE", ""),
     "vip": [],                 # 重要的人（昵称/群名片），他们说话一律值得看
     "keywords": ["截止", "ddl", "提交", "开会", "考试", "缴费", "通知", "报名", "@全体成员"],
@@ -540,6 +541,15 @@ async def scheduler():
                         await push("今日群报" + (f" · {n} 件待办" if n else ""), d.get("headline", ""), force=True)
                 except Exception as ex:
                     print("自动总结失败:", ex)
+            if (s.get("weekly_digest") and now.weekday() == 6 and now.hour == 20
+                    and ("wk", now.date()) not in last):
+                last = last | {("wk", now.date())}
+                try:
+                    d = await make_digest(168)
+                    if s.get("push_digest"):
+                        await push("本周群报", d.get("headline", ""), force=True)
+                except Exception as ex:
+                    print("周报失败:", ex)
             try:
                 await flush_held()
                 await check_reminders()
