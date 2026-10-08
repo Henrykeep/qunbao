@@ -421,6 +421,8 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
     <div class="row"><span class="rl">@我 / 重要的人 / 关键词</span><label class="sw"><input type="checkbox" id="s-pushat"><span></span></label></div>
     <div class="row"><span class="rl">每日群报</span><label class="sw"><input type="checkbox" id="s-pushdg"><span></span></label></div>
     <div class="row"><span class="rl">周报<small>每周日 20:00 整理一周要点</small></span><label class="sw"><input type="checkbox" id="s-wk"><span></span></label></div>
+    <div class="row"><span class="rl">消息保留天数<small>超过的原文每天凌晨清理</small></span><select id="s-keep"><option value="7">7 天</option><option value="30">30 天</option><option value="90">90 天</option><option value="365">365 天</option></select></div>
+    <div class="row"><span class="rl">导出备份<small>消息、总结、设置打包成 JSON</small></span><a class="btn" href="/api/export" download>导出</a></div>
     <div class="row"><span class="rl">点通知打开的地址<small>一般就是现在浏览器里的这个</small></span><input type="url" id="s-site" placeholder="http://"></div>
     <div class="row"><span class="rl">发一条试试</span><button class="btn ghost" id="s-test">测试推送</button></div>
   </div>
@@ -821,7 +823,7 @@ const hs=[...Array(24).keys()].map(h=>[h,String(h).padStart(2,"0")+":00"]);
 const fill=(id,arr,cur)=>{$(id).innerHTML=arr.map(([v,l])=>`<option value="${v}" ${v==cur?"selected":""}>${l}</option>`).join("")};
 fill("#s-hour2",[[-1,"关闭"],...hs],s.digest_hour2??-1);fill("#s-qs",[[-1,"关闭"],...hs],s.quiet_start??-1);fill("#s-qe",hs,s.quiet_end??7);
     $("#s-bark").value=s.bark_url||"";$("#s-site").value=s.site_url||location.origin;
-    $("#s-pushat").checked=!!s.push_at;$("#s-pushdg").checked=!!s.push_digest;$("#s-wk").checked=!!s.weekly_digest;
+    $("#s-pushat").checked=!!s.push_at;$("#s-pushdg").checked=!!s.push_digest;$("#s-wk").checked=!!s.weekly_digest;$("#s-keep").value=String(s.keep_days||30);
     const names=[...new Set([...chats.map(c=>c.chat),...s.muted])];
     $("#s-muted").innerHTML=names.length?names.map(n=>`<div class="row"><span class="rl">${esc(n)}</span><select class="lvsel" data-lv="${esc(n)}">${[["normal","普通"],["important","重要"],["atonly","只看@我"]].map(([v,l])=>`<option value="${v}" ${((s.levels||{})[n]||"normal")==v?"selected":""}>${l}</option>`).join("")}</select><label class="sw"><input type="checkbox" data-chat="${esc(n)}" ${s.muted.includes(n)?"checked":""}><span></span></label></div>`).join("")
       :`<div class="row"><span class="rl" style="color:var(--faint)">有消息进来后，群会出现在这里</span></div>`;
@@ -844,6 +846,7 @@ $("#s-remind").onchange=e=>{SET.remind_hours=+e.target.value;saveSet()};
 $("#s-bark").oninput=e=>{SET.bark_url=e.target.value.trim();saveSet()};
 $("#s-site").oninput=e=>{SET.site_url=e.target.value.trim();saveSet()};
 $("#s-pushat").onchange=e=>{tick();SET.push_at=e.target.checked;saveSet()};
+$("#s-keep").onchange=e=>{tick();SET.keep_days=+e.target.value;saveSet()};
 $("#s-wk").onchange=e=>{tick();SET.weekly_digest=e.target.checked;saveSet()};
 $("#s-pushdg").onchange=e=>{tick();SET.push_digest=e.target.checked;saveSet()};
 $("#wx-copy").onclick=async()=>{tick();const t=$("#wx-url").textContent;
