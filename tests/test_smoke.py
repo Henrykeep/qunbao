@@ -193,3 +193,30 @@ def test_export_and_keep_days():
     c.post("/api/settings", json={"keep_days": 7}, headers=AUTH)
     assert c.get("/api/settings", headers=AUTH).json()["keep_days"] == 7
     c.post("/api/settings", json={"keep_days": 30}, headers=AUTH)
+
+
+def test_llm_retry_and_error_state():
+    import asyncio, httpx
+    app_mod.LLM_KEY = "k"; app_mod.LLM_RETRY_WAIT = 0
+    calls = []
+
+    class Bad:
+        def __init__(s, *a, **k): pass
+        async def __aenter__(s): return s
+        async def __aexit__(s, *a): pass
+        async def post(s, *a, **k):
+            calls.append(1)
+            raise httpx.ConnectError("boom")
+    orig = httpx.AsyncClient
+    app_mod.httpx.AsyncClient = Bad
+    try:
+        try:
+            asyncio.run(app_mod.llm([{"role": "user", "content": "x"}]))
+            assert False
+        except Exception as ex:
+            assert ex.status_code == 502
+    finally:
+        app_mod.httpx.AsyncClient = orig; app_mod.LLM_KEY = ""
+    assert len(calls) == 2
+    st = c.get("/api/state", headers=AUTH).json()["status"]
+    assert "连不上" in st["llm_err"]
