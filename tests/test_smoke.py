@@ -172,3 +172,8 @@ def test_messages_filter_sender_since():
     assert r.status_code == 200 and r.json() == []
     r = c.get(f"/api/messages?until=1", headers=AUTH)
     assert r.json() == []
+
+
+def test_service_worker():
+    r = c.get("/sw.js")
+    assert r.status_code == 200 and "javascript" in r.headers["content-type"] and "fetch" in r.text
