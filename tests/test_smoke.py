@@ -165,3 +165,10 @@ def test_image_thumbs():
     m = c.get("/api/messages?chat=图片群", headers=AUTH).json()[-1]
     assert m["imgs"] == ["https://x.cn/a.jpg?k=1&b=2"] and "[图片]" in m["text"]
     assert c.get("/api/messages?chat=计科2201", headers=AUTH).json()[0]["imgs"] == []
+
+
+def test_messages_filter_sender_since():
+    r = c.get("/api/messages?sender=zzzz_none&since=1", headers=AUTH)
+    assert r.status_code == 200 and r.json() == []
+    r = c.get(f"/api/messages?until=1", headers=AUTH)
+    assert r.json() == []
