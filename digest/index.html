@@ -219,6 +219,7 @@ footer{text-align:center;font-size:11px;color:var(--faint);margin-top:44px;lette
 .back{border:0;background:none;display:flex;align-items:center;gap:2px;color:var(--ink);font-size:15px;padding:6px 8px;width:70px}
 .back svg{width:20px;height:20px}
 .msgs{padding:8px 0 20px}
+.cfind{margin:8px 0 0}.cfind input{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:15px;outline:none;color:inherit}.cfind small{display:block;margin-top:4px;font-size:12px;color:var(--faint)}
 .sfchip{margin:8px 0 0;font-size:13px;color:var(--mut,#888)}.sfchip button{border:1px solid var(--line);background:none;color:inherit;border-radius:14px;padding:3px 10px;margin-left:6px;font:inherit}
 #cmsgs.sf .m:not(.sfhit),#cmsgs.sf .day{display:none}
 #cmsgs .av.sm,#cmsgs .who{cursor:pointer}
@@ -390,6 +391,7 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
     <div class="chat-head"><button class="back" id="cback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>返回</button>
       <div class="ttl" id="ctitle"></div><div style="width:70px"></div></div>
     <div class="sfchip" id="sfchip" hidden></div>
+    <div class="cfind"><input id="cfq" type="search" placeholder="在本群记录中查找" autocomplete="off"><small id="cfn" hidden></small></div>
     <div class="msgs" id="cmsgs"></div>
   </div>
 </div></div>
@@ -780,7 +782,7 @@ let chatName=null,chatSrc="",oldest=0;
 async function openChat(chat,focus,src){
   if(curView!=="msgs"){curView="msgs";$$(".view").forEach(e=>e.classList.toggle("on",e.id==="v-msgs"));
     $$(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v==="msgs"));$("#dock").classList.remove("home")}
-  chatName=chat;oldest=0;SENDERF="";$("#msgs-list").hidden=true;$("#msgs-chat").hidden=false;
+  chatName=chat;oldest=0;SENDERF="";$("#cfq").value="";$("#cfn").hidden=true;$("#msgs-list").hidden=true;$("#msgs-chat").hidden=false;
   if(!CHATS.length){try{CHATS=await api("/api/chats")}catch(e){}}
   const c=CHATS.find(x=>x.chat===chat&&(!src||x.source===src));chatSrc=src||c?.source||"";
   $("#ctitle").innerHTML=`${esc(chat)}<small>${c?`${c.n} 条 · ${esc(c.source)}`:"聊天记录"}</small>`;
@@ -809,6 +811,14 @@ function renderMsgs(ms,prepend){
   $("#older")?.addEventListener("click",async()=>{const ms2=await api(`/api/messages?chat=${encodeURIComponent(chatName)}&before=${oldest}&limit=120${chatSrc?`&source=${encodeURIComponent(chatSrc)}`:""}`);
     if(!ms2.length){$("#older").textContent="没有更早的了";return}renderMsgs(ms2,true)});
 }
+function cfind(){const q=$("#cfq").value.trim(),n=$("#cfn");let k=0;
+  $$("#cmsgs .bub").forEach(b=>{const m=b.closest(".m");const t=m.dataset.t;
+    if(!q){b.innerHTML=hlAt(t)+(b.querySelector(".thumbs")?b.querySelector(".thumbs").outerHTML:"");return}
+    const hit=t.toLowerCase().includes(q.toLowerCase());if(hit)k++;
+    b.innerHTML=hlQ(t,q)+(b.querySelector(".thumbs")?b.querySelector(".thumbs").outerHTML:"")});
+  n.hidden=!q;n.textContent=k?`匹配 ${k} 条（已加载部分）`:"没有匹配";
+  if(q){const f=$("#cmsgs .bub mark");f&&f.scrollIntoView({block:"center"})}}
+$("#cfq").addEventListener("input",debounce(cfind,200));
 let SENDERF="";
 function applySF(){const b=$("#cmsgs"),c=$("#sfchip");b.classList.toggle("sf",!!SENDERF);
   $$("#cmsgs .m").forEach(e=>e.classList.toggle("sfhit",e.dataset.s===SENDERF));
