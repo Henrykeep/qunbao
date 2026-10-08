@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.9.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.10.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -31,6 +31,7 @@ DEFAULTS = {
     "vip": [],                 # 重要的人（昵称/群名片），他们说话一律值得看
     "keywords": ["截止", "ddl", "提交", "开会", "考试", "缴费", "通知", "报名", "@全体成员"],
     "muted": [],               # 屏蔽的群：不进总结、不推送
+    "levels": {},              # 每个群的级别：important 重要 / atonly 只看@我；缺省 = 普通
     "digest_hour": int(os.getenv("DIGEST_HOUR", "21")),
     "digest_hour2": -1,        # 第二次整理时间（早报+晚报）；-1 = 关闭
     "bark_url": os.getenv("BARK_URL", ""),   # 例：https://api.day.app/你的key
@@ -199,6 +200,8 @@ def hit_reason(chat, sender, text, at_me, s):
         return None
     if at_me:
         return "@了你"
+    if (s.get("levels") or {}).get(chat) == "atonly":
+        return None
     if sender and any(v and v in sender for v in s["vip"]):
         return "重要的人"
     for k in s["keywords"]:
@@ -378,8 +381,11 @@ def transcript(hours: int):
     since = int(time.time()) - hours * 3600
     with db() as c:
         rows = c.execute("SELECT * FROM msgs WHERE ts>=? ORDER BY ts", (since,)).fetchall()
-    rows = [r for r in rows if r["chat"] not in s["muted"]]
+    lv = s.get("levels") or {}
+    rows = [r for r in rows if r["chat"] not in s["muted"]
+            and (lv.get(r["chat"]) != "atonly" or r["at_me"])]
     lines = [f"[{datetime.fromtimestamp(r['ts'], TZ):%m-%d %H:%M}][{r['source']}·{r['chat']}]"
+             f"{'【重要群】' if lv.get(r['chat']) == 'important' else ''}"
              f"{' (@我)' if r['at_me'] else ''} {r['sender']}: {r['text']}" for r in rows]
     text = "\n".join(lines)
     if len(text) > MAX_CHARS:  # 太长时保留最新的部分
@@ -391,6 +397,9 @@ def about_me(s):
     parts = [f"关于用户：{s['profile'] or '（未提供）'}"]
     if s["vip"]:
         parts.append("对用户重要的人：" + "、".join(s["vip"]))
+    imp = [k for k, v in (s.get("levels") or {}).items() if v == "important"]
+    if imp:
+        parts.append("重要的群（这些群里的事权重更高）：" + "、".join(imp))
     if s["keywords"]:
         parts.append("用户关心的关键词：" + "、".join(s["keywords"]))
     return "\n".join(parts)
@@ -653,7 +662,8 @@ def chats(hours: int = 168, source: str = ""):
                           (r["chat"], r["source"])).fetchone()
             out.append({"chat": r["chat"], "source": r["source"], "n": r["n"], "last_ts": r["last_ts"],
                         "ats": r["ats"] or 0, "last": f"{m['sender']}：{m['text']}" if m else "",
-                        "muted": r["chat"] in s["muted"]})
+                        "muted": r["chat"] in s["muted"],
+                        "level": (s.get("levels") or {}).get(r["chat"], "normal")})
     return out
 
 
