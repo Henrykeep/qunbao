@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.18.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.19.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -70,6 +70,7 @@ with db() as c:
     CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT);
     CREATE TABLE IF NOT EXISTS todo_done(k TEXT PRIMARY KEY, ts INTEGER);
     CREATE TABLE IF NOT EXISTS reminded(k TEXT PRIMARY KEY, ts INTEGER);
+    CREATE TABLE IF NOT EXISTS snooze(k TEXT PRIMARY KEY, title TEXT, until INTEGER);
     CREATE TABLE IF NOT EXISTS sessions(h TEXT PRIMARY KEY, ts INTEGER, exp INTEGER, pw TEXT, ua TEXT);
     """)
     try:
@@ -513,7 +514,39 @@ def parse_due(text: str, now: datetime) -> datetime | None:
     return day.replace(hour=hh, minute=mm)
 
 
+async def check_snoozed():
+    now = int(time.time())
+    with db() as c:
+        rows = c.execute("SELECT k,title FROM snooze WHERE until<=?", (now,)).fetchall()
+        done = {r["k"] for r in c.execute("SELECT k FROM todo_done")}
+    sent = 0
+    for r in rows:
+        with db() as c:
+            c.execute("DELETE FROM snooze WHERE k=?", (r["k"],))
+        if r["k"] in done:
+            continue
+        await push("稍后提醒：" + r["title"], r["k"].split("|")[-1], force=True)
+        sent += 1
+    return sent
+
+
+@app.post("/api/todo/snooze", dependencies=[Depends(auth)])
+async def todo_snooze(req: Request):
+    d = await req.json()
+    h = d.get("hours")
+    if h == "tomorrow":
+        t = datetime.now(TZ).replace(hour=9, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        until = int(t.timestamp())
+    else:
+        until = int(time.time() + float(h or 1) * 3600)
+    with db() as c:
+        c.execute("INSERT OR REPLACE INTO snooze(k,title,until) VALUES(?,?,?)",
+                  (d["key"], d.get("title") or d["key"].split("|")[0], until))
+    return {"ok": True, "until": until}
+
+
 async def check_reminders():
+    await check_snoozed()
     s = settings()
     n = int(s.get("remind_hours") or 0)
     if n <= 0 or not s.get("bark_url"):
