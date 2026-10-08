@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.22.0"
+VERSION = "0.23.0"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -460,6 +460,11 @@ def digest_prompt(s):
 todos 按紧急程度排序；urgency=high 只给 48 小时内截止或老师/领导点名要求的事。"""
 
 
+def weekly_title(d: dict) -> str:
+    n = len(d.get("todos", []))
+    return "本周群报" + (f" · {n} 件待办" if n else "")
+
+
 async def make_digest(hours=24):
     s = settings()
     rows, text = transcript(hours)
@@ -467,7 +472,8 @@ async def make_digest(hours=24):
         body = {"headline": "这段时间群里很安静", "todos": [], "notices": [], "groups": []}
     else:
         out = await llm([{"role": "system", "content": digest_prompt(s)},
-                         {"role": "user", "content": f"最近 {hours} 小时的消息：\n{text}"}], as_json=True)
+                         {"role": "user", "content": f"最近 {hours} 小时的消息：\n{text}"
+                                    + ("\n（这是一周汇总：合并重复事项，突出尚未完成和下周要办的事。）" if hours >= 168 else "")}], as_json=True)
         m = re.search(r"\{.*\}", out, re.S)
         try:
             body = json.loads(m.group(0) if m else out)
@@ -604,7 +610,7 @@ async def scheduler():
                 try:
                     d = await make_digest(168)
                     if s.get("push_digest"):
-                        await push("本周群报", d.get("headline", ""), force=True)
+                        await push(weekly_title(d), f"{d.get('count', 0)} 条消息 · {d.get('chats', 0)} 个群。" + d.get("headline", ""), force=True)
                 except Exception as ex:
                     print("周报失败:", ex)
             try:
