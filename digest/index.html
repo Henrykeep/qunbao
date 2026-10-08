@@ -589,6 +589,7 @@ function renderStatus(st){
   lv("#lv-qq",s.qq);lv("#lv-wx",s.wx);l.classList.toggle("ok",!!s.online);
   let n="";
   if(!s.llm)n+=`<div class="warn fade">${ICON.warn}<div><b>还没配置大模型</b><span>在服务器 .env 里填上 LLM_API_KEY，重启 qunbao 容器。</span></div></div>`;
+  else if(s.llm_err)n+=`<div class="warn fade">${ICON.warn}<div><b>大模型调用失败（已自动重试 1 次）</b><span>${esc(s.llm_err)}</span></div></div>`;
   else if(!s.last_msg)n+=`<div class="warn fade">${ICON.warn}<div><b>还没收到任何消息</b><span>QQ：登录 NapCat 并把上报地址指向群报；微信：去「设置 → 接入微信」。</span></div></div>`;
   if(!st.is_latest&&st.digest)n+=`<div class="banner fade"><span>正在看 ${ago(st.digest_ts)} 的群报</span><button id="tolatest">回到最新</button></div>`;
   $("#notes").innerHTML=n;
