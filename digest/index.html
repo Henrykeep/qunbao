@@ -98,6 +98,9 @@ h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
 .check:active{transform:scale(.85)}
 .check svg{width:13px;height:13px;color:var(--bg);stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .3s .05s}
 .todo.pinned:not(.done) .chip.pinb{background:var(--ink);color:var(--card)}
+.todos.fold .todo.done{display:none}
+.donebar{display:none;width:100%;border:0;background:transparent;color:var(--faint);font:inherit;font-size:13px;padding:8px 0 2px;cursor:pointer}
+.donebar.on{display:block}
 .todo.done{background:transparent;box-shadow:none;opacity:.55}
 .todo.done::before{opacity:0}
 .todo.done .check{background:var(--ink);border-color:var(--ink)}
@@ -647,7 +650,7 @@ function render(st){
     ${t.quote?`<div class="quote"><div><blockquote>${hlAt(t.quote)}<cite>— ${esc(t.sender||"")}${t.sender?" · ":""}${esc(t.chat)}</cite></blockquote>
       <button class="go">去原文看上下文${ICON.arrow}</button></div></div>`:""}</div></div>`).join("")
     :`<div class="empty"><div class="big">没有要你动手的事</div>放心不看群 ☕</div>`;
-  h+=`</div></section>`;
+  h+=`</div><button class="donebar" id="donebar"></button></section>`;
 
   if(notices.length){
     h+=`<section><h2>值得知道 <span class="c">${notices.length}</span></h2>`+notices.map((n,i)=>`<div class="notice"><div class="num">${pad(i+1)}</div>
@@ -698,6 +701,9 @@ function render(st){
 function bindAts(){$$(".at").forEach(a=>a.onclick=()=>openChat(a.dataset.chat,a.dataset.q))}
 function updateProg(){
   const all=$$(".todo").length,done=$$(".todo.done").length;if(!$("#prog-n"))return;
+  const bx=$("#todos"),bar=$("#donebar");
+  if(bx&&bar){if(!bar._b){bx.classList.add("fold");bar._b=1;bar.onclick=()=>{bx.classList.toggle("fold");updateProg()}}
+    bar.classList.toggle("on",done>0);bar.textContent=bx.classList.contains("fold")?`已完成 ${done} 项 · 展开`:`收起已完成`}
   $("#prog-n").innerHTML=all?`${done}<small>/${all}</small>`:"—";$("#prog-b").style.width=all?`${done/all*100}%`:"0";
 }
 function sortTodos(animate){
