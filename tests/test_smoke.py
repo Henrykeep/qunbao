@@ -252,3 +252,8 @@ def test_todo_snooze():
 def test_sender_filter_ui():
     r = c.get("/", headers=AUTH)
     assert "sfchip" in r.text and "applySF" in r.text
+
+
+def test_chat_find_ui():
+    r = c.get("/", headers=AUTH)
+    assert "cfq" in r.text and "cfind" in r.text
