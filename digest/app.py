@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.31.1"
+VERSION = "0.31.2"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -1924,8 +1924,24 @@ async def ask(req: Request):
         {"role": "user", "content": q}])
     ids = {int(ln[1:].split(" ", 1)[0]) for ln in lines}
     valid = {r["id"]: r for r in rows if r["id"] in ids}
-    text, cites = cite(a, valid)
+    text, cites = cite(tidy_bullets(a), valid)
     return {"a": text, "citations": cites, "scope": {"chat": chat, "source": source}, "used": len(lines)}
+
+
+def tidy_bullets(a: str, limit: int = 34) -> str:
+    """要点必须是完整短句：太长只在标点处截断，引用角标留在句末。"""
+    out = []
+    for ln in (a or "").splitlines():
+        m = re.match(r"^(\s*[-·•]\s*)(.*?)((?:\s*(?:\[#?\d{1,10}\]|【#?\d{1,10}】))*)\s*$", ln)
+        if not m or not m.group(1).strip():
+            out.append(ln)
+            continue
+        body = m.group(2)
+        if len(body) > limit:
+            cut = max((x.start() for x in re.finditer(r"[，。；！？,;!?]", body[:limit + 1])), default=0)
+            body = body[:cut] if cut >= 8 else body[:limit].rstrip("，、；,;（(") + "…"
+        out.append(m.group(1) + body.rstrip("，、；,;") + m.group(3))
+    return "\n".join(out)
 
 
 @app.get("/api/chat_brief", dependencies=[Depends(auth)])
@@ -1956,7 +1972,7 @@ async def chat_brief(chat: str, source: str = "", since_id: int = 0, refresh: in
                                           "有要他做的事或 @他 的放第一条；闲聊一笔带过；全是闲聊就只说一句「都是闲聊，没啥要紧的」。不要报告腔，不要开场白。"},
             {"role": "user", "content": "聊天记录（#数字 是消息编号）：\n" + "\n".join(lines)}])
         ids = {int(ln[1:].split(" ", 1)[0]) for ln in lines}
-        text, cites = cite(a, {r["id"]: r for r in rows if r["id"] in ids})
+        text, cites = cite(tidy_bullets(a), {r["id"]: r for r in rows if r["id"] in ids})
         out = {"a": text, "citations": cites, "n": len(lines)}
     out.update(since_id=since_id, ts=int(time.time()))
     with db() as c:
