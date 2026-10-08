@@ -220,3 +220,15 @@ def test_llm_retry_and_error_state():
     assert len(calls) == 2
     st = c.get("/api/state", headers=AUTH).json()["status"]
     assert "连不上" in st["llm_err"]
+
+
+def test_links_extracted():
+    rows = [{"text": "看这个 https://a.com/x?y=1，还有 https://b.org。", "chat": "g", "sender": "u", "ts": 1},
+            {"text": "重复 https://a.com/x?y=1", "chat": "g", "sender": "u", "ts": 2}]
+    out = app_mod.extract_links(rows)
+    assert [l["url"] for l in out] == ["https://a.com/x?y=1", "https://b.org"]
+    now = int(time.time())
+    with app_mod.db() as cx:
+        cx.execute("INSERT INTO msgs(ts,chat,sender,text,source) VALUES(?,?,?,?,?)",
+                   (now, "链接群", "甲", "资料 https://example.com/doc", "QQ"))
+    assert any(l["url"] == "https://example.com/doc" for l in c.get("/api/state", headers=AUTH).json()["links"])
