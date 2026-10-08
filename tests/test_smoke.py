@@ -247,3 +247,8 @@ def test_todo_snooze():
     c.post("/api/todo/snooze", headers=AUTH, json={"key": "a|b", "hours": "tomorrow"})
     with app_mod.db() as cn:
         assert cn.execute("SELECT COUNT(*) n FROM snooze").fetchone()["n"] == 2
+
+
+def test_sender_filter_ui():
+    r = c.get("/", headers=AUTH)
+    assert "sfchip" in r.text and "applySF" in r.text
