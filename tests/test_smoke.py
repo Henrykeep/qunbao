@@ -239,3 +239,11 @@ def test_whitelist_mode():
     assert app_mod.is_muted("甲", s) and not app_mod.is_muted("乙", s)
     s["only_mode"] = True
     assert app_mod.is_muted("甲", s) and not app_mod.is_muted("乙", s) and app_mod.is_muted("丙", s)
+
+
+def test_todo_snooze():
+    r = c.post("/api/todo/snooze", headers=AUTH, json={"key": "交报告|群", "title": "交报告", "hours": 1}).json()
+    assert r["ok"] and r["until"] > time.time()
+    c.post("/api/todo/snooze", headers=AUTH, json={"key": "a|b", "hours": "tomorrow"})
+    with app_mod.db() as cn:
+        assert cn.execute("SELECT COUNT(*) n FROM snooze").fetchone()["n"] == 2
