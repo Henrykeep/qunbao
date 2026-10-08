@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.27.0"
+VERSION = "0.28.0"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -652,6 +652,16 @@ def extract_links(rows, limit=20):
     return out
 
 
+def todo_diff(cur: dict, prev: dict | None) -> dict | None:
+    if prev is None:
+        return None
+    k = lambda t: (t.get("title", ""), t.get("chat", ""))
+    old = {k(t) for t in prev.get("todos", [])}
+    new = {k(t) for t in cur.get("todos", [])}
+    return {"new": [t["title"] for t in cur.get("todos", []) if k(t) not in old],
+            "gone": len(old - new), "kept": len(old & new)}
+
+
 def digest_row(d):
     body = json.loads(d["body"])
     body["id"] = d["id"]
@@ -666,6 +676,7 @@ def state(id: int | None = None):
              c.execute("SELECT * FROM digests ORDER BY id DESC LIMIT 1").fetchone())
         span = (d["hours"] if d else 24) * 3600
         latest_id = c.execute("SELECT MAX(id) i FROM digests").fetchone()["i"]
+        pv = c.execute("SELECT body FROM digests WHERE id<? ORDER BY id DESC LIMIT 1", (d["id"],)).fetchone() if d else None
         ref = now if (not d or d["id"] == latest_id) else d["ts"]
         ats = c.execute("SELECT * FROM msgs WHERE at_me=1 AND ts>=? AND ts<=? ORDER BY ts DESC LIMIT 30",
                         (ref - span, ref + 3600 * 24)).fetchall()
@@ -690,6 +701,7 @@ def state(id: int | None = None):
     wx_on = bool(wx_ts and now - wx_ts < 6 * 3600)
     return {
         "digest": digest_row(d) if d else None,
+        "diff": todo_diff(digest_row(d), json.loads(pv["body"])) if d and pv else None,
         "digest_ts": d["ts"] if d else None,
         "hours": d["hours"] if d else 24,
         "is_latest": (not d) or d["id"] == latest,
