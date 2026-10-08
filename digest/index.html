@@ -89,6 +89,7 @@ h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
 
 /* 待办 */
 .todos{position:relative}
+.diffline{font-size:12.5px;color:var(--faint);margin:-2px 0 10px}.diffline b{color:var(--ink);font-weight:600}
 .todo{display:flex;gap:14px;background:var(--card);border-radius:16px;padding:16px 16px 15px;box-shadow:var(--shadow);margin-bottom:10px;
   position:relative;overflow:hidden;transition:opacity .3s,background .3s}
 .todo::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;background:var(--u);transition:opacity .3s}
@@ -640,7 +641,7 @@ function render(st){
   <div class="stat"><div class="n">${d.chats??0}</div><div class="l">个群</div></div>
   <div class="stat"><div class="n" id="prog-n"></div><div class="l">待办完成</div><div class="prog"><div id="prog-b"></div></div></div></div>`;
 
-  h+=`<section><h2>要你做的 <span class="c">${todos.length||""}</span></h2><div class="todos" id="todos">`;
+  h+=`<section><h2>要你做的 <span class="c">${todos.length||""}</span></h2>${st.diff&&(st.diff.new.length||st.diff.gone)?`<div class="diffline">较上一期：新增 <b>${st.diff.new.length}</b> 件${st.diff.gone?`，消失 ${st.diff.gone} 件`:""}</div>`:""}<div class="todos" id="todos">`;
   h+=todos.length?todos.map((t,i)=>`<div class="todo ${esc(t.urgency||"mid")} ${done.has(doneKey(t))?"done":""} ${pins.has(doneKey(t))?"pinned":""} fade" style="animation-delay:${i*40}ms" data-k="${esc(doneKey(t))}" data-chat="${esc(t.chat)}" data-q="${esc(t.quote||"")}">
     <button class="check" aria-label="完成"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
     <div class="tbody"><div class="t">${esc(t.title)}</div>${t.detail?`<div class="d">${esc(t.detail)}</div>`:""}
