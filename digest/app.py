@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.23.0"
+VERSION = "0.24.0"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -764,6 +764,24 @@ def ics(title: str = "", due: str = "", detail: str = "", chat: str = ""):
         raise HTTPException(400, "缺少标题")
     return Response(build_ics(title[:200], due[:60], detail[:500], chat[:80]), media_type="text/calendar; charset=utf-8",
                     headers={"Content-Disposition": "inline; filename=todo.ics"})
+
+
+def activity_stats(days: int = 7, source: str = "", now: int = 0):
+    now = now or int(time.time())
+    since = now - days * 86400
+    hours = [0] * 24
+    groups = {}
+    with db() as c:
+        for r in c.execute("SELECT ts, chat FROM msgs WHERE ts>=? AND (?='' OR source=?)", (since, source, source)):
+            hours[time.localtime(r["ts"]).tm_hour] += 1
+            groups[r["chat"]] = groups.get(r["chat"], 0) + 1
+    top = sorted(groups.items(), key=lambda x: -x[1])[:5]
+    return {"days": days, "hours": hours, "total": sum(hours), "top": [{"chat": k, "n": v} for k, v in top]}
+
+
+@app.get("/api/activity", dependencies=[Depends(auth)])
+def activity(days: int = 7, source: str = ""):
+    return activity_stats(max(1, min(days, 90)), source)
 
 
 @app.get("/api/chats", dependencies=[Depends(auth)])
