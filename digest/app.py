@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.30.4"
+VERSION = "0.31.0"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -34,10 +34,11 @@ DEFAULTS = {
     "my_names": [],            # 我的昵称/群名片：文本里出现 @昵称 就算 @我（微信通知常识别不出）
     "vip": [],                 # 重要的人（昵称/群名片），他们说话一律值得看
     "keywords": ["截止", "ddl", "提交", "开会", "考试", "缴费", "通知", "报名", "@全体成员"],
-    "only_mode": False,        # 白名单模式：只总结 allowed 里的群
-    "allowed": [],
-    "muted": [],               # 屏蔽的群：不进总结、不推送
-    "levels": {},              # 每个群的级别：important 重要 / atonly 只看@我；缺省 = 普通
+    "modes": {},               # 每个群怎么盯，键 "来源|群名"：focus 重点盯 / normal 正常 / atonly 只看@我 / off 不看
+    "default_mode": "normal",  # 新出现的群默认档位
+    "modes_tip_done": False,   # 首页「给群分档」引导已处理
+    # 以下为 0.30 及以前的旧字段，启动时迁移进 modes 后清空
+    "only_mode": False, "allowed": [], "muted": [], "levels": {},
     "digest_hour": int(os.getenv("DIGEST_HOUR", "21")),
     "digest_hour2": -1,        # 第二次整理时间（早报+晚报）；-1 = 关闭
     "bark_url": os.getenv("BARK_URL", ""),   # 例：https://api.day.app/你的key
@@ -50,6 +51,8 @@ DEFAULTS = {
     "auto_interval": 30,       # 有新消息时自动整理的间隔（分钟）；0 = 关闭
 }
 AUTO_CHOICES = (0, 15, 30, 60, 120)
+MODES = ("focus", "normal", "atonly", "off")
+MODE_NAME = {"focus": "重点盯", "normal": "正常", "atonly": "只看@我", "off": "不看"}
 AUTO_URGENT_GAP = 300          # 重要群 / @我 的新消息最少隔 5 分钟就可以提前整理
 
 @contextlib.asynccontextmanager
@@ -95,6 +98,8 @@ with db() as c:
         status TEXT DEFAULT 'open', first_ts INTEGER, updated_ts INTEGER, msg_ids TEXT DEFAULT '',
         pinned INTEGER DEFAULT 0, reminded INTEGER DEFAULT 0, at_me INTEGER DEFAULT 0);
     CREATE INDEX IF NOT EXISTS i_items ON items(source, chat, status);
+    CREATE TABLE IF NOT EXISTS chat_brief(source TEXT, chat TEXT, since_id INTEGER, upto_id INTEGER, body TEXT, ts INTEGER,
+        PRIMARY KEY(source, chat));
     """)
     for tb, col in [("msgs", "img"), ("todo_done", "title"), ("todo_done", "chat"), ("todo_done", "due"),
                     ("pins", "title"), ("pins", "chat"), ("pins", "due"), ("reminded", "title"), ("reminded", "chat"),
@@ -125,6 +130,9 @@ def save_settings(new: dict):
         s["auto_interval"] = DEFAULTS["auto_interval"]
     if s["auto_interval"] not in AUTO_CHOICES:
         s["auto_interval"] = DEFAULTS["auto_interval"]
+    if s.get("default_mode") not in MODES:
+        s["default_mode"] = "normal"
+    s["modes"] = {k: v for k, v in (s.get("modes") or {}).items() if v in MODES and "|" in k}
     with db() as c:
         c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('settings',?)", (json.dumps(s, ensure_ascii=False),))
     return s
@@ -189,13 +197,67 @@ def _client_ip(req: Request) -> str:
 
 
 # ---------------- 推送（Bark，iPhone 上收通知）----------------
-_held: list = []
+def ckey(source, chat) -> str:
+    return f"{source or 'QQ'}|{chat}"
 
 
-def is_muted(chat, s) -> bool:
+def _legacy_mode(chat, s):
     if s.get("only_mode"):
-        return chat not in (s.get("allowed") or [])
-    return chat in s["muted"]
+        if chat not in (s.get("allowed") or []):
+            return "off"
+    elif chat in (s.get("muted") or []):
+        return "off"
+    return {"important": "focus", "atonly": "atonly"}.get((s.get("levels") or {}).get(chat), None)
+
+
+def chat_mode(source, chat, s) -> str:
+    """这个群怎么盯。按 (来源, 群名) 区分：QQ 和微信的同名群互不影响。"""
+    m = (s.get("modes") or {}).get(ckey(source, chat))
+    if m in MODES:
+        return m
+    return _legacy_mode(chat, s) or s.get("default_mode") or "normal"
+
+
+def in_digest(source, chat, s) -> bool:
+    """进不进整理（送不送模型）：只看@我 和 不看 都不进。"""
+    return chat_mode(source, chat, s) in ("focus", "normal")
+
+
+def migrate_modes():
+    """0.30 → 0.31：旧的屏蔽/白名单/级别（按群名）迁移成每个 (来源, 群) 一档；已有的群全部写明档位，
+    之后「新群默认档位」只影响真正新出现的群。"""
+    s = settings()
+    if s.get("modes_migrated"):
+        return 0
+    with db() as c:
+        pairs = c.execute("SELECT DISTINCT source, chat FROM msgs").fetchall()
+    modes = dict(s.get("modes") or {})
+    for r in pairs:
+        k = ckey(r["source"], r["chat"])
+        if k not in modes:
+            modes[k] = _legacy_mode(r["chat"], s) or "normal"
+    s.update(modes=modes, only_mode=False, allowed=[], muted=[], levels={}, modes_migrated=True)
+    with db() as c:
+        c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('settings',?)", (json.dumps(s, ensure_ascii=False),))
+    return len(pairs)
+
+
+def set_modes(pairs, mode):
+    s = settings()
+    modes = dict(s.get("modes") or {})
+    for src, chat in pairs:
+        modes[ckey(src, chat)] = mode
+    s["modes"] = modes
+    with db() as c:
+        c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('settings',?)", (json.dumps(s, ensure_ascii=False),))
+    return s
+
+
+def _held_get() -> list:
+    try:
+        return json.loads(kv_get("held", "[]") or "[]")
+    except json.JSONDecodeError:
+        return []
 
 
 def in_quiet(s, now=None) -> bool:
@@ -208,28 +270,35 @@ def in_quiet(s, now=None) -> bool:
 
 async def flush_held():
     """免打扰结束后，把攒着的推送合并成一条发出。"""
-    if not _held or in_quiet(settings()):
+    items = _held_get()
+    if not items or in_quiet(settings()):
         return 0
-    items = _held[:]
-    _held.clear()
+    kv_set("held", "[]")
+    items = [tuple(x[:2]) for x in items]
     body = "\n".join(f"· {t}：{b}" for t, b in items)[:300]
     await push(f"免打扰期间 {len(items)} 条消息", body, force=True, test=True)
     return len(items)
 
 
-async def push(title: str, body: str, key: str = "", force=False, test=False):
+async def push(title: str, body: str, key: str = "", force=False, test=False, level: str = "active", gap: int = 60):
+    """level：timeSensitive（@我、快截止，专注模式也能响）/ active / passive（只进通知中心，不响不震）。
+    免打扰期间攒进数据库（重启不丢），到点合并成一条。"""
     s = settings()
     if not test and s.get("bark_url") and in_quiet(s):
-        if len(_held) < 50:
-            _held.append((title, body))
+        held = _held_get()
+        if len(held) < 50:
+            held.append([title, body])
+            kv_set("held", json.dumps(held, ensure_ascii=False))
         return False
     url = (s.get("bark_url") or "").rstrip("/")
     if not url:
         return False
-    if key and not force and time.time() - _last_push.get(key, 0) < 60:  # 同一个群一分钟最多推一次
+    if key and not force and time.time() - _last_push.get(key, 0) < gap:  # 同一个群限频
         return False
     _last_push[key] = time.time()
     payload = {"title": title[:60], "body": body[:300], "group": "群报"}
+    if level in ("timeSensitive", "passive"):
+        payload["level"] = level
     if s.get("site_url"):
         payload["url"] = s["site_url"]
         payload["icon"] = s["site_url"].rstrip("/") + "/icon.png"
@@ -242,18 +311,22 @@ async def push(title: str, body: str, key: str = "", force=False, test=False):
         return False
 
 
-def hit_reason(chat, sender, text, at_me, s):
-    if is_muted(chat, s):
+def hit_reason(chat, sender, text, at_me, s, source="QQ"):
+    """要不要即时推送，返回 (原因, Bark 级别) 或 None。不看的群一律不推；只看@我 只推 @我/@全体；广告不推。"""
+    mode = chat_mode(source, chat, s)
+    if mode == "off":
         return None
     if at_me:
-        return "@了你"
-    if (s.get("levels") or {}).get(chat) == "atonly":
+        return ("@全体" if re.search(r"@全体成员|@所有人", text) else "@你"), "timeSensitive"
+    if mode == "atonly" or AD_RE.search(text):
         return None
     if sender and any(v and v in sender for v in s["vip"]):
-        return "重要的人"
+        return "重要的人", "active"
     hits = [k for k in s["keywords"] if k and k.lower() in text.lower()]
     if hits:
-        return "关键词" + "、".join(f"「{k}」" for k in hits[:3])
+        return "关键词「" + "、".join(hits[:2]) + "」", "passive"  # 关键词命中只进通知中心，不响不震
+    if mode == "focus" and KEY_RE.search(text) and not PLACEHOLDER_RE.match(text):
+        return "重点群", "active"
     return None
 
 
@@ -268,12 +341,18 @@ async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
         return
     s = settings()
     at_me = bool(at_me) or mentions_me(text, s)
+    if ckey(source, chat) not in (s.get("modes") or {}):  # 新出现的群：记下默认档位
+        s = set_modes([(source, chat)], chat_mode(source, chat, s))
     with db() as c:
         c.execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me,img) VALUES(?,?,?,?,?,?,?)",
                   (int(ts or time.time()), source, chat, sender, text[:4000], int(at_me), imgs[:2000]))
-    why = hit_reason(chat, sender, text, at_me, s)
-    if why and s.get("push_at"):
-        asyncio.create_task(push(f"{chat} · {why}", f"{sender}：{text}", key=chat))
+    hit = hit_reason(chat, sender, text, at_me, s, source)
+    if hit and s.get("push_at"):
+        why, level = hit
+        # 标题直接说是什么事：「@你 · 计科2201」+ 原话；非 @我 的每群 10 分钟最多一条
+        brief = re.sub(r"\s+", " ", text)[:120]
+        asyncio.create_task(push(f"{why} · {chat}", f"{sender}：{brief}", key=ckey(source, chat),
+                                 level=level, gap=60 if level == "timeSensitive" else 600))
 
 
 # ---------------- 收消息 ----------------
@@ -447,6 +526,23 @@ def kv_add(k, n=1):
 LLM_RETRY_WAIT = 2
 
 
+def llm_err_text(code: int, text: str) -> str:
+    """把接口报错翻译成用户看得懂、知道怎么修的话。"""
+    t = (text or "")[:300]
+    low = t.lower()
+    if code == 402 or "insufficient" in low or "balance" in low or "余额" in t or "quota" in low:
+        return "大模型余额不足：去服务商后台充值后，点「整理」即可恢复"
+    if code in (401, 403):
+        return "大模型 API Key 不对或已失效：在服务器 .env 里改 LLM_API_KEY，重启 qunbao 容器"
+    if code == 404:
+        return f"大模型接口地址或模型名不对：检查 .env 里的 LLM_BASE_URL 和 LLM_MODEL（现在是 {LLM_MODEL}）"
+    if code == 429:
+        return "大模型被限流（请求太频繁）：几分钟后会自动重试"
+    if code >= 500:
+        return f"大模型服务商出故障（{code}）：稍后会自动重试"
+    return f"大模型接口报错 {code}：{t[:160]}"
+
+
 async def llm(messages, as_json=False):
     if not LLM_KEY:
         raise HTTPException(500, "请先在 .env 里设置 LLM_API_KEY")
@@ -465,11 +561,13 @@ async def llm(messages, as_json=False):
                 kv_add("llm_calls", 1)
                 return out
         except httpx.HTTPStatusError as ex:
-            err = f"大模型接口报错 {ex.response.status_code}：{ex.response.text[:200]}"
+            err = llm_err_text(ex.response.status_code, ex.response.text)
             if ex.response.status_code < 500 and ex.response.status_code != 429:
                 break
+        except httpx.TimeoutException:
+            err = "大模型接口超时：服务商可能拥堵，稍后会自动重试"
         except httpx.HTTPError as ex:
-            err = f"连不上大模型接口：{ex}"
+            err = f"连不上大模型接口（{LLM_BASE}）：检查服务器网络或 LLM_BASE_URL。{str(ex)[:80]}"
         if attempt == 0:
             await asyncio.sleep(LLM_RETRY_WAIT)
     LLM_STATE.update(ok=False, err=err, ts=int(time.time()))
@@ -481,11 +579,9 @@ def transcript(hours: int):
     since = int(time.time()) - hours * 3600
     with db() as c:
         rows = c.execute("SELECT * FROM msgs WHERE ts>=? ORDER BY ts", (since,)).fetchall()
-    lv = s.get("levels") or {}
-    rows = [r for r in rows if not is_muted(r["chat"], s)
-            and (lv.get(r["chat"]) != "atonly" or r["at_me"]) and classify(r, s) != "drop"]
+    rows = [r for r in rows if in_digest(r["source"], r["chat"], s) and classify(r, s) != "drop"]
     lines = [f"[{datetime.fromtimestamp(r['ts'], TZ):%m-%d %H:%M}][{r['source']}·{r['chat']}]"
-             f"{'【重要群】' if lv.get(r['chat']) == 'important' else ''}"
+             f"{'【重点群】' if chat_mode(r['source'], r['chat'], s) == 'focus' else ''}"
              f"{' (@我)' if r['at_me'] else ''} {r['sender']}: {r['text']}" for r in rows]
     text = "\n".join(lines)
     if len(text) > MAX_CHARS:  # 太长时保留最新的部分
@@ -499,7 +595,7 @@ def about_me(s):
         parts.append("用户在群里的昵称：" + "、".join(s["my_names"]))
     if s["vip"]:
         parts.append("对用户重要的人：" + "、".join(s["vip"]))
-    imp = [k for k, v in (s.get("levels") or {}).items() if v == "important"]
+    imp = [k.split("|", 1)[1] for k, v in (s.get("modes") or {}).items() if v == "focus"]
     if imp:
         parts.append("重要的群（这些群里的事权重更高）：" + "、".join(imp))
     if s["keywords"]:
@@ -528,17 +624,47 @@ def parse_due(text: str, now: datetime) -> datetime | None:
         if not m.group(1) and day.date() < now.date() - timedelta(days=30):
             day = day.replace(year=y + 1)
     else:
-        for w, n in (("大后天", 3), ("后天", 2), ("明天", 1), ("明早", 1), ("今天", 0), ("今晚", 0)):
+        for w, n in (("大后天", 3), ("后天", 2), ("明天", 1), ("明早", 1), ("明晚", 1), ("今天", 0), ("今晚", 0), ("今早", 0)):
             if w in t:
                 day = (now + timedelta(days=n)).replace(hour=0, minute=0, second=0, microsecond=0)
                 break
     if day is None:
+        m = re.search(r"(下下|下个?|本|这)?(?:周|星期|礼拜)([一二三四五六日天])", t)
+        if m:
+            wd = "一二三四五六日天".index(m.group(2)) % 7 if m.group(2) != "天" else 6
+            base = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+            pre = m.group(1) or ""
+            if pre.startswith("下下"):
+                day = base + timedelta(days=14 + wd)
+            elif pre.startswith("下"):
+                day = base + timedelta(days=7 + wd)
+            elif pre in ("本", "这"):
+                day = base + timedelta(days=wd)
+            else:  # 只说「周一」：指最近的下一个（今天是周四，说周一就是下周一）
+                day = base + timedelta(days=wd)
+                if day.date() < now.date():
+                    day += timedelta(days=7)
+        elif "月底" in t:
+            nxt = (now.replace(day=28) + timedelta(days=4)).replace(day=1)
+            day = (nxt - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        elif re.fullmatch(r"\s*(今天|今晚)?\s*(凌晨|早上|上午|中午|下午|晚上|晚)?\s*\d{1,2}\s*([:：]\d{2}|点半?)\s*(前|之前)?\s*", t):
+            day = now.replace(hour=0, minute=0, second=0, microsecond=0)  # 只给了钟点：就是今天
+    if day is None:
         return None
     hh, mm = 23, 59
-    m = re.search(r"(\d{1,2})[:：点时](\d{1,2})?", t)
+    if not re.search(r"\d{1,2}\s*[:：点时]", t):  # 只说了上午/早上/中午，没给钟点
+        if re.search(r"上午|早上|早晨|明早|今早", t):
+            hh, mm = 12, 0
+        elif "中午" in t:
+            hh, mm = 13, 0
+        elif re.search(r"下午", t):
+            hh, mm = 18, 0
+    m = re.search(r"(\d{1,2})\s*[:：点时]\s*(\d{1,2})?", t)
     if m:
-        hh, mm = int(m.group(1)), int(m.group(2) or 0)
+        hh, mm = int(m.group(1)), int(m.group(2) or (30 if re.search(r"\d\s*点半", t) else 0))
         if re.search(r"下午|晚|PM|pm", t) and hh < 12:
+            hh += 12
+        elif re.search(r"中午", t) and hh < 6:
             hh += 12
         if hh > 23 or mm > 59:
             return None
@@ -693,17 +819,61 @@ KEY_RE = re.compile(r"\d{1,2}[:：点时]\d{0,2}|\d{1,2}月\d{1,2}|\d{1,2}[/-]\d
                     r"[¥￥]\s?\d|\d+(\.\d+)?\s?(元|块)|https?://|通知|截止|ddl|务必|提交|上交|缴费|交费|报名|考试|开会|会议|签到|作业|报告|"
                     r"取消|改到|推迟|提前|地点|集合", re.I)
 ITEM_FIELDS = ("detail", "due", "urgency", "quote")
+# 线报/返利/砍一刀/代取：不送模型、不推送、不进链接（@我 的除外）
+AD_RE = re.compile(r"券后|优惠券|领券|返利|返现|包邮|秒杀|神价|线报|速度冲|速冲|复制这条|打开手淘|淘口令|￥[A-Za-z0-9]{6,}￥|"
+                   r"砍一刀|帮我砍|助力一下|拼多多|yangkeduo|pinduoduo|m\.tb\.cn|u\.jd\.com|s\.click\.taobao|uland\.taobao|"
+                   r"代取快递|代拿|跑腿|可小刀|出闲置|低价出|私聊下单|招代理|兼职日结|刷单", re.I)
+URL_ONLY_RE = re.compile(r"https?://\S+")
+
+
+DATE_IN_TITLE = re.compile(r"(?:(?:\d{4}[年/-])?\d{1,2}[月/-]\d{1,2}[日号]?|(?:本|这|下)?(?:周|星期)[一二三四五六日天](?:晚上?|早上?|上午|下午|中午)?|(?:今|明|后)(?:天|晚|早)|"
+                           r"(?:凌晨|早上|上午|中午|下午|晚上|晚)?\s*\d{1,2}[:：]\d{2}|(?:凌晨|早上|上午|中午|下午|晚上|晚)?\s*\d{1,2}\s*点(?:半|\d{1,2}分?)?|"
+                           r"凌晨|早上|上午|中午|下午|晚上)(?:\s*(?:之前|以前|前|截止))?")
+
+
+def tidy_title(t: str, limit: int = 22, due: str = "") -> str:
+    """模型给的事项标题兜底：去链接/@/套话，有截止时间时把日期从标题里拿掉（卡片上另有截止标签），
+    罗列多件事只留第一件，太长在标点或空格处截断。"""
+    t = re.sub(r"\s*https?(?::\S*)?", "", URL_ONLY_RE.sub("", t or ""))  # 含被截断的半截链接
+    if due and len(t) > 10:
+        t2 = re.sub(r"\s*(?:之?前|以前|截止)?\s*(?=$|[，,。])", "", DATE_IN_TITLE.sub(" ", t)).strip()
+        t2 = re.sub(r"^\s*(?:前|之前|以前)\s*", "", re.sub(r"\s{2,}", " ", t2)).strip(" ，,")
+        t2 = re.sub(r"^[\s\-–—~～·]+|[\s\-–—~～·]+$", "", re.sub(r"\s+[\-–—~～]+\s+", " ", t2))
+        if len(re.sub(r"\W", "", t2)) >= 4:
+            t = t2
+    t = re.sub(r"@全体成员|@所有人|@我|【[^】]{0,8}】", "", t).strip(" ，,。；;:：!！")
+    t = re.sub(r"^关于(.+?)的?(通知事项|通知|事项|事宜)$", r"\1", t)
+    t = re.sub(r"^(请于|请在|请|需要|记得|务必)\s*", "", t)
+    parts = re.split(r"[，,；;]\s*(?:并且|并|还要|另外|以及|同时|还有)|；|;", t)
+    t = parts[0].strip(" ，,。") if parts and len(parts[0].strip()) >= 4 else t
+    if len(t) <= limit:
+        return t.rstrip("，、；,;。 ")
+    cut = max((m.end() for m in re.finditer(r"[，。；！？、,;!? ]", t[:limit + 1])), default=0)
+    if cut >= 8:
+        return t[:cut].rstrip("，。；、,; ").strip()
+    return t[:limit - 1].rstrip("，、；,; ") + "…"
+
+
+def same_text(a: str, b: str) -> bool:
+    """详情是不是只把标题换个说法（卡片上就不重复显示）：标题的 2 字片段六成以上出现在详情里。"""
+    x, y = re.sub(r"\d+", "", norm_title(a)), re.sub(r"\d+", "", norm_title(b))
+    if not x or not y:
+        return False
+    if x in y or y in x or SequenceMatcher(None, x, y).ratio() >= 0.7:
+        return True
+    g = [x[i:i + 2] for i in range(len(x) - 1)]
+    return bool(g) and sum(1 for t in g if t in y) / len(g) >= 0.6
 
 
 def classify(r, s) -> str:
     """噪音预过滤：drop 不送模型（原文页照常显示）；key 重点（@我/重要群/时间金额链接/关键词/重要的人）；keep 普通。"""
     text = (r["text"] or "").strip()
-    lv = (s.get("levels") or {}).get(r["chat"])
+    mode = chat_mode(r["source"] if "source" in r.keys() else "QQ", r["chat"], s)
+    if mode in ("off", "atonly"):  # 不看 / 只看@我：都不送模型（@我 的消息在首页「@我」里直接看）
+        return "drop"
     if r["at_me"]:
         return "key"
-    if lv == "atonly":
-        return "drop"
-    if not text or RECALL_RE.search(text) or PLACEHOLDER_RE.match(text):
+    if not text or RECALL_RE.search(text) or PLACEHOLDER_RE.match(text) or AD_RE.search(text):
         return "drop"
     if (KEY_RE.search(text) or any(k and k.lower() in text.lower() for k in s.get("keywords") or [])
             or (r["sender"] and any(v and v in r["sender"] for v in s.get("vip") or []))):
@@ -711,7 +881,7 @@ def classify(r, s) -> str:
     core = re.sub(r"[\s\W_]+", "", text.lower())
     if core in NOISE_WORDS or len(core) <= 2 or re.fullmatch(r"(哈|呵|嘿|啊|哦|噢|嗯|6|1|\+)+", core or "x"):
         return "drop"
-    return "key" if lv == "important" else "keep"
+    return "key" if mode == "focus" else "keep"
 
 
 def _scan_rows(full=False):
@@ -726,10 +896,23 @@ def _scan_rows(full=False):
     return [r for r in rows if r["id"] > (last.get((r["source"], r["chat"])) or 0)]
 
 
+_pend_cache = {"key": None, "cls": {}}
+
+
 def pending_info(s=None):
-    """待整理的新消息：已排除屏蔽群和噪音。"""
+    """待整理的新消息：已排除不进整理的群和噪音。首页每分钟轮询一次，分类结果按消息 id 缓存（设置变了才重算）。"""
     s = s or settings()
-    rows = [r for r in _scan_rows() if not is_muted(r["chat"], s) and classify(r, s) != "drop"]
+    key = hashlib.md5(json.dumps(s, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    if _pend_cache["key"] != key or len(_pend_cache["cls"]) > 200000:
+        _pend_cache.update(key=key, cls={})
+    cc = _pend_cache["cls"]
+    rows = []
+    for r in _scan_rows():
+        k = cc.get(r["id"])
+        if k is None:
+            k = cc[r["id"]] = classify(r, s)
+        if k != "drop":
+            rows.append(r)
     return rows, {"msgs": len(rows), "chats": len({(r["source"], r["chat"]) for r in rows})}
 
 
@@ -752,19 +935,20 @@ def chunked(pairs):
 
 def chat_prompt(s, source, chat):
     now = datetime.now(TZ)
-    imp = "，用户标为【重要群】" if (s.get("levels") or {}).get(chat) == "important" else ""
+    imp = "，用户标为【重点盯】" if chat_mode(source, chat, s) == "focus" else ""
     return f"""【群更新】你是用户的群消息秘书，只负责维护「{chat}」（{source}{imp}）这一个群的状态。现在是 {now:%Y-%m-%d %H:%M} 星期{"一二三四五六日"[now.weekday()]}。
 {about_me(s)}
 输入：这个群的旧要点 summary、仍未完成的事项 open_items（每项有固定 id）、用户最近已完成的事 done_recent，以及之后的新消息（#数字 是消息编号，★ 是重点消息，(@我) 是 @用户的）。
 只输出 JSON：
 {{"summary":"这个群现在的要点，40字内（没变化就原样沿用）",
 "update":[{{"id":已有事项的id,"detail":"40字内","due":"截止时间","urgency":"high|mid|low","quote":"原话50字内"}}],
-"new":[{{"kind":"todo|notice","title":"动词开头，15字内","detail":"40字内","due":"尽量写成具体日期时间，如 10月10日 23:59；没有就空","sender":"谁说的","quote":"原话摘录，50字内","urgency":"high|mid|low","msg_ids":[相关消息编号]}}],
+"new":[{{"kind":"todo|notice","title":"动词开头，15字内，只写一件事，不写日期和链接（日期放 due）","detail":"40字内","due":"尽量写成具体日期时间，如 10月10日 23:59；没有就空","sender":"谁说的","quote":"原话摘录，50字内","urgency":"high|mid|low","msg_ids":[相关消息编号]}}],
 "close":[{{"id":已有事项的id,"why":"过期|取消|已解决"}}]}}
 规则：
 - 已有事项只能通过 id 更新（只写变化的字段）或关闭；不要把已有事项换个说法再放进 new，不要改它的标题。
 - done_recent 里是用户已经完成的事，不要再新建；只有群里提出了明确不同的新要求才 new，并在 title 里写清区别。
-- todo 是用户要动手做的事；notice 是值得知道的通知或变化。闲聊、广告、和用户无关的讨论一律忽略，宁缺毋滥。
+- todo 是用户要动手做的事；notice 是值得知道的通知或变化。闲聊、广告/线报/优惠券、和用户无关的讨论一律忽略，宁缺毋滥。
+- 一件事一条，不要把几件事拼进一个标题；detail 写标题没说的补充（地点、要求、金额），不要重复标题。
 - urgency=high 只给 48 小时内截止或老师/领导点名要求的事。没有变化就输出空数组。"""
 
 
@@ -817,9 +1001,14 @@ def apply_changes(source, chat, d: dict, at_ids=frozenset(), now=None) -> bool:
         for n in d.get("new") or []:
             if not isinstance(n, dict):
                 continue
-            title = str(n.get("title") or "").strip()[:60]
+            raw_title = str(n.get("title") or "").strip()
+            if AD_RE.search(raw_title + " " + str(n.get("quote") or "")) and not (set(_int(m) for m in (n.get("msg_ids") or [])) & set(at_ids)):
+                continue  # 模型把线报/广告当成事了
+            title = tidy_title(raw_title, due=str(n.get("due") or ""))[:60]
             if not title:
                 continue
+            if same_text(title, str(n.get("detail") or "")):
+                n = {**n, "detail": ""}
             kind = "notice" if n.get("kind") == "notice" else "todo"
             cand = {"title": title, "chat": chat, "due": str(n.get("due") or "")}
             dup = next((it for it in recent if it["kind"] == kind and same_todo(cand, it)), None)
@@ -860,11 +1049,18 @@ async def update_chat(source, chat, rows, s, stats) -> bool:
             done = [r["title"] for r in c.execute("SELECT title FROM items WHERE source=? AND chat=? AND status='done' AND updated_ts>=? ORDER BY updated_ts DESC LIMIT 15",
                                                   (source, chat, int(time.time()) - 7 * 86400))]
         state = json.dumps({"summary": summary, "open_items": opens, "done_recent": done}, ensure_ascii=False)
-        out = await llm([{"role": "system", "content": chat_prompt(s, source, chat)},
-                         {"role": "user", "content": f"旧状态：{state}\n新消息（{len(part)} 条）：\n" + "\n".join(x[2] for x in part)}], as_json=True)
+        msgs = [{"role": "system", "content": chat_prompt(s, source, chat)},
+                {"role": "user", "content": f"旧状态：{state}\n新消息（{len(part)} 条）：\n" + "\n".join(x[2] for x in part)}]
+        out = await llm(msgs, as_json=True)
         stats["calls"] += 1
         stats["sent"] += len(part)
-        d = _jparse(out)
+        try:
+            d = _jparse(out)
+        except HTTPException:  # 模型偶尔吐出半截/带说明文字的 JSON：马上重问一次，不让这个群拖到下一轮
+            out = await llm(msgs + [{"role": "assistant", "content": (out or "")[:500]},
+                                    {"role": "user", "content": "上面不是合法 JSON。只输出一个完整的 JSON 对象，不要任何解释。"}], as_json=True)
+            stats["calls"] += 1
+            d = _jparse(out)
         if isinstance(d.get("summary"), str) and d["summary"].strip():
             summary = d["summary"].strip()[:80]
         changed |= apply_changes(source, chat, d, {x[0]["id"] for x in part if x[0]["at_me"]})
@@ -894,7 +1090,7 @@ async def run_update(full=False):
     """增量整理：只处理有新消息的群。返回 (stats, changed)。"""
     s = settings()
     t0 = time.time()
-    stats = {"new": 0, "sent": 0, "calls": 0, "chats": 0, "changed": 0, "secs": 0.0, "errors": 0}
+    stats = {"new": 0, "sent": 0, "calls": 0, "chats": 0, "changed": 0, "secs": 0.0, "errors": 0, "skipped": 0}
     kv_set("checked_ts", int(t0))
     if full:
         with db() as c:  # 完整重建：保留已完成 / 置顶，其余从最近 24 小时的消息重新来
@@ -910,11 +1106,14 @@ async def run_update(full=False):
         by.setdefault((r["source"], r["chat"]), []).append(r)
     todo = {}
     for k, rs in by.items():
-        if is_muted(k[1], s) or all(classify(r, s) == "drop" for r in rs):
-            with db() as c:  # 屏蔽群 / 全是噪音：零调用，只推进水位
+        skip = not in_digest(k[0], k[1], s)
+        if skip or all(classify(r, s) == "drop" for r in rs):
+            with db() as c:  # 不看 / 只看@我 / 全是噪音：零调用，只推进水位
                 c.execute("INSERT INTO chat_state(source,chat,last_msg_id,updated_ts) VALUES(?,?,?,?) "
                           "ON CONFLICT(source,chat) DO UPDATE SET last_msg_id=excluded.last_msg_id", (*k, max(r["id"] for r in rs), int(time.time())))
-            if not is_muted(k[1], s):
+            if skip:
+                stats["skipped"] += 1
+            else:
                 stats["new"] += len(rs)
             continue
         stats["new"] += len(rs)
@@ -945,13 +1144,12 @@ async def run_update(full=False):
 
 
 def _sort_key(s):
-    lv = s.get("levels") or {}
     far = datetime(2100, 1, 1, tzinfo=TZ)
     now = datetime.now(TZ)
 
     def k(t):
         d = parse_due(t.get("due", ""), now) or far
-        return (not t["pinned"], not t["at_me"], lv.get(t["chat"]) != "important", d, -(t["first_ts"] or 0))
+        return (not t["pinned"], not t["at_me"], chat_mode(t["source"], t["chat"], s) != "focus", d, -(t["first_ts"] or 0))
     return k
 
 
@@ -964,16 +1162,22 @@ def build_body(hours, s) -> dict:
             "SELECT * FROM items WHERE status='open' OR (status='done' AND updated_ts>=?) ORDER BY id", (since,))]
         states = c.execute("SELECT * FROM chat_state WHERE updated_ts>=? AND summary!='' ORDER BY updated_ts DESC", (since,)).fetchall()
         cnt = c.execute("SELECT source, chat, COUNT(*) n FROM msgs WHERE ts>=? GROUP BY source, chat", (since,)).fetchall()
-    its = [t for t in its if not is_muted(t["chat"], s)]
+    its = [t for t in its if in_digest(t["source"], t["chat"], s)]
     key = _sort_key(s)
     pub = lambda t: {k: t[k] for k in ("id", "key", "title", "detail", "due", "chat", "sender", "quote", "urgency",
-                                       "done", "pinned", "at_me", "source", "first_ts")}
+                                       "done", "pinned", "at_me", "source", "first_ts", "msg_ids")}
     todos = [pub(t) for t in sorted((t for t in its if t["kind"] == "todo"), key=key)]
     notices = [pub(t) for t in sorted((t for t in its if t["kind"] == "notice" and t["status"] == "open"
                                        and (t["updated_ts"] or 0) >= since), key=key)][:12]
-    cnt = [r for r in cnt if not is_muted(r["chat"], s)]
+    cnt = [r for r in cnt if chat_mode(r["source"], r["chat"], s) != "off"]
+    nopen = {}
+    for t in its:
+        if t["status"] == "open":
+            nopen[(t["source"], t["chat"])] = nopen.get((t["source"], t["chat"]), 0) + 1
     return {"todos": todos, "notices": notices,
-            "groups": [{"chat": r["chat"], "gist": r["summary"]} for r in states if not is_muted(r["chat"], s)][:16],
+            "groups": [{"chat": r["chat"], "source": r["source"], "gist": r["summary"], "open": nopen.get((r["source"], r["chat"]), 0),
+                        "focus": chat_mode(r["source"], r["chat"], s) == "focus"}
+                       for r in states if in_digest(r["source"], r["chat"], s)][:40],
             "count": sum(r["n"] for r in cnt), "chats": len(cnt)}
 
 
@@ -1006,6 +1210,9 @@ def tidy_headline(t: str, limit: int = 30) -> str:
     """头条只留一件完整的事：太长就在标点处截断，绝不从半个词中间切开。"""
     t = (t or "").strip().strip("\"“”「」'").strip()
     t = re.sub(r"^(头条|标题)[:：]\s*", "", t)
+    segs = re.split(r"[、，,；;]|另外|还有|以及|并且", t)
+    if (t.count("、") >= 1 and len(segs) >= 3 or len(segs) >= 4) and len(segs[0].strip()) >= 6:
+        t = segs[0].strip()  # 模型罗列了好几件事：头条只说第一件（最要紧的）
     if len(t) <= limit:
         return t.rstrip("，、；,;")
     cut = max((m.end() for m in re.finditer(r"[，。；！？、,;!?]", t[:limit + 1])), default=0)
@@ -1072,10 +1279,11 @@ def auto_check(s: dict, now: float | None = None):
     hours = last_h if last_h in (24, 72) else 24
     gap = now - last_ts
     quiet = now - max(r["ts"] for r in rows)
-    lv = s.get("levels") or {}
     if gap >= iv * 60 and (quiet >= DEBOUNCE_QUIET or len(rows) >= DEBOUNCE_BURST):
         return "interval", hours
-    if gap >= AUTO_URGENT_GAP and any(r["at_me"] or lv.get(r["chat"]) == "important" for r in rows):
+    # 提前整理只为真正要紧的：@我，或重点群里带时间/金额/通知的消息（重点群水群不会每 5 分钟触发一次）
+    if gap >= AUTO_URGENT_GAP and any(r["at_me"] or (chat_mode(r["source"], r["chat"], s) == "focus" and classify(r, s) == "key"
+                                                     and KEY_RE.search(r["text"] or "")) for r in rows):
         return "urgent", hours
     return None
 
@@ -1123,7 +1331,7 @@ async def check_snoozed():
             t = {"title": r["title"] or t0, "chat": r["chat"] or ch0, "due": r["due"] or ""}
             if find_match(t, done):
                 continue
-        await push("稍后提醒：" + t["title"], t["chat"], force=True)
+        await push("提醒：" + t["title"], t["chat"], force=True, level="timeSensitive")
         sent += 1
     return sent
 
@@ -1143,12 +1351,12 @@ async def check_reminders():
             return False
         left = int((due - now).total_seconds() // 60)
         when = f"{left // 60} 小时 {left % 60} 分钟" if left >= 60 else f"{left} 分钟"
-        await push("快截止了：" + t.get("title", ""), f"还剩 {when}（{t.get('due')}）· {t.get('chat', '')}", force=True)
+        await push(f"还剩 {when}：{t.get('title', '')}", f"截止 {t.get('due')} · {t.get('chat', '')}", force=True, level="timeSensitive")
         return True
     with db() as c:  # 新：挂在事项 id 上，每件事只提醒一次，完成的不提醒
         its = c.execute("SELECT * FROM items WHERE kind='todo' AND status='open' AND reminded=0 AND due!=''").fetchall()
     for it in its:
-        if not is_muted(it["chat"], s) and await fire(dict(it)):
+        if in_digest(it["source"], it["chat"], s) and await fire(dict(it)):
             with db() as c:
                 c.execute("UPDATE items SET reminded=1 WHERE id=?", (it["id"],))
             sent += 1
@@ -1224,8 +1432,8 @@ async def scheduler():
                 try:
                     d = await make_digest(24)
                     if s.get("push_digest"):
-                        n = len(d.get("todos", []))
-                        await push("今日群报" + (f" · {n} 件待办" if n else ""), d.get("headline", ""), force=True)
+                        n = len([t for t in d.get("todos", []) if not t.get("done")])
+                        await push(("群报 · " + (f"{n} 件待办" if n else "没什么要你管的")), d.get("headline", ""), force=True)
                 except Exception as ex:
                     print("自动总结失败:", ex)
             if (s.get("weekly_digest") and now.weekday() == 6 and now.hour == 20
@@ -1260,9 +1468,11 @@ async def scheduler():
 URL_RE = re.compile(r"https?://[A-Za-z0-9\-._~:/?#\[\]@!$&*+=%]+")
 
 
-def extract_links(rows, limit=20):
+def extract_links(rows, limit=20, s=None):
     seen, out = set(), []
     for r in rows:
+        if AD_RE.search(r["text"] or "") or (s is not None and "source" in r.keys() and not in_digest(r["source"], r["chat"], s)):
+            continue
         for u in URL_RE.findall(r["text"] or ""):
             u = u.rstrip(".,;!?，。；！？、")
             if u in seen:
@@ -1306,9 +1516,9 @@ def state(id: int | None = None):
         ref = now if (not d or d["id"] == latest_id) else d["ts"]
         ats = c.execute("SELECT * FROM msgs WHERE at_me=1 AND ts>=? AND ts<=? ORDER BY ts DESC LIMIT 30",
                         (ref - span, ref + 3600 * 24)).fetchall()
-        per = c.execute("SELECT chat, COUNT(*) n FROM msgs WHERE ts>=? AND ts<=? GROUP BY chat",
+        per = c.execute("SELECT source, chat, COUNT(*) n FROM msgs WHERE ts>=? AND ts<=? GROUP BY source, chat",
                         (ref - span, ref)).fetchall()
-        link_rows = c.execute("SELECT ts, chat, sender, text FROM msgs WHERE text LIKE '%http%' AND ts>=? AND ts<=? ORDER BY ts DESC LIMIT 200",
+        link_rows = c.execute("SELECT ts, source, chat, sender, text FROM msgs WHERE text LIKE '%http%' AND ts>=? AND ts<=? ORDER BY ts DESC LIMIT 300",
                               (ref - span, ref)).fetchall()
         today = c.execute("SELECT COUNT(*) n FROM msgs WHERE ts>=?", (now - 86400,)).fetchone()["n"]
         last = c.execute("SELECT MAX(ts) t FROM msgs").fetchone()["t"]
@@ -1332,6 +1542,23 @@ def state(id: int | None = None):
     pins += [t["key"] for t in (body or {}).get("todos", []) if t.get("pinned") and t["key"] not in pins]
     s = settings()
     _, pend = pending_info(s)
+    ats = [r for r in ats if chat_mode(r["source"], r["chat"], s) != "off"]
+    if body:  # 刚改了档位：「不看/只看@我」的群立刻从首页拿掉，不用等下次整理
+        sf = lambda x: in_digest(x.get("source") or srcs.get(x.get("chat"), "QQ"), x.get("chat") or "", s)
+        for k in ("todos", "notices", "groups"):
+            body[k] = [x for x in body.get(k) or [] if sf(x)]
+    # @我 的消息已经整理成事项的，首页不再重复列出（前端显示「另有 N 条已在待办里」）
+    covered = set()
+    for t in ((body or {}).get("todos", []) + (body or {}).get("notices", [])):
+        for m in str(t.get("msg_ids") or "").split():
+            if m.isdigit():
+                covered.add(int(m))
+    qs = [norm_title(t.get("quote") or "")[:16] for t in (body or {}).get("todos", []) if t.get("quote")]
+    nowdt = datetime.now(TZ)
+    for t in (body or {}).get("todos", []):
+        dd = parse_due(t.get("due", ""), nowdt)
+        t["due_ts"] = int(dd.timestamp()) if dd else None
+    nchats = len({(r["source"], r["chat"]) for r in per})
     return {
         "digest": body,
         "auto_interval": int(s.get("auto_interval") or 0),
@@ -1343,11 +1570,14 @@ def state(id: int | None = None):
         "hours": d["hours"] if d else 24,
         "is_latest": (not d) or d["id"] == latest,
         "per_chat": {r["chat"]: r["n"] for r in per},
+        "per_src": {ckey(r["source"], r["chat"]): r["n"] for r in per},
+        "modes_tip": (not s.get("modes_tip_done")) and nchats >= 8,
+        "nchats": nchats,
         "chat_src": srcs,
-        "at_me": [{"ts": r["ts"], "chat": r["chat"], "sender": r["sender"], "text": r["text"],
-                   "source": r["source"]} for r in ats],
+        "at_me": [{"id": r["id"], "ts": r["ts"], "chat": r["chat"], "sender": r["sender"], "text": r["text"], "source": r["source"],
+                   "covered": r["id"] in covered or any(q and q in norm_title(r["text"]) for q in qs)} for r in ats],
         "today": today,
-        "links": extract_links(link_rows),
+        "links": extract_links(link_rows, s=s),
         "done": done,
         "pins": pins,
         "status": {"last_msg": last, "heartbeat": hb_ts, "online": qq_on or wx_on,
@@ -1454,7 +1684,10 @@ def activity(days: int = 7, source: str = ""):
 @app.get("/api/chats", dependencies=[Depends(auth)])
 def chats(hours: int = 168, source: str = ""):
     s = settings()
+    day0 = int(datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
     with db() as c:
+        today = {(r["source"], r["chat"]): r["n"] for r in c.execute(
+            "SELECT source, chat, COUNT(*) n FROM msgs WHERE ts>=? GROUP BY source, chat", (day0,))}
         rows = c.execute("""SELECT chat, source, COUNT(*) n, MAX(ts) last_ts, SUM(at_me) ats FROM msgs
                             WHERE ts>=? AND (?='' OR source=?) GROUP BY chat, source ORDER BY last_ts DESC""",
                          (int(time.time()) - hours * 3600, source, source)).fetchall()
@@ -1464,14 +1697,18 @@ def chats(hours: int = 168, source: str = ""):
                           (r["chat"], r["source"])).fetchone()
             out.append({"chat": r["chat"], "source": r["source"], "n": r["n"], "last_ts": r["last_ts"],
                         "ats": r["ats"] or 0, "last": f"{m['sender']}：{m['text']}" if m else "",
-                        "muted": is_muted(r["chat"], s),
-                        "level": (s.get("levels") or {}).get(r["chat"], "normal")})
+                        "mode": chat_mode(r["source"], r["chat"], s), "today": today.get((r["source"], r["chat"]), 0),
+                        "muted": chat_mode(r["source"], r["chat"], s) == "off"})
     return out
 
 
 @app.get("/api/messages", dependencies=[Depends(auth)])
 def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, source: str = "",
-             sender: str = "", since: int = 0, until: int = 0, after: int = 0):
+             sender: str = "", since: int = 0, until: int = 0, after: int = 0, around: int = 0):
+    if around and chat:  # 跳到某条消息：取它前后各一段上下文
+        older = messages(chat=chat, source=source, before=around + 1, limit=min(limit, 100) // 2 + 1)
+        newer = messages(chat=chat, source=source, after=around, limit=min(limit, 100) // 2)
+        return older + newer
     sql, args = "SELECT * FROM msgs WHERE 1=1", []
     if chat:
         sql += " AND chat=?"; args.append(chat)
@@ -1495,6 +1732,53 @@ def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, sour
     return [{"id": r["id"], "ts": r["ts"], "chat": r["chat"], "sender": r["sender"], "text": r["text"],
              "source": r["source"], "at_me": bool(r["at_me"]),
              "imgs": r["img"].split() if r["img"] else []} for r in (rows if after else reversed(rows))]
+
+
+@app.post("/api/chat_mode", dependencies=[Depends(auth)])
+async def chat_mode_api(req: Request):
+    """设某个（或一批）群怎么盯：{"chats":[{"source":"QQ","chat":"群名"}], "mode":"atonly"}"""
+    d = await req.json()
+    mode = d.get("mode")
+    if mode not in MODES:
+        raise HTTPException(400, "档位只能是 focus / normal / atonly / off")
+    pairs = [(str(x.get("source") or "QQ"), str(x.get("chat") or "")) for x in (d.get("chats") or []) if x.get("chat")]
+    if not pairs:
+        raise HTTPException(400, "没有选群")
+    set_modes(pairs, mode)
+    return {"ok": True, "n": len(pairs), "mode": mode, "name": MODE_NAME[mode]}
+
+
+def suggest_quiet(s=None, days: int = 3):
+    """很吵但没要紧事的群：近几天消息多、从没产生过待办/通知，或者一大半是线报广告/表情水。只建议，不自动改。"""
+    s = s or settings()
+    since = int(time.time()) - days * 86400
+    with db() as c:
+        rows = c.execute("SELECT * FROM msgs WHERE ts>=?", (since,)).fetchall()
+        has_items = {(r["source"], r["chat"]) for r in c.execute("SELECT DISTINCT source, chat FROM items")}
+    by = {}
+    for r in rows:
+        by.setdefault((r["source"], r["chat"]), []).append(r)
+    out = []
+    for (src, chat), rs in by.items():
+        if chat_mode(src, chat, s) not in ("normal", "focus") or chat.startswith("私聊") or len(rs) < 15:
+            continue
+        ad = sum(1 for r in rs if AD_RE.search(r["text"] or "")) / len(rs)
+        noise = sum(1 for r in rs if not r["at_me"] and classify(r, {**s, "modes": {}, "default_mode": "normal"}) == "drop") / len(rs)
+        if ad >= 0.25:
+            why = "多是线报/广告"
+        elif noise >= 0.6:
+            why = "多是表情和水聊"
+        elif (src, chat) not in has_items and len(rs) >= 30:
+            why = "消息多但没整理出过事"
+        else:
+            continue
+        out.append({"source": src, "chat": chat, "n": len(rs), "why": why})
+    return sorted(out, key=lambda x: -x["n"])
+
+
+@app.get("/api/chat_suggest", dependencies=[Depends(auth)])
+def chat_suggest():
+    return suggest_quiet()
 
 
 @app.get("/api/settings", dependencies=[Depends(auth)])
@@ -1528,25 +1812,154 @@ async def push_test():
     return {"ok": True}
 
 
+ASK_LINES = int(os.getenv("ASK_LINES", "220"))      # 一次问答最多送多少条原文
+ASK_CHARS = int(os.getenv("ASK_CHARS", "16000"))
+CITE_RE = re.compile(r"\[#?(\d{1,10})\]|【#?(\d{1,10})】|#(\d{2,10})\b")
+
+
+def _q_terms(q: str) -> list:
+    """问题里的检索词：英文/数字词 + 中文 2 字片段（去掉疑问套话）。"""
+    q = re.sub(r"什么|怎么|有没有|哪些|哪个|是不是|吗|呢|吧|了|的|我|你|谁|说|今天|这周|最近|一下|这个群|群里", " ", q or "")
+    terms = re.findall(r"[A-Za-z0-9]{2,}", q)
+    for seg in re.findall(r"[\u4e00-\u9fff]{2,}", q):
+        terms += [seg] if len(seg) <= 4 else [seg[i:i + 2] for i in range(len(seg) - 1)]
+    return list(dict.fromkeys(t.lower() for t in terms))[:12]
+
+
+def ask_context(q: str, s: dict, chat: str = "", source: str = "", since_id: int = 0, hours: int = 72):
+    """问答检索：限定群（任何档位都能问）或全局（排除「不看」的群）；先去噪，消息太多时按关键词 + 重点 + 最新挑一部分。"""
+    since = int(time.time()) - hours * 3600
+    sql, args = "SELECT * FROM msgs WHERE ts>=?", [since]
+    if chat:
+        sql += " AND chat=?"; args.append(chat)
+        if source:
+            sql += " AND source=?"; args.append(source)
+    if since_id:
+        sql += " AND id>?"; args.append(since_id)
+    with db() as c:
+        rows = c.execute(sql + " ORDER BY id", args).fetchall()
+    s2 = {**s, "modes": {}, "default_mode": "normal"}  # 问答时不按档位过滤，只去噪
+    if not chat:
+        rows = [r for r in rows if chat_mode(r["source"], r["chat"], s) != "off"]
+    cls = {r["id"]: classify(r, s2) for r in rows}
+    rows = [r for r in rows if cls[r["id"]] != "drop" or r["at_me"]]
+    terms = _q_terms(q)
+    line = lambda r: (f"#{r['id']} [{datetime.fromtimestamp(r['ts'], TZ):%m-%d %H:%M}]"
+                      f"{'' if chat else '[' + r['source'] + '·' + r['chat'] + ']'} {r['sender']}"
+                      f"{' (@我)' if r['at_me'] else ''}: {(r['text'] or '')[:300]}")
+    if len(rows) > ASK_LINES or sum(len(r["text"] or "") for r in rows) > ASK_CHARS:
+        def score(r):
+            t = (r["text"] or "").lower()
+            return (sum(3 for k in terms if k in t or k in (r["sender"] or "").lower()) + (2 if r["at_me"] else 0)
+                    + (1 if cls[r["id"]] == "key" else 0))
+        hit = sorted(rows, key=lambda r: (-score(r), -r["id"]))[: ASK_LINES * 2 // 3]
+        recent = rows[-(ASK_LINES // 3):]
+        keep = {r["id"] for r in hit} | {r["id"] for r in recent}
+        rows = [r for r in rows if r["id"] in keep]
+    lines, n = [], 0
+    for r in reversed(rows):  # 超字数时保留最新的
+        ln = line(r)
+        if n + len(ln) > ASK_CHARS:
+            break
+        lines.append(ln); n += len(ln) + 1
+    lines.reverse()
+    return rows, lines
+
+
+def cite(answer: str, valid: dict):
+    """把回答里的 [#消息id] 换成 [1][2] 角标；不在给定消息里的 id 一律丢掉（防止模型编造引用）。"""
+    order, out = [], []
+
+    def rep(m):
+        i = int(m.group(1) or m.group(2) or m.group(3))
+        if i not in valid:
+            return ""
+        if i not in order:
+            order.append(i)
+        return f"[{order.index(i) + 1}]"
+    text = CITE_RE.sub(rep, answer or "")
+    text = re.sub(r"(\[\d+\])(\1)+", r"\1", text)
+    text = re.sub(r"[ \t]+\n", "\n", text).strip()
+    for k, i in enumerate(order):
+        r = valid[i]
+        out.append({"n": k + 1, "msg_id": i, "ts": r["ts"], "sender": r["sender"], "chat": r["chat"], "source": r["source"],
+                    "snippet": re.sub(r"\s+", " ", r["text"] or "")[:80]})
+    return text, out
+
+
 @app.post("/api/ask", dependencies=[Depends(auth)])
 async def ask(req: Request):
+    """问答。可限定一个群（chat + source；「不看」的群也能问），也可从上次已读位置起（since_id）。
+    回答里的引用只能是给定消息的 id，返回 citations 供前端跳到原文。"""
     body = await req.json()
-    q = body.get("q", "").strip()
+    q = str(body.get("q", "")).strip()
     if not q:
-        return {"a": ""}
+        return {"a": "", "citations": []}
+    chat, source = str(body.get("chat") or ""), str(body.get("source") or "")
+    since_id = int(body.get("since_id") or 0)
     hist = [{"role": m["role"], "content": str(m["content"])[:2000]} for m in body.get("history", [])[-6:]
-            if m.get("role") in ("user", "assistant")]
+            if isinstance(m, dict) and m.get("role") in ("user", "assistant")]
     s = settings()
-    _, text = transcript(72)
+    rows, lines = ask_context(q, s, chat, source, since_id, hours=168 if since_id else 72)
     now = datetime.now(TZ)
+    scope = f"「{chat}」这个群（{source or '群聊'}）" if chat else "用户所有的群"
+    extra = ""
+    if not chat:  # 全局问答先给整理好的事项和各群要点，原文作为依据
+        b = build_body(72, s)
+        extra = "\n已整理的事项：\n" + "\n".join(f"- {t['title']}（{t['chat']}{'，截止 ' + t['due'] if t['due'] else ''}{'，已完成' if t['done'] else ''}）"
+                                            for t in b["todos"][:20] + b["notices"][:10]) or ""
+    if not lines:
+        return {"a": ("这段时间你没看的部分没有新消息。" if since_id else f"最近{'一周' if since_id else ' 3 天'}{scope}里没有相关消息。"), "citations": []}
     a = await llm([
-        {"role": "system", "content": f"你是用户的群消息秘书。现在是 {now:%Y-%m-%d %H:%M}。{about_me(s)}\n"
-                                      "只根据下面的聊天记录回答，简洁直接，说清楚来自哪个群、谁说的、什么时候；记录里没有就直说没有。"
-                                      "可以用 **加粗** 标重点、用「- 」开头列条目，不要用标题和表格。"},
-        {"role": "user", "content": f"最近 72 小时的消息：\n{text or '（没有消息）'}"},
+        {"role": "system", "content": f"【问答】你是用户的群消息秘书。现在是 {now:%Y-%m-%d %H:%M}。{about_me(s)}\n"
+                                      f"只根据下面{scope}的聊天记录回答。像朋友帮忙转述一样说人话、口语、简短，不要报告腔，不要「综上所述」「以下是」：先一句话直接回答，需要时再用「- 」列 2–4 个要点，每点不超过 30 字。"
+                                      "用户追问（如「那后来定了吗」）时接着上文回答。"
+                                      "每个要点末尾用 [#消息编号] 标出依据，编号只能用记录里出现过的 #数字，没有依据就不要编。"
+                                      "记录里没有就直说没有。可以用 **加粗** 标重点，不要标题和表格。"},
+        {"role": "user", "content": f"聊天记录（#数字 是消息编号）：\n" + "\n".join(lines) + extra},
         {"role": "assistant", "content": "好的，我看完了，请问。"}, *hist,
         {"role": "user", "content": q}])
-    return {"a": a}
+    ids = {int(ln[1:].split(" ", 1)[0]) for ln in lines}
+    valid = {r["id"]: r for r in rows if r["id"] in ids}
+    text, cites = cite(a, valid)
+    return {"a": text, "citations": cites, "scope": {"chat": chat, "source": source}, "used": len(lines)}
+
+
+@app.get("/api/chat_brief", dependencies=[Depends(auth)])
+async def chat_brief(chat: str, source: str = "", since_id: int = 0, refresh: int = 0):
+    """点开群时最上面那段「这个群最近聊了啥」：从上次已读起（没有就最近 24 小时），3–5 条口语要点带引用。
+    结果按 (群, 起点, 截至消息) 缓存；没有新消息就不调模型。任何档位的群都能看。"""
+    with db() as c:
+        q = "SELECT MAX(id) m FROM msgs WHERE chat=?" + (" AND source=?" if source else "")
+        maxid = c.execute(q, (chat, source) if source else (chat,)).fetchone()["m"] or 0
+        cached = c.execute("SELECT * FROM chat_brief WHERE source=? AND chat=?", (source, chat)).fetchone()
+    old = json.loads(cached["body"]) if cached else None
+    if since_id and since_id >= maxid:  # 上次看过之后没有新消息：给上一段要点，不调模型
+        return {**(old or {"a": "", "citations": []}), "nothing_new": True, "upto_id": maxid, "cached": bool(old)}
+    if cached and not refresh and cached["since_id"] == since_id and cached["upto_id"] == maxid:
+        return {**old, "cached": True, "upto_id": maxid}
+    s = settings()
+    rows, lines = ask_context("这个群聊了啥", s, chat, source, since_id, hours=(7 * 24 if since_id else 24))
+    if not lines and not since_id:
+        rows, lines = ask_context("这个群聊了啥", s, chat, source, 0, hours=7 * 24)
+    if not lines:
+        out = {"a": "这段时间都是表情和闲聊，没啥要紧的。", "citations": [], "n": 0}
+    else:
+        now = datetime.now(TZ)
+        a = await llm([
+            {"role": "system", "content": f"【群简报】你是用户的群消息秘书，现在是 {now:%Y-%m-%d %H:%M}。{about_me(s)}\n"
+                                          f"用户没空看「{chat}」这个群，你用口语告诉他{'他上次看过之后' if since_id else '最近'}群里聊了啥："
+                                          "3–5 条「- 」开头的要点，每条一句话、不超过 30 字，末尾用 [#消息编号] 标依据（只能用记录里的编号）。"
+                                          "有要他做的事或 @他 的放第一条；闲聊一笔带过；全是闲聊就只说一句「都是闲聊，没啥要紧的」。不要报告腔，不要开场白。"},
+            {"role": "user", "content": "聊天记录（#数字 是消息编号）：\n" + "\n".join(lines)}])
+        ids = {int(ln[1:].split(" ", 1)[0]) for ln in lines}
+        text, cites = cite(a, {r["id"]: r for r in rows if r["id"] in ids})
+        out = {"a": text, "citations": cites, "n": len(lines)}
+    out.update(since_id=since_id, ts=int(time.time()))
+    with db() as c:
+        c.execute("INSERT OR REPLACE INTO chat_brief(source,chat,since_id,upto_id,body,ts) VALUES(?,?,?,?,?,?)",
+                  (source, chat, since_id, maxid, json.dumps(out, ensure_ascii=False), int(time.time())))
+    return {**out, "cached": False, "upto_id": maxid}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -1625,3 +2038,4 @@ def healthz():
 
 
 migrate_items()
+migrate_modes()
