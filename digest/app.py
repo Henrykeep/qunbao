@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.30.3"
+VERSION = "0.30.4"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -1471,7 +1471,7 @@ def chats(hours: int = 168, source: str = ""):
 
 @app.get("/api/messages", dependencies=[Depends(auth)])
 def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, source: str = "",
-             sender: str = "", since: int = 0, until: int = 0):
+             sender: str = "", since: int = 0, until: int = 0, after: int = 0):
     sql, args = "SELECT * FROM msgs WHERE 1=1", []
     if chat:
         sql += " AND chat=?"; args.append(chat)
@@ -1487,12 +1487,14 @@ def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, sour
         sql += " AND ts<?"; args.append(until)
     if before:
         sql += " AND id<?"; args.append(before)
-    sql += " ORDER BY id DESC LIMIT ?"; args.append(min(limit, 200))
+    if after:  # 群聊轮询：只要比这条新的
+        sql += " AND id>?"; args.append(after)
+    sql += (" ORDER BY id ASC LIMIT ?" if after else " ORDER BY id DESC LIMIT ?"); args.append(min(limit, 200))
     with db() as c:
         rows = c.execute(sql, args).fetchall()
     return [{"id": r["id"], "ts": r["ts"], "chat": r["chat"], "sender": r["sender"], "text": r["text"],
              "source": r["source"], "at_me": bool(r["at_me"]),
-             "imgs": r["img"].split() if r["img"] else []} for r in reversed(rows)]
+             "imgs": r["img"].split() if r["img"] else []} for r in (rows if after else reversed(rows))]
 
 
 @app.get("/api/settings", dependencies=[Depends(auth)])
