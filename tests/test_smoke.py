@@ -631,3 +631,14 @@ def test_settings_groups_keep_fields():
     for sub in ("me", "groups", "kw", "remind", "conn", "data", "acct", "about"):
         assert f'id="sub-{sub}"' in html and f'data-sub="{sub}"' in html
     assert "refreshQuiet" in html and "已自动更新" in html and "visibilitychange" in html
+
+
+def test_tidy_headline_never_cuts_mid_word():
+    import importlib, sys
+    app = sys.modules.get("app") or importlib.import_module("app")
+    h = app.tidy_headline("Claude Max 5.5使用异常，Pro Api中转群反馈渠道、生图问题，待处理事项较多需要关注")
+    assert h == "Claude Max 5.5使用异常，Pro Api中转群反馈渠道" or not h.endswith("待")
+    assert not h.endswith("，") and len(h) <= 30
+    assert app.tidy_headline("「周五前交实验报告」") == "周五前交实验报告"
+    long = app.tidy_headline("一" * 50)
+    assert long.endswith("…") and len(long) <= 30
