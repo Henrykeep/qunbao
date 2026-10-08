@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.21.0"
+VERSION = "0.22.0"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -70,6 +70,7 @@ with db() as c:
     CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT);
     CREATE TABLE IF NOT EXISTS todo_done(k TEXT PRIMARY KEY, ts INTEGER);
     CREATE TABLE IF NOT EXISTS reminded(k TEXT PRIMARY KEY, ts INTEGER);
+    CREATE TABLE IF NOT EXISTS pins(k TEXT PRIMARY KEY, ts INTEGER);
     CREATE TABLE IF NOT EXISTS snooze(k TEXT PRIMARY KEY, title TEXT, until INTEGER);
     CREATE TABLE IF NOT EXISTS sessions(h TEXT PRIMARY KEY, ts INTEGER, exp INTEGER, pw TEXT, ua TEXT);
     """)
@@ -666,6 +667,7 @@ def state(id: int | None = None):
         srcs = {r["chat"]: r["source"] for r in c.execute("SELECT chat, source FROM msgs WHERE ts>=? GROUP BY chat",
                                                             (ref - span,)).fetchall()}
         done = [r["k"] for r in c.execute("SELECT k FROM todo_done").fetchall()]
+        pins = [r["k"] for r in c.execute("SELECT k FROM pins").fetchall()]
         latest = latest_id
     hb_ts = int(hb["v"]) if hb else None
     wx_ts = max(int(wx["v"]) if wx else 0, last_wx or 0) or None
@@ -683,6 +685,7 @@ def state(id: int | None = None):
         "today": today,
         "links": extract_links(link_rows),
         "done": done,
+        "pins": pins,
         "status": {"last_msg": last, "heartbeat": hb_ts, "online": qq_on or wx_on,
                    "qq": {"online": qq_on, "seen": hb_ts or last_qq, "last": last_qq},
                    "wx": {"online": wx_on, "seen": wx_ts, "last": last_wx, "ready": bool(INGEST_TOKEN)},
@@ -713,6 +716,12 @@ def digests(limit: int = 30):
 async def todo(req: Request):
     d = await req.json()
     with db() as c:
+        if "pin" in d:
+            if d["pin"]:
+                c.execute("INSERT OR REPLACE INTO pins(k,ts) VALUES(?,?)", (d["key"], int(time.time())))
+            else:
+                c.execute("DELETE FROM pins WHERE k=?", (d["key"],))
+            return {"ok": True}
         if d.get("done"):
             c.execute("INSERT OR REPLACE INTO todo_done(k,ts) VALUES(?,?)", (d["key"], int(time.time())))
         else:
