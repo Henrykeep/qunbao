@@ -209,6 +209,7 @@ footer{text-align:center;font-size:11px;color:var(--faint);margin-top:44px;lette
 .crow .cl span{overflow:hidden;text-overflow:ellipsis}
 .badge{flex:none;font-size:10.5px;font-weight:700;color:#fff;background:var(--accent);border-radius:999px;padding:1px 6px}
 .crow.muted{opacity:.45}
+.lvsel{font:inherit;font-size:13px;color:var(--muted,#888);background:transparent;border:1px solid var(--line,#8884);border-radius:8px;padding:3px 6px;margin-left:auto;margin-right:10px}
 .mute-ic{width:12px;height:12px;color:var(--faint);flex:none}
 
 .chat-head{position:sticky;top:0;z-index:4;background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
@@ -811,9 +812,10 @@ fill("#s-hour2",[[-1,"关闭"],...hs],s.digest_hour2??-1);fill("#s-qs",[[-1,"关
     $("#s-bark").value=s.bark_url||"";$("#s-site").value=s.site_url||location.origin;
     $("#s-pushat").checked=!!s.push_at;$("#s-pushdg").checked=!!s.push_digest;
     const names=[...new Set([...chats.map(c=>c.chat),...s.muted])];
-    $("#s-muted").innerHTML=names.length?names.map(n=>`<div class="row"><span class="rl">${esc(n)}</span><label class="sw"><input type="checkbox" data-chat="${esc(n)}" ${s.muted.includes(n)?"checked":""}><span></span></label></div>`).join("")
+    $("#s-muted").innerHTML=names.length?names.map(n=>`<div class="row"><span class="rl">${esc(n)}</span><select class="lvsel" data-lv="${esc(n)}">${[["normal","普通"],["important","重要"],["atonly","只看@我"]].map(([v,l])=>`<option value="${v}" ${((s.levels||{})[n]||"normal")==v?"selected":""}>${l}</option>`).join("")}</select><label class="sw"><input type="checkbox" data-chat="${esc(n)}" ${s.muted.includes(n)?"checked":""}><span></span></label></div>`).join("")
       :`<div class="row"><span class="rl" style="color:var(--faint)">有消息进来后，群会出现在这里</span></div>`;
     $$("#s-muted input").forEach(i=>i.onchange=()=>{tick();const n=i.dataset.chat;SET.muted=i.checked?[...SET.muted,n]:SET.muted.filter(x=>x!==n);saveSet();CHATS=[]});
+    $$("#s-muted .lvsel").forEach(i=>i.onchange=()=>{tick();SET.levels={...(SET.levels||{})};if(i.value=="normal")delete SET.levels[i.dataset.lv];else SET.levels[i.dataset.lv]=i.value;saveSet();CHATS=[]});
     const S=st.status||{};
     const dot=(id,o)=>{const e=$(id);e.className="stat-dot "+(o?.online?"ok":o?.seen?"bad":"");e.querySelector("span").textContent=o?.online?"在线":o?.seen?`离线 · ${ago(o.seen)}`:"未连接"};
     dot("#st-qq",S.qq);dot("#st-wx",S.wx);$("#st-ver span").textContent=S.version?`v${S.version}`:"—";
