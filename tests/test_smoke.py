@@ -286,3 +286,14 @@ def test_activity():
     assert len(r["hours"]) == 24 and r["total"] == sum(r["hours"])
     assert isinstance(r["top"], list)
     assert "loadAct" in c.get("/", headers=AUTH).text
+
+
+def test_my_names_mention():
+    import asyncio
+    c.post("/api/settings", headers=AUTH, json={"my_names": ["小李"]})
+    assert app_mod.mentions_me("@小李 来一下", app_mod.settings())
+    assert app_mod.mentions_me("＠小李\u2005看看", app_mod.settings())
+    assert not app_mod.mentions_me("小李在吗", app_mod.settings())
+    asyncio.run(app_mod.save("微信", "测试群X", "老王", "@小李 明天交表", None, False))
+    r = app_mod.db().execute("SELECT at_me FROM msgs WHERE chat='测试群X'").fetchone()
+    assert r["at_me"] == 1
