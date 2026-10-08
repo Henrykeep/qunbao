@@ -297,3 +297,9 @@ def test_my_names_mention():
     asyncio.run(app_mod.save("微信", "测试群X", "老王", "@小李 明天交表", None, False))
     r = app_mod.db().execute("SELECT at_me FROM msgs WHERE chat='测试群X'").fetchone()
     assert r["at_me"] == 1
+
+
+def test_keyword_hit_reason_multi():
+    s = {"vip": [], "keywords": ["截止", "DDL", "报名"], "muted": [], "levels": {}, "only_mode": False, "allowed": []}
+    r = app_mod.hit_reason("群", "a", "报名截止 ddl 今天", False, s)
+    assert r == "关键词「截止」、「DDL」、「报名」"
