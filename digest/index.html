@@ -407,6 +407,7 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
   <div class="group"><div class="tagbox" data-k="keywords"><input placeholder="输入关键词后回车"></div></div>
 
   <div class="gl">屏蔽的群</div>
+  <div class="group"><div class="row"><span class="rl">只总结我勾选的群<small>开启后，下面的开关表示「纳入总结」，其余群一律静音</small></span><label class="sw"><input type="checkbox" id="s-only"><span></span></label></div></div>
   <div class="group" id="s-muted"></div>
   <div class="gd">屏蔽后不进总结、不推送，原文仍然保留。</div>
 
@@ -834,10 +835,12 @@ const fill=(id,arr,cur)=>{$(id).innerHTML=arr.map(([v,l])=>`<option value="${v}"
 fill("#s-hour2",[[-1,"关闭"],...hs],s.digest_hour2??-1);fill("#s-qs",[[-1,"关闭"],...hs],s.quiet_start??-1);fill("#s-qe",hs,s.quiet_end??7);
     $("#s-bark").value=s.bark_url||"";$("#s-site").value=s.site_url||location.origin;
     $("#s-pushat").checked=!!s.push_at;$("#s-pushdg").checked=!!s.push_digest;$("#s-wk").checked=!!s.weekly_digest;$("#s-keep").value=String(s.keep_days||30);
-    const names=[...new Set([...chats.map(c=>c.chat),...s.muted])];
-    $("#s-muted").innerHTML=names.length?names.map(n=>`<div class="row"><span class="rl">${esc(n)}</span><select class="lvsel" data-lv="${esc(n)}">${[["normal","普通"],["important","重要"],["atonly","只看@我"]].map(([v,l])=>`<option value="${v}" ${((s.levels||{})[n]||"normal")==v?"selected":""}>${l}</option>`).join("")}</select><label class="sw"><input type="checkbox" data-chat="${esc(n)}" ${s.muted.includes(n)?"checked":""}><span></span></label></div>`).join("")
+    const OM=!!s.only_mode,LST=OM?(s.allowed||[]):s.muted;$("#s-only").checked=OM;
+    const names=[...new Set([...chats.map(c=>c.chat),...LST])];
+    $("#s-muted").innerHTML=names.length?names.map(n=>`<div class="row"><span class="rl">${esc(n)}</span><select class="lvsel" data-lv="${esc(n)}">${[["normal","普通"],["important","重要"],["atonly","只看@我"]].map(([v,l])=>`<option value="${v}" ${((s.levels||{})[n]||"normal")==v?"selected":""}>${l}</option>`).join("")}</select><label class="sw"><input type="checkbox" data-chat="${esc(n)}" ${LST.includes(n)?"checked":""}><span></span></label></div>`).join("")
       :`<div class="row"><span class="rl" style="color:var(--faint)">有消息进来后，群会出现在这里</span></div>`;
-    $$("#s-muted input").forEach(i=>i.onchange=()=>{tick();const n=i.dataset.chat;SET.muted=i.checked?[...SET.muted,n]:SET.muted.filter(x=>x!==n);saveSet();CHATS=[]});
+    $$("#s-muted input").forEach(i=>i.onchange=()=>{tick();const n=i.dataset.chat;const k=SET.only_mode?"allowed":"muted",L=SET[k]||[];SET[k]=i.checked?[...L,n]:L.filter(x=>x!==n);saveSet();CHATS=[]});
+$("#s-only").onchange=e=>{tick();SET.only_mode=e.target.checked;saveSet();CHATS=[];setTimeout(loadSettings,900)};
     $$("#s-muted .lvsel").forEach(i=>i.onchange=()=>{tick();SET.levels={...(SET.levels||{})};if(i.value=="normal")delete SET.levels[i.dataset.lv];else SET.levels[i.dataset.lv]=i.value;saveSet();CHATS=[]});
     const S=st.status||{};
     const dot=(id,o)=>{const e=$(id);e.className="stat-dot "+(o?.online?"ok":o?.seen?"bad":"");e.querySelector("span").textContent=o?.online?"在线":o?.seen?`离线 · ${ago(o.seen)}`:"未连接"};
