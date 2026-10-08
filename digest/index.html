@@ -856,6 +856,7 @@ setSeg(hours);load();
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&curView==="home"&&!viewId)api("/api/state").then(render).catch(()=>{})});
 $("#s-logout").onclick=async()=>{if(!confirm("退出登录？这台设备下次打开要重新输入密码。"))return;
   await fetch("/api/logout",{method:"POST"}).catch(()=>{});location.replace("/login")};
+if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});
 </script>
 </body>
 </html>
