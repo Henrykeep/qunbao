@@ -642,3 +642,26 @@ def test_tidy_headline_never_cuts_mid_word():
     assert app.tidy_headline("「周五前交实验报告」") == "周五前交实验报告"
     long = app.tidy_headline("一" * 50)
     assert long.endswith("…") and len(long) <= 30
+
+
+def test_hotfix_0304_layout_css():
+    """0.30.4：长群名把「各群在聊」撑出屏幕；body overflow-x:hidden 让 sticky 标题栏失效。"""
+    import re as _re
+    h = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
+    assert "repeat(2,minmax(0,1fr))" in h and "repeat(3,minmax(0,1fr))" in h
+    assert not _re.search(r"grid-template-columns:[^;}]*(?<!,)\b1fr", h.replace("minmax(0,1fr)", ""))
+    assert ".g .gn{flex:1;min-width:0" in h
+    assert "body{overflow-x:clip}" in h and "html,body{max-width:100%;overflow-x:hidden" not in h
+    assert "--dockh" in h and "imgGone" in h and "this.remove()" not in h
+    sw = open(os.path.join(os.path.dirname(__file__), "..", "digest", "sw.js"), encoding="utf-8").read()
+    assert f'qunbao-v{app_mod.VERSION}"' in sw
+
+
+def test_messages_after_poll():
+    for i in range(3):
+        c.post("/ingest?token=tok", json={"chat": "轮询群", "sender": "a", "text": f"第{i}条消息内容"})
+    ms = c.get("/api/messages?chat=轮询群", headers=AUTH).json()
+    first = ms[0]["id"]
+    new = c.get(f"/api/messages?chat=轮询群&after={first}", headers=AUTH).json()
+    assert [m["text"] for m in new] == ["第1条消息内容", "第2条消息内容"]
+    assert c.get(f"/api/messages?chat=轮询群&after={ms[-1]['id']}", headers=AUTH).json() == []
