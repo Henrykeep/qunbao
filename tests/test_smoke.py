@@ -177,3 +177,10 @@ def test_messages_filter_sender_since():
 def test_service_worker():
     r = c.get("/sw.js")
     assert r.status_code == 200 and "javascript" in r.headers["content-type"] and "fetch" in r.text
+
+
+def test_weekly_digest_setting():
+    assert app_mod.settings()["weekly_digest"] is True
+    c.post("/api/settings", json={"weekly_digest": False}, headers=AUTH)
+    assert c.get("/api/settings", headers=AUTH).json()["weekly_digest"] is False
+    c.post("/api/settings", json={"weekly_digest": True}, headers=AUTH)
