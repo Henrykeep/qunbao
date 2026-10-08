@@ -232,3 +232,10 @@ def test_links_extracted():
         cx.execute("INSERT INTO msgs(ts,chat,sender,text,source) VALUES(?,?,?,?,?)",
                    (now, "链接群", "甲", "资料 https://example.com/doc", "QQ"))
     assert any(l["url"] == "https://example.com/doc" for l in c.get("/api/state", headers=AUTH).json()["links"])
+
+
+def test_whitelist_mode():
+    s = {"muted": ["甲"], "only_mode": False, "allowed": ["乙"]}
+    assert app_mod.is_muted("甲", s) and not app_mod.is_muted("乙", s)
+    s["only_mode"] = True
+    assert app_mod.is_muted("甲", s) and not app_mod.is_muted("乙", s) and app_mod.is_muted("丙", s)
