@@ -154,3 +154,14 @@ def test_group_levels():
     assert "lvtestFalse" in text and text.count("lvtestTrue") == 1
     assert "【重要群】" in text and sum(1 for r in rows if r["chat"] == "静群") == 1
     assert "要紧群" in app_mod.about_me(app_mod.settings())
+
+
+def test_image_thumbs():
+    e = {"post_type": "message", "message_type": "group", "group_id": 7, "self_id": 9, "user_id": 2,
+         "sender": {"card": "小李"}, "time": 5,
+         "raw_message": "看这个[CQ:image,file=a.jpg,url=https://x.cn/a.jpg?k=1&amp;b=2][CQ:image,file=b,url=javascript:x]"}
+    app_mod._group_names[7] = "图片群"
+    assert c.post("/onebot", json=e).status_code == 200
+    m = c.get("/api/messages?chat=图片群", headers=AUTH).json()[-1]
+    assert m["imgs"] == ["https://x.cn/a.jpg?k=1&b=2"] and "[图片]" in m["text"]
+    assert c.get("/api/messages?chat=计科2201", headers=AUTH).json()[0]["imgs"] == []
