@@ -257,3 +257,11 @@ def test_sender_filter_ui():
 def test_chat_find_ui():
     r = c.get("/", headers=AUTH)
     assert "cfq" in r.text and "cfind" in r.text
+
+
+def test_todo_pin():
+    assert c.post("/api/todo", headers=AUTH, json={"key": "k|g", "pin": True}).json()["ok"]
+    assert "k|g" in c.get("/api/state", headers=AUTH).json()["pins"]
+    c.post("/api/todo", headers=AUTH, json={"key": "k|g", "pin": False})
+    assert "k|g" not in c.get("/api/state", headers=AUTH).json()["pins"]
+    assert "pinb" in c.get("/", headers=AUTH).text
