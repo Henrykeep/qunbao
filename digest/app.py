@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.25.0"
+VERSION = "0.26.0"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -221,9 +221,9 @@ def hit_reason(chat, sender, text, at_me, s):
         return None
     if sender and any(v and v in sender for v in s["vip"]):
         return "重要的人"
-    for k in s["keywords"]:
-        if k and k.lower() in text.lower():
-            return f"关键词「{k}」"
+    hits = [k for k in s["keywords"] if k and k.lower() in text.lower()]
+    if hits:
+        return "关键词" + "、".join(f"「{k}」" for k in hits[:3])
     return None
 
 
