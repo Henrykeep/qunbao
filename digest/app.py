@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.30.2"
+VERSION = "0.30.3"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -988,7 +988,7 @@ async def make_headline(body, s, weekly=False, stats=None) -> str:
     if weekly:
         done = [t["title"] for t in body["todos"] if t["done"]]
         lines.append(f"- 本周已完成 {len(done)} 件：" + "、".join(done[:8]))
-    out = await llm([{"role": "system", "content": "【头条】你是用户的群消息秘书。根据下面的要点写一句话头条，指出最要紧的事，25 字内。"
+    out = await llm([{"role": "system", "content": "【头条】你是用户的群消息秘书。根据下面的要点写一句话头条：只说最要紧的一件事（有截止就带上时间），20 字左右、不超过 28 字，必须是完整的一句话，不要罗列多件事。"
                                                    "只输出这句话，不要引号。没有要紧事就写：群里没什么要你管的"},
                      {"role": "user", "content": ("这是一周汇总，" if weekly else "") + "要点：\n" + ("\n".join(lines) or "（没有）")}])
     if stats is not None:
@@ -999,7 +999,19 @@ async def make_headline(body, s, weekly=False, stats=None) -> str:
             out = str(json.loads(out).get("headline") or "")
         except (json.JSONDecodeError, AttributeError):
             pass
-    return (out.splitlines() or [""])[0].strip().strip("\"“”「」")[:40] or "群里没什么要你管的"
+    return tidy_headline((out.splitlines() or [""])[0]) or "群里没什么要你管的"
+
+
+def tidy_headline(t: str, limit: int = 30) -> str:
+    """头条只留一件完整的事：太长就在标点处截断，绝不从半个词中间切开。"""
+    t = (t or "").strip().strip("\"“”「」'").strip()
+    t = re.sub(r"^(头条|标题)[:：]\s*", "", t)
+    if len(t) <= limit:
+        return t.rstrip("，、；,;")
+    cut = max((m.end() for m in re.finditer(r"[，。；！？、,;!?]", t[:limit + 1])), default=0)
+    if cut >= 8:
+        return t[:cut].rstrip("，。；、,;").strip()
+    return t[:limit - 1].rstrip("，、；,;") + "…"
 
 
 _digest_lock = asyncio.Lock()
