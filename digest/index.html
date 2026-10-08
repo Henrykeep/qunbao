@@ -35,6 +35,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 input,textarea,select{font:inherit;color:inherit}
 .wrap{max-width:640px;margin:0 auto;padding:0 20px}
 .view{display:none;padding-bottom:calc(var(--tab) + 120px + env(safe-area-inset-bottom))}
+#v-set{padding-bottom:calc(var(--tab) + 36px + env(safe-area-inset-bottom))}
 .view.on{display:block;animation:vin .35s var(--ease)}
 @keyframes vin{from{opacity:0;transform:translateY(6px)}}
 svg{display:block}
@@ -284,7 +285,27 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
 .stat-dot{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--sub)}
 .stat-dot i{width:8px;height:8px;border-radius:50%;background:var(--faint)}
 .stat-dot.ok i{background:var(--calm)} .stat-dot.bad i{background:var(--accent)}
-.savehint{font-size:12px;color:var(--faint);text-align:center;margin-top:18px;height:16px;transition:opacity .3s}
+.savehint{position:fixed;left:50%;bottom:calc(var(--tab) + 16px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:6;
+  font-size:12px;color:var(--sub);background:var(--chip);border-radius:999px;padding:4px 12px;opacity:0;pointer-events:none;transition:opacity .3s}
+.savehint:empty{display:none}
+.row.nav{width:100%;border-left:0;border-right:0;border-top:0;background:none;text-align:left;cursor:pointer}
+.row.nav:active{background:var(--chip)}
+.row.nav .rl{flex:none;max-width:62%}
+.row.nav .rv{flex:1;min-width:0;text-align:right;font-size:13.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row.nav>svg{width:16px;height:16px;color:var(--faint);flex:none;margin-left:-6px}
+#v-set .gl{margin-top:22px}
+#s-profile{min-height:78px;border-bottom:1px solid var(--line)}
+.sub .chat-head{margin-bottom:6px}
+.sub .gl:first-of-type{margin-top:18px}
+#v-set .row select{max-width:60%}
+.snzmenu{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.snzmenu button{border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:12.5px;padding:4px 11px;border-radius:999px}
+.snzmenu button.x2{color:var(--faint)}
+.quiet .fade,.quiet.fade{animation:none!important}
+.pend{font-size:12.5px;color:var(--sub);margin-top:10px;display:flex;align-items:center;gap:6px}
+.pend i{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none}
+.pend[hidden]{display:none}
+.runinfo{font-size:11.5px;color:var(--faint);text-align:center;margin-top:8px;letter-spacing:.02em}
 
 /* 骨架 */
 .sk{background:linear-gradient(90deg,var(--chip) 0,var(--line) 50%,var(--chip) 100%);background-size:200% 100%;animation:sh 1.3s infinite;border-radius:8px}
@@ -382,6 +403,7 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13a3 3 0 0 1 3 3v11H7a3 3 0 0 1-3-3z"/><path d="M8 9h8M8 13h6"/></svg></button>
     </div>
   </div>
+  <div class="pend" id="pend" hidden></div>
   <div id="notes"></div>
   <main id="main"></main>
   <footer>群报 · 只替你读群，不替你说话</footer>
@@ -411,77 +433,144 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
 
 <!-- ============ 设置 ============ -->
 <div class="view" id="v-set"><div class="wrap">
+  <div id="set-main">
   <header><div class="mast sm">设置</div><div class="date"><b>群报</b><span>改完自动保存</span></div></header>
   <div class="rule"></div>
 
-  <div class="gl">关于我</div>
-  <div class="group"><textarea class="area" id="s-profile" placeholder="例：我是大三学生，在计科2201班；最关心作业截止、考试安排、班会和缴费。"></textarea></div>
-  <div class="gd">写得越具体，整理越准：你的身份、在哪些群、什么事算重要。</div>
-
-  <div class="gl">我的昵称</div>
-  <div class="group"><div class="tagbox" data-k="my_names"><input placeholder="输入你在群里的昵称后回车"></div></div>
-  <div class="gd">群里出现 @昵称 的消息会置顶到「@ 我的」并即时推送，微信通知转发尤其有用。</div>
-
-  <div class="gl">重要的人</div>
-  <div class="group"><div class="tagbox" data-k="vip"><input placeholder="输入名字后回车，如 王老师"></div></div>
-  <div class="gd">他们说的话一定会被认真看，也会实时推送给你。按群名片或昵称匹配。</div>
-
-  <div class="gl">关键词</div>
-  <div class="group"><div class="tagbox" data-k="keywords"><input placeholder="输入关键词后回车"></div></div>
-
-  <div class="gl">屏蔽的群</div>
-  <div class="group"><div class="row"><span class="rl">只总结我勾选的群<small>开启后，下面的开关表示「纳入总结」，其余群一律静音</small></span><label class="sw"><input type="checkbox" id="s-only"><span></span></label></div></div>
-  <div class="group" id="s-muted"></div>
-  <div class="gd">屏蔽后不进总结、不推送，原文仍然保留。</div>
-
-  <div class="gl">每日整理</div>
-  <div class="group">
-    <div class="row"><span class="rl">自动整理时间</span><select id="s-hour"></select></div>
-    <div class="row"><span class="rl">第二次整理（早报/晚报）</span><select id="s-hour2"></select></div>
-    <div class="row"><span class="rl">截止前提醒</span><select id="s-remind"></select></div>
-    <div class="row"><span class="rl">免打扰</span><span><select id="s-qs"></select> 至 <select id="s-qe"></select></span></div>
-  </div>
-
   <div class="gl">推送到 iPhone</div>
   <div class="group">
-    <div class="row"><span class="rl">Bark 地址<small>App Store 装 Bark，复制它给的地址</small></span></div>
-    <div class="row" style="padding-top:0"><input type="url" id="s-bark" placeholder="https://api.day.app/你的key" style="text-align:left"></div>
-    <div class="row"><span class="rl">@我 / 重要的人 / 关键词</span><label class="sw"><input type="checkbox" id="s-pushat"><span></span></label></div>
-    <div class="row"><span class="rl">每日群报</span><label class="sw"><input type="checkbox" id="s-pushdg"><span></span></label></div>
-    <div class="row"><span class="rl">周报<small>每周日 20:00 整理一周要点</small></span><label class="sw"><input type="checkbox" id="s-wk"><span></span></label></div>
-    <div class="row"><span class="rl">消息保留天数<small>超过的原文每天凌晨清理</small></span><select id="s-keep"><option value="7">7 天</option><option value="30">30 天</option><option value="90">90 天</option><option value="365">365 天</option></select></div>
-    <div class="row"><span class="rl">导出备份<small>消息、总结、设置打包成 JSON</small></span><a class="btn" href="/api/export" download>导出</a></div>
-    <div class="row"><span class="rl">点通知打开的地址<small>一般就是现在浏览器里的这个</small></span><input type="url" id="s-site" placeholder="http://"></div>
-    <div class="row"><span class="rl">发一条试试</span><button class="btn ghost" id="s-test">测试推送</button></div>
+    <div class="row"><input type="url" id="s-bark" placeholder="Bark 地址 https://api.day.app/你的key" style="text-align:left"><button class="btn ghost" id="s-test">测试</button></div>
+    <div class="row"><span class="rl">@我 / 重要的人 / 关键词<small>命中就立刻推送</small></span><label class="sw"><input type="checkbox" id="s-pushat"><span></span></label></div>
+    <div class="row"><span class="rl">群报整理好时推送<small>定时群报、周报，自动整理出新待办时</small></span><label class="sw"><input type="checkbox" id="s-pushdg"><span></span></label></div>
   </div>
 
-  <div class="gl">接入</div>
+  <div class="gd">iPhone 在 App Store 装 Bark，把它给的地址粘到上面。</div>
+  <div class="gl">自动整理</div>
   <div class="group">
-    <div class="row"><span class="conn"><span class="ci2" style="background:var(--qq)">QQ</span><span class="rl">QQ<small>NapCat 扫码登录小号</small></span></span><span class="stat-dot" id="st-qq"><i></i><span>—</span></span></div>
-    <div class="row"><span class="conn"><span class="ci2" style="background:var(--wx)">微</span><span class="rl">微信<small>安卓备用机转发通知</small></span></span><span class="stat-dot" id="st-wx"><i></i><span>—</span></span></div>
-    <div class="row"><span class="rl">最近一条消息</span><span class="stat-dot" id="st-last"><span>—</span></span></div>
-    <div class="row"><span class="rl">大模型</span><span class="stat-dot" id="st-llm"><i></i><span>—</span></span></div>
-    <div class="row"><span class="rl">版本</span><span class="stat-dot" id="st-ver"><span>—</span></span></div>
+    <div class="row"><span class="rl">有新消息时自动整理<small>@我 或重要群的新消息最快 5 分钟就整理</small></span><select id="s-auto"></select></div>
   </div>
 
-  <div class="gl" id="wxsec">接入微信</div>
+  <div class="gl">关于我</div>
+  <div class="group"><textarea class="area" id="s-profile" placeholder="例：我是大三学生，在计科2201班；最关心作业截止、考试安排、班会和缴费。"></textarea>
+    <button class="row nav" data-sub="me"><span class="rl">我的昵称 · 重要的人</span><span class="rv" id="sum-me"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button></div>
+  <div class="gd">写得越具体，整理越准：你的身份、在哪些群、什么事算重要。</div>
+
+  <div class="gl">更多</div>
   <div class="group">
-    <div class="row" style="border:0"><span class="rl">接收地址<small>填进通知转发 App 的 Webhook，口令已包含在里面</small></span></div>
-    <div class="urlbox"><code id="wx-url">—</code><button class="btn ghost" id="wx-copy">复制</button></div>
-    <details class="howto" id="wx-how"><summary>怎么接（5 步）<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>
-      <ol class="steps">
-        <li><b>准备一台旧安卓手机</b>，登录微信小号，把小号拉进你想看的群。</li>
-        <li>这台手机的微信里：<b>设置 → 消息通知</b>，打开「通知显示消息详情」；要看的群<b>不要</b>开消息免打扰，否则没有通知可转。</li>
-        <li>装一个通知转发 App（例如开源的「短信转发器 SmsForwarder」），给它<b>通知使用权</b>，并在系统里关掉它的省电限制、允许自启动。</li>
-        <li>新建发送通道选 <b>Webhook</b>，方式 POST，地址填上面的接收地址；消息模板写 <code>{"title":"[title]","text":"[content]"}</code>（占位符以 App 里的为准），转发规则只选微信 <code>com.tencent.mm</code>。</li>
-        <li>让群里有人发句话，上面「微信」变成<b>在线</b>就通了。群名、发送人会自动拆出来，重复通知会自动去重。</li>
-      </ol>
-    </details>
+    <button class="row nav" data-sub="groups"><span class="rl">群设置</span><span class="rv" id="sum-groups"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="row nav" data-sub="kw"><span class="rl">关键词订阅</span><span class="rv" id="sum-kw"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="row nav" data-sub="remind"><span class="rl">定时、提醒与免打扰</span><span class="rv" id="sum-remind"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="row nav" data-sub="conn"><span class="rl">接入 QQ / 微信</span><span class="rv" id="sum-conn"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="row nav" data-sub="data"><span class="rl">数据</span><span class="rv" id="sum-data"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="row nav" data-sub="acct"><span class="rl">账号</span><span class="rv" id="sum-acct"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="row nav" data-sub="about"><span class="rl">关于与高级</span><span class="rv" id="sum-about"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
   </div>
-  <div class="gd">微信看到的是通知里的文字：图片、文件只会显示成 [图片] 之类的提示，长消息可能被系统截断。</div>
-  <div class="gl">账号</div>
-  <div class="group">
-    <div class="row"><span class="rl">登录状态<small>本机保持 30 天，常用会自动续期</small></span><button class="btn ghost out-btn" id="s-logout">退出登录</button></div>
+  </div>
+
+  <div class="sub" id="sub-me" hidden>
+    <div class="chat-head"><button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>设置</button><div class="ttl">昵称与重要的人</div><div style="width:70px"></div></div>
+    <div class="gl">我的昵称</div>
+    <div class="group"><div class="tagbox" data-k="my_names"><input placeholder="输入你在群里的昵称后回车"></div></div>
+    <div class="gd">群里出现 @昵称 的消息会置顶到「@ 我的」并即时推送，微信通知转发尤其有用。</div>
+    <div class="gl">重要的人</div>
+    <div class="group"><div class="tagbox" data-k="vip"><input placeholder="输入名字后回车，如 王老师"></div></div>
+    <div class="gd">他们说的话一定会被认真看，也会实时推送给你。按群名片或昵称匹配。</div>
+  </div>
+  <div class="sub" id="sub-groups" hidden>
+    <div class="chat-head"><button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>设置</button><div class="ttl">群设置</div><div style="width:70px"></div></div>
+    <div class="gl">参与总结的群</div>
+    <div class="group"><div class="row"><span class="rl">只总结我勾选的群<small>开启后，开关表示「纳入总结」，其余群一律静音</small></span><label class="sw"><input type="checkbox" id="s-only"><span></span></label></div></div>
+    <div class="gd" id="s-muted-tip">右边开关打开 = 屏蔽：不进总结、不推送，原文仍然保留。左边选「重要」会在总结里加权，「只看@我」只看 @你的消息。</div>
+    <div class="group" id="s-muted"></div>
+  </div>
+  <div class="sub" id="sub-kw" hidden>
+    <div class="chat-head"><button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>设置</button><div class="ttl">关键词订阅</div><div style="width:70px"></div></div>
+    <div class="gl">关键词</div>
+    <div class="group"><div class="tagbox" data-k="keywords"><input placeholder="输入关键词后回车"></div></div>
+    <div class="gd">群消息里出现这些词会立刻推送（需开启「@我 / 重要的人 / 关键词」推送），整理时也会优先看。</div>
+  </div>
+  <div class="sub" id="sub-remind" hidden>
+    <div class="chat-head"><button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>设置</button><div class="ttl">定时、提醒与免打扰</div><div style="width:70px"></div></div>
+    <div class="gl">定时群报</div>
+    <div class="group">
+      <div class="row"><span class="rl">每日整理时间</span><select id="s-hour"></select></div>
+      <div class="row"><span class="rl">第二次整理<small>早报 + 晚报</small></span><select id="s-hour2"></select></div>
+      <div class="row"><span class="rl">周报<small>每周日 20:00 整理一周要点</small></span><label class="sw"><input type="checkbox" id="s-wk"><span></span></label></div>
+    </div>
+    <div class="gl">提醒</div>
+    <div class="group">
+      <div class="row"><span class="rl">截止前提醒</span><select id="s-remind"></select></div>
+      <div class="row"><span class="rl">免打扰</span><span><select id="s-qs"></select> 至 <select id="s-qe"></select></span></div>
+    </div>
+    <div class="gd">免打扰期间的即时推送会攒着，到点合并成一条；自动整理照常更新，但不推送。</div>
+    <div class="gl">点通知打开</div>
+    <div class="group"><div class="row"><span class="rl">打开的地址<small>一般就是现在浏览器里的这个</small></span><input type="url" id="s-site" placeholder="http://"></div></div>
+  </div>
+  <div class="sub" id="sub-conn" hidden>
+    <div class="chat-head"><button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>设置</button><div class="ttl">接入 QQ / 微信</div><div style="width:70px"></div></div>
+    <div class="gl">状态</div>
+    <div class="group">
+      <div class="row"><span class="conn"><span class="ci2" style="background:var(--qq)">QQ</span><span class="rl">QQ<small>NapCat 扫码登录小号</small></span></span><span class="stat-dot" id="st-qq"><i></i><span>—</span></span></div>
+      <div class="row"><span class="conn"><span class="ci2" style="background:var(--wx)">微</span><span class="rl">微信<small>安卓备用机转发通知</small></span></span><span class="stat-dot" id="st-wx"><i></i><span>—</span></span></div>
+      <div class="row"><span class="rl">最近一条消息</span><span class="stat-dot" id="st-last"><span>—</span></span></div>
+    </div>
+    <div class="gl">接入 QQ</div>
+    <div class="group">
+      <details class="howto" id="qq-how"><summary>怎么接（4 步）<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <ol class="steps">
+          <li>服务器上 <code>docker compose up -d</code> 会同时启动 NapCat，<code>docker logs napcat</code> 里有登录二维码。</li>
+          <li>用<b>QQ 小号</b>扫码登录，把小号拉进你想看的群。</li>
+          <li>NapCat WebUI「网络配置」新建 <b>HTTP 客户端</b>：地址 <code>http://qunbao:8000/onebot</code>，消息格式 string。</li>
+          <li>再建一个 <b>HTTP 服务器</b>，端口 3000（用来查群名）。上面「QQ」变成<b>在线</b>就通了。</li>
+        </ol>
+      </details>
+    </div>
+    <div class="gl" id="wxsec">接入微信</div>
+    <div class="group">
+      <div class="row" style="border:0"><span class="rl">接收地址<small>填进通知转发 App 的 Webhook，口令已包含在里面</small></span></div>
+      <div class="urlbox"><code id="wx-url">—</code><button class="btn ghost" id="wx-copy">复制</button></div>
+      <details class="howto" id="wx-how"><summary>怎么接（5 步）<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>
+        <ol class="steps">
+          <li><b>准备一台旧安卓手机</b>，登录微信小号，把小号拉进你想看的群。</li>
+          <li>这台手机的微信里：<b>设置 → 消息通知</b>，打开「通知显示消息详情」；要看的群<b>不要</b>开消息免打扰，否则没有通知可转。</li>
+          <li>装一个通知转发 App（例如开源的「短信转发器 SmsForwarder」），给它<b>通知使用权</b>，并在系统里关掉它的省电限制、允许自启动。</li>
+          <li>新建发送通道选 <b>Webhook</b>，方式 POST，地址填上面的接收地址；消息模板写 <code>{"title":"[title]","text":"[content]"}</code>（占位符以 App 里的为准），转发规则只选微信 <code>com.tencent.mm</code>。</li>
+          <li>让群里有人发句话，上面「微信」变成<b>在线</b>就通了。群名、发送人会自动拆出来，重复通知会自动去重。</li>
+        </ol>
+      </details>
+    </div>
+    <div class="gd">微信看到的是通知里的文字：图片、文件只会显示成 [图片] 之类的提示，长消息可能被系统截断。</div>
+  </div>
+  <div class="sub" id="sub-data" hidden>
+    <div class="chat-head"><button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>设置</button><div class="ttl">数据</div><div style="width:70px"></div></div>
+    <div class="gl">消息</div>
+    <div class="group">
+      <div class="row"><span class="rl">消息保留天数<small>超过的原文每天凌晨清理</small></span><select id="s-keep"><option value="7">7 天</option><option value="30">30 天</option><option value="90">90 天</option><option value="365">365 天</option></select></div>
+      <div class="row"><span class="rl">导出备份<small>消息、总结、设置打包成 JSON</small></span><a class="btn" href="/api/export" download>导出</a></div>
+    </div>
+  </div>
+  <div class="sub" id="sub-acct" hidden>
+    <div class="chat-head"><button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>设置</button><div class="ttl">账号</div><div style="width:70px"></div></div>
+    <div class="gl">登录</div>
+    <div class="group">
+      <div class="row"><span class="rl">登录状态<small>本机保持 30 天，常用会自动续期</small></span><button class="btn ghost out-btn" id="s-logout">退出登录</button></div>
+    </div>
+    <div class="gd">密码在服务器 .env 的 WEB_PASS 里改，改完所有设备都要重新登录。</div>
+  </div>
+  <div class="sub" id="sub-about" hidden>
+    <div class="chat-head"><button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>设置</button><div class="ttl">关于与高级</div><div style="width:70px"></div></div>
+    <div class="gl">运行状态</div>
+    <div class="group">
+      <div class="row"><span class="rl">版本</span><span class="stat-dot" id="st-ver"><span>—</span></span></div>
+      <div class="row"><span class="rl">大模型</span><span class="stat-dot" id="st-llm"><i></i><span>—</span></span></div>
+      <div class="row"><span class="rl">累计大模型调用<small>每个有新消息的群一次 + 头条一次；没变化的群不调用</small></span><span class="stat-dot" id="st-calls"><span>—</span></span></div>
+      <div class="row"><span class="rl">更新记录</span><a class="btn ghost" href="https://github.com/Henrykeep/qunbao/blob/main/CHANGELOG.md" target="_blank" rel="noopener">查看</a></div>
+    </div>
+    <div class="gl">高级</div>
+    <div class="group">
+      <div class="row"><span class="rl">完整重新整理<small>平时只整理新消息；这里会从最近 24 小时的消息重新整理一遍（已完成、置顶的保留），较慢也较费钱</small></span><button class="btn ghost" id="s-full">重新整理</button></div>
+    </div>
+    <div class="gd">群报只替你读群，不替你说话：不会在群里发任何消息。</div>
   </div>
   <div class="savehint" id="savehint"></div>
 </div></div>
@@ -532,10 +621,10 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
 /* ---------- 工具 ---------- */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const now=new Date(), W="日一二三四五六";
-$("#today").textContent=`${now.getMonth()+1}月${now.getDate()}日`;
-$("#week").textContent=`星期${W[now.getDay()]}`;
-const hr=now.getHours(), GREET=hr<5?"夜深了":hr<11?"早上好":hr<13?"中午好":hr<18?"下午好":"晚上好";
+const W="日一二三四五六";
+function setDate(){const n=new Date();$("#today").textContent=`${n.getMonth()+1}月${n.getDate()}日`;$("#week").textContent=`星期${W[n.getDay()]}`}
+setDate();
+const greet=()=>{const hr=new Date().getHours();return hr<5?"夜深了":hr<11?"早上好":hr<13?"中午好":hr<18?"下午好":"晚上好"};
 const toast=t=>{const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("on"),2300)};
 const pad=n=>String(n).padStart(2,"0");
 const hm=d=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -549,7 +638,7 @@ const hue=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;retu
 const avc=s=>`hsl(${hue(s)} 30% 52%)`;
 const first=s=>esc([...String(s||"?")].find(c=>!/[\s·@]/.test(c))||"?");
 const tick=()=>navigator.vibrate&&navigator.vibrate(8);
-const doneKey=t=>t.title+"|"+t.chat;
+const doneKey=t=>t.key||t.title+"|"+t.chat;
 const SRC={"QQ":"s-qq","微信":"s-wx"};
 const srcTag=src=>src?`<span class="tag ${SRC[src]||""}">${esc(src)}</span>`:"";
 const srcBadge=src=>SRC[src]?`<span class="sb ${SRC[src]}">${src==="QQ"?"Q":"微"}</span>`:"";
@@ -578,10 +667,13 @@ async function api(path,body){
 let curView="home";
 function go(v){
   if(v===curView&&v==="msgs"&&!$("#msgs-chat").hidden){closeChat();return}
+  if(v===curView&&v==="set"&&SUB){closeSub();return}
+  if(SUB)closeSub();
   curView=v;$$(".view").forEach(e=>e.classList.toggle("on",e.id==="v-"+v));
   $$(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
   $("#dock").classList.toggle("home",v==="home");window.scrollTo(0,0);
   if(v==="msgs")loadChats();if(v==="set")loadSettings();
+  if(v==="home")refreshQuiet();
 }
 $$(".tabs button").forEach(b=>b.onclick=()=>{tick();go(b.dataset.v)});
 
@@ -599,8 +691,8 @@ $$(".sheet").forEach(sh=>{
 
 /* ================= 今日 ================= */
 let hours=+(localStorage.qb_hours||24), viewId=null, ST=null;
-function setSeg(h){
-  hours=h;localStorage.qb_hours=h;
+function setSeg(h,save=true){
+  hours=h;if(save)localStorage.qb_hours=h;
   const b=$$("#seg button").find(x=>+x.dataset.h===h)||$$("#seg button")[0];
   $$("#seg button").forEach(x=>x.classList.toggle("on",x===b));
   const i=$("#seg i");i.style.left=b.offsetLeft+"px";i.style.width=b.offsetWidth+"px";
@@ -621,35 +713,37 @@ function renderStatus(st){
   else if(s.llm_err)n+=`<div class="warn fade">${ICON.warn}<div><b>大模型调用失败（已自动重试 1 次）</b><span>${esc(s.llm_err)}</span></div></div>`;
   else if(!s.last_msg)n+=`<div class="warn fade">${ICON.warn}<div><b>还没收到任何消息</b><span>QQ：登录 NapCat 并把上报地址指向群报；微信：去「设置 → 接入微信」。</span></div></div>`;
   if(!st.is_latest&&st.digest)n+=`<div class="banner fade"><span>正在看 ${ago(st.digest_ts)} 的群报</span><button id="tolatest">回到最新</button></div>`;
-  $("#notes").innerHTML=n;
+  const box=$("#notes");if(box._h===n)return;box._h=n;box.innerHTML=n;
   $("#tolatest")?.addEventListener("click",()=>{viewId=null;load()});
 }
 const RANGE={24:"今天",72:"这 3 天",168:"这一周"};
 
 function render(st){
-  ST=st;renderStatus(st);const d=st.digest;
-  if(d)setSeg(st.hours||hours);
-  $("#updated").textContent=st.digest_ts?`${ago(st.digest_ts)}`:"整理";
+  ST=st;renderStatus(st);renderPend(st);const d=st.digest;setDate();
+  if(d)setSeg(st.hours||hours,!!st.is_latest);
+  updLabel();
   if(!d){
-    $("#main").innerHTML=`<div class="greet fade">${GREET}</div><div class="headline fade">${st.today?`过去一天收到 ${st.today} 条群消息。<br>点「整理」，看看哪些和你有关。`:"群报还没开张。<br>消息进来后，这里会是你的每日头条。"}</div>`;
+    $("#main").innerHTML=`<div class="greet fade">${greet()}</div><div class="headline fade">${st.today?`过去一天收到 ${st.today} 条群消息。<br>${st.auto_interval?"有新消息会自动整理，也可以点「整理」马上看。":"点「整理」，看看哪些和你有关。"}`:"群报还没开张。<br>消息进来后，这里会是你的每日头条。"}</div>`;
     return;
   }
   const done=new Set(st.done||[]);const pins=new Set(st.pins||[]);
+  const isDone=t=>!!t.done||done.has(doneKey(t)),isPin=t=>!!t.pinned||pins.has(doneKey(t));
   const todos=d.todos||[],notices=d.notices||[],ats=st.at_me||[],per=st.per_chat||{};
   const groups=(d.groups||[]).map(g=>({...g,n:per[g.chat]||0})).sort((a,b)=>b.n-a.n);
   const maxN=Math.max(1,...groups.map(g=>g.n));
-  let h=`<div class="greet fade">${st.is_latest?GREET+" · ":""}${RANGE[st.hours]||"最近"}的群消息</div>
+  let h=`<div class="greet fade">${st.is_latest?greet()+" · ":""}${RANGE[st.hours]||"最近"}的群消息</div>
   <div class="headline fade">${esc(d.headline)}</div>
   <div class="stats fade"><div class="stat"><div class="n">${d.count??0}</div><div class="l">条消息</div></div>
   <div class="stat"><div class="n">${d.chats??0}</div><div class="l">个群</div></div>
-  <div class="stat"><div class="n" id="prog-n"></div><div class="l">待办完成</div><div class="prog"><div id="prog-b"></div></div></div></div>`;
+  <div class="stat"><div class="n" id="prog-n"></div><div class="l">待办完成</div><div class="prog"><div id="prog-b"></div></div></div></div>
+  ${d.stats?`<div class="runinfo">${runInfo(d.stats,d.mode)}</div>`:""}`;
 
   h+=`<section><h2>要你做的 <span class="c">${todos.length||""}</span></h2>${st.diff&&(st.diff.new.length||st.diff.gone)?`<div class="diffline">较上一期：新增 <b>${st.diff.new.length}</b> 件${st.diff.gone?`，消失 ${st.diff.gone} 件`:""}</div>`:""}<div class="todos" id="todos">`;
-  h+=todos.length?todos.map((t,i)=>`<div class="todo ${esc(t.urgency||"mid")} ${done.has(doneKey(t))?"done":""} ${pins.has(doneKey(t))?"pinned":""} fade" style="animation-delay:${i*40}ms" data-k="${esc(doneKey(t))}" data-chat="${esc(t.chat)}" data-q="${esc(t.quote||"")}">
+  h+=todos.length?todos.map((t,i)=>`<div class="todo ${esc(t.urgency||"mid")} ${isDone(t)?"done":""} ${isPin(t)?"pinned":""} fade" style="animation-delay:${i*40}ms" data-i="${i}" data-k="${esc(doneKey(t))}" data-chat="${esc(t.chat)}" data-q="${esc(t.quote||"")}">
     <button class="check" aria-label="完成"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
     <div class="tbody"><div class="t">${esc(t.title)}</div>${t.detail?`<div class="d">${esc(t.detail)}</div>`:""}
     <div class="meta">${t.due?`<span class="chip due">${ICON.clock}${esc(t.due)}</span>`:""}<span class="chip">${ICON.chat}${esc(t.chat)}${srcTag((st.chat_src||{})[t.chat])}</span>
-      <button class="chip pinb" aria-label="置顶">${pins.has(doneKey(t))?"已置顶":"置顶"}</button><button class="chip snz" aria-label="稍后提醒">稍后提醒</button>${t.due?`<a class="chip cal" href="/api/ics?${new URLSearchParams({title:t.title,due:t.due,detail:t.detail||"",chat:t.chat||""})}" aria-label="加到日历">加到日历</a>`:""}
+      <button class="chip pinb" aria-label="置顶">${isPin(t)?"已置顶":"置顶"}</button><button class="chip snz" aria-label="稍后提醒">稍后提醒</button>${t.due?`<a class="chip cal" href="/api/ics?${new URLSearchParams({title:t.title,due:t.due,detail:t.detail||"",chat:t.chat||""})}" aria-label="加到日历">加到日历</a>`:""}
       ${t.quote?`<button class="chip more" aria-label="原话">原话${ICON.down}</button>`:""}</div>
     ${t.quote?`<div class="quote"><div><blockquote>${hlAt(t.quote)}<cite>— ${esc(t.sender||"")}${t.sender?" · ":""}${esc(t.chat)}</cite></blockquote>
       <button class="go">去原文看上下文${ICON.arrow}</button></div></div>`:""}</div></div>`).join("")
@@ -683,20 +777,26 @@ function render(st){
   $$(".g").forEach(b=>b.onclick=()=>{tick();openChat(b.dataset.chat)});
   sortTodos(false);updateProg();
   $$(".todo").forEach(el=>{
+    const T=todos[+el.dataset.i]||{},who={key:el.dataset.k,title:T.title||"",chat:T.chat||"",due:T.due||""};
     el.querySelector(".check").onclick=async()=>{
-      const on=!el.classList.contains("done");el.classList.toggle("done",on);el.classList.remove("open");tick();updateProg();
+      const on=!el.classList.contains("done");el.classList.toggle("done",on);el.classList.remove("open");el.querySelector(".snzmenu")?.remove();
+      T.done=on;tick();updateProg();
       setTimeout(()=>sortTodos(true),on?420:0);
-      api("/api/todo",{key:el.dataset.k,done:on}).catch(()=>toast("没保存上，网络不太好"));
+      api("/api/todo",{...who,done:on}).catch(()=>toast("没保存上，网络不太好"));
     };
-    el.querySelector(".chip.snz")?.addEventListener("click",async e=>{
-      e.stopPropagation();const tm=confirm("1 小时后提醒？\n取消 = 明天早上 9 点提醒");
-      const title=el.querySelector(".tt,.title,b")?.textContent||"";
-      api("/api/todo/snooze",{key:el.dataset.k,title,hours:tm?1:"tomorrow"}).then(()=>toast(tm?"1 小时后提醒你":"明早 9 点提醒你")).catch(()=>toast("没设上，网络不太好"));
+    el.querySelector(".chip.snz")?.addEventListener("click",e=>{
+      e.stopPropagation();const old=el.querySelector(".snzmenu");if(old){old.remove();return}
+      const m=document.createElement("div");m.className="snzmenu";
+      m.innerHTML=`<button data-h="1">1 小时后</button><button data-h="3">3 小时后</button><button data-h="tomorrow">明早 9 点</button><button class="x2" data-h="">取消</button>`;
+      el.querySelector(".meta").after(m);
+      m.onclick=ev=>{const b=ev.target.closest("button");if(!b)return;ev.stopPropagation();m.remove();if(!b.dataset.h)return;tick();
+        const h=b.dataset.h==="tomorrow"?"tomorrow":+b.dataset.h;
+        api("/api/todo/snooze",{...who,hours:h}).then(r=>toast(r.warn||(h==="tomorrow"?"明早 9 点提醒你":`${h} 小时后提醒你`))).catch(()=>toast("没设上，网络不太好"))};
     });
     el.querySelector(".chip.pinb")?.addEventListener("click",e=>{
       e.stopPropagation();const on=!el.classList.contains("pinned");el.classList.toggle("pinned",on);
-      e.currentTarget.textContent=on?"已置顶":"置顶";tick();sortTodos(true);
-      api("/api/todo",{key:el.dataset.k,pin:on}).catch(()=>toast("没保存上，网络不太好"));
+      e.currentTarget.textContent=on?"已置顶":"置顶";T.pinned=on;tick();sortTodos(true);
+      api("/api/todo",{...who,pin:on}).catch(()=>toast("没保存上，网络不太好"));
     });
     el.querySelector(".chip.more")?.addEventListener("click",()=>el.classList.toggle("open"));
     el.querySelector(".go")?.addEventListener("click",()=>openChat(el.dataset.chat,el.dataset.q));
@@ -719,18 +819,50 @@ function sortTodos(animate){
 }
 async function load(){skeleton();try{render(await api("/api/state"+(viewId?`?id=${viewId}`:"")))}catch(e){$("#main").innerHTML=`<div class="empty">${esc(e.message)}</div>`}}
 async function regen(){
-  const b=$("#regen");if(b.classList.contains("spin"))return;b.classList.add("spin");$("#updated").textContent="整理中";skeleton();viewId=null;
-  try{await api("/api/digest",{hours});render(await api("/api/state"));toast("整理好了")}
-  catch(e){toast("整理失败："+e.message);load()}finally{b.classList.remove("spin")}
+  const b=$("#regen");if(b.classList.contains("spin"))return;b.classList.add("spin");
+  const p=ST&&ST.pending;$("#updated").textContent=p&&p.msgs?`整理新消息 ${p.msgs} 条`:"整理中";
+  const wasView=viewId;viewId=null;if(wasView||!ST||!ST.digest)skeleton();
+  try{const r=await api("/api/digest",{hours});const m=$("#main");m.classList.add("quiet");render(await api("/api/state"));setTimeout(()=>m.classList.remove("quiet"),50);
+    const x=r.stats||{};toast(r.unchanged?(x.new?`看了新消息 ${x.new} 条，没有要更新的事`:"没有新消息，已是最新"):`处理新消息 ${x.new||0} 条 · 涉及 ${x.chats||0} 个群 · ${(+x.secs||0).toFixed(1)} 秒`)}
+  catch(e){toast("整理失败："+e.message);load()}finally{b.classList.remove("spin");updLabel()}
 }
 $("#regen").onclick=()=>{tick();regen()};
+
+/* 自动更新：首页可见时每 60 秒看一眼，后台整理出新一期就无闪烁换上 */
+const runInfo=(x,mode)=>`${mode==="full"?"完整重新整理":mode==="weekly"?"周报":"增量整理"}：新消息 ${x.new} 条，送模型 ${x.sent} 条 · ${x.chats} 个群 · 调用 ${x.calls} 次 · 用时 ${(+x.secs||0).toFixed(1)} 秒${x.errors?` · ${x.errors} 个群失败，下次重试`:""}`;
+function renderPend(st){
+  const p=st&&st.pending,e=$("#pend"),show=!!(p&&p.msgs&&st.is_latest&&!viewId);e.hidden=!show;
+  if(show)e.innerHTML=`<i></i>新消息 ${p.msgs} 条 · 涉及 ${p.chats} 个群${st.auto_interval?" · 稍后自动整理":""}`;
+}
+function updLabel(){
+  const ts=ST&&ST.digest_ts&&Math.max(ST.digest_ts,ST.checked_ts||0),el=$("#updated");if($("#regen").classList.contains("spin"))return;
+  if(!ts){el.textContent="整理";return}
+  const s=Date.now()/1000-ts,d=new Date(ts*1000);
+  el.textContent=s<60?"刚刚更新":s<3600?`${s/60|0} 分钟前更新`:sameDay(d,new Date())?`${hm(d)} 更新`:`${ago(ts)}`;
+}
+let polling=false;
+async function refreshQuiet(){
+  if(document.hidden||curView!=="home"||viewId||polling||$("#regen").classList.contains("spin"))return;
+  if($(".snzmenu")||$("#askSheet.on,#histSheet.on")){updLabel();return}
+  polling=true;
+  try{const st=await api("/api/state");
+    const changed=!!ST&&!!st.digest_ts&&st.digest_ts!==ST.digest_ts;
+    if(changed||!ST||(!ST.digest&&st.digest)){
+      const y=window.scrollY,m=$("#main"),fold=$("#todos")?.classList.contains("fold");
+      m.classList.add("quiet");render(st);if(fold===false){$("#todos")?.classList.remove("fold");updateProg()}
+      window.scrollTo(0,y);setTimeout(()=>m.classList.remove("quiet"),50);
+      if(changed)toast("已自动更新");
+    }else{ST.status=st.status;ST.is_latest=st.is_latest;ST.auto_interval=st.auto_interval;ST.pending=st.pending;ST.checked_ts=st.checked_ts;renderStatus(ST);renderPend(ST);setDate();updLabel()}
+  }catch(e){}finally{polling=false}
+}
+setInterval(refreshQuiet,60000);
 
 /* 往期 */
 $("#histbtn").onclick=async()=>{
   tick();const sh=$("#histSheet");sheetOn(sh);$("#hist").innerHTML='<div class="sk" style="height:60px;margin-top:10px"></div>'.repeat(3);
   try{const list=await api("/api/digests");
     $("#hist").innerHTML=list.length?list.map(x=>`<button class="hrow ${(viewId?x.id===viewId:x===list[0])?"cur":""}" data-id="${x.id}">
-      <div class="hh"><b>${ago(x.ts)} · ${{24:"日报",72:"3 天合订",168:"周报"}[x.hours]||x.hours+" 小时"}</b><span>${x.count} 条 · ${x.todos} 件待办</span></div><div class="ht">${esc(x.headline)}</div></button>`).join("")
+      <div class="hh"><b>${ago(x.ts)} · ${{24:"日报",72:"3 天合订",168:"周报"}[x.hours]||x.hours+" 小时"}${x.auto?" · 自动":""}</b><span>${x.count} 条 · ${x.todos} 件待办</span></div><div class="ht">${esc(x.headline)}</div></button>`).join("")
       :`<div class="empty">还没有往期群报</div>`;
     $$(".hrow").forEach(b=>b.onclick=()=>{viewId=+b.dataset.id===list[0].id?null:+b.dataset.id;sheetOff(sh);load();window.scrollTo(0,0)});
   }catch(e){$("#hist").innerHTML=`<div class="empty">${esc(e.message)}</div>`}
@@ -744,18 +876,18 @@ function md(s){
     if(ul){out+="</ul>";ul=false}if(l.trim())out+=`<p>${l}</p>`}
   return out+(ul?"</ul>":"");
 }
-let history=[];
+let askHist=[];
 async function ask(q){
   q=q.trim();if(!q)return;$("#q").value="";$("#q2").value="";document.activeElement.blur();
-  const sh=$("#askSheet");if(!sh.classList.contains("on")){history=[];$("#ti").innerHTML=""}sheetOn(sh);
+  const sh=$("#askSheet");if(!sh.classList.contains("on")){askHist=[];$("#ti").innerHTML=""}sheetOn(sh);
   const qa=document.createElement("div");
   qa.innerHTML=`<div class="qq fade">${esc(q)}</div><div class="aa"><div class="sk" style="height:15px;margin-top:6px"></div><div class="sk" style="height:15px;width:82%;margin-top:10px"></div><div class="sk" style="height:15px;width:56%;margin-top:10px"></div></div>`;
   $("#ti").appendChild(qa);setTimeout(()=>qa.scrollIntoView({behavior:"smooth",block:"start"}),50);
   const a=qa.querySelector(".aa");
-  try{const r=await api("/api/ask",{q,history});
+  try{const r=await api("/api/ask",{q,history:askHist});
     a.innerHTML=md(r.a)+`<div class="acts"><button>${ICON.copy}复制</button></div>`;a.classList.add("fade");
     a.querySelector(".acts button").onclick=()=>{navigator.clipboard?.writeText(r.a);toast("已复制")};
-    history.push({role:"user",content:q},{role:"assistant",content:r.a})}
+    askHist.push({role:"user",content:q},{role:"assistant",content:r.a})}
   catch(e){a.innerHTML=`<p>出错了：${esc(e.message)}</p>`}
 }
 $("#askf").onsubmit=e=>{e.preventDefault();ask($("#q").value)};
@@ -788,7 +920,7 @@ function renderChats(){
   const total=L.reduce((a,c)=>a+c.n,0);$("#chatsum").textContent=`${L.length} 个群 · ${total} 条`;
   if(!L.length&&SRCF==="微信"){
     $("#clist").innerHTML=`<div class="emptywx fade"><div class="big">微信还没接上</div><p>用一台旧安卓机登录微信小号，把通知转发给群报，微信群就会和 QQ 群出现在一起。</p><button class="btn" id="towx">去设置接入</button></div>`;
-    $("#towx").onclick=()=>{tick();go("set");setTimeout(()=>{$("#wx-how").open=true;$("#wxsec").scrollIntoView({behavior:"smooth"})},250)};return}
+    $("#towx").onclick=()=>{tick();go("set");openSub("conn");$("#wx-how").open=true;setTimeout(()=>$("#wxsec").scrollIntoView({behavior:"smooth"}),250)};return}
   if(!L.length&&SRCF==="QQ"){$("#clist").innerHTML=`<div class="empty"><div class="big">QQ 还没有消息</div>登录 NapCat 并设置上报地址后，QQ 群会出现在这里</div>`;return}
   $("#clist").innerHTML=L.length?L.map(c=>`<button class="crow ${c.muted?"muted":""}" data-chat="${esc(c.chat)}" data-src="${esc(c.source)}">
     <div class="gav" style="background:hsl(${hue(c.chat)} 26% 46%)">${first(c.chat)}${srcBadge(c.source)}</div>
@@ -866,11 +998,39 @@ function closeChat(){$("#msgs-chat").hidden=true;$("#msgs-list").hidden=false;wi
 $("#cback").onclick=()=>{tick();closeChat()};
 
 /* ================= 设置 ================= */
-let SET=null;
+let SET=null,SUB=null,SST=null,SCHATS=[],SILENT=false;
 const saveSet=debounce(async()=>{
-  try{SET=await api("/api/settings",SET);const h=$("#savehint");h.textContent="已保存";h.style.opacity=1;setTimeout(()=>h.style.opacity=0,1500)}
+  try{SET=await api("/api/settings",SET);setSummary();if(SILENT){SILENT=false;return}const h=$("#savehint");h.textContent="已保存";h.style.opacity=1;clearTimeout(h._t);h._t=setTimeout(()=>h.style.opacity=0,1500)}
   catch(e){toast("保存失败："+e.message)}
 },500);
+/* 二级页：点一行进入，左上角返回（也支持浏览器返回手势） */
+function openSub(n,push=true){
+  SUB=n;$("#set-main").hidden=true;$$("#v-set .sub").forEach(e=>e.hidden=e.id!=="sub-"+n);window.scrollTo(0,0);
+  if(push)window.history.pushState({sub:n},"");
+}
+function closeSub(fromPop){
+  if(!SUB)return;const was=SUB;SUB=null;$$("#v-set .sub").forEach(e=>e.hidden=true);$("#set-main").hidden=false;setSummary();
+  const row=$(`.row.nav[data-sub="${was}"]`);window.scrollTo(0,row&&curView==="set"?Math.max(0,row.getBoundingClientRect().top+window.scrollY-200):0);
+  if(!fromPop&&window.history.state&&window.history.state.sub)window.history.back();
+}
+window.addEventListener("popstate",()=>{if(SUB)closeSub(true)});
+$$(".row.nav").forEach(b=>b.onclick=()=>{tick();openSub(b.dataset.sub)});
+$$("#v-set [data-back]").forEach(b=>b.onclick=()=>{tick();closeSub()});
+function setSummary(){
+  if(!SET)return;const s=SET,put=(k,t)=>{const e=$("#sum-"+k);if(e)e.textContent=t};
+  const n1=(s.my_names||[]).length,n2=(s.vip||[]).length;
+  put("me",n1||n2?[n1?`${n1} 个昵称`:"",n2?`${n2} 位重要的人`:""].filter(Boolean).join(" · "):"未设置");
+  const names=new Set([...SCHATS.map(c=>c.chat),...(s.muted||[]),...(s.allowed||[])]);
+  const imp=Object.values(s.levels||{}).filter(v=>v==="important").length;
+  put("groups",`${names.size} 个群`+(s.only_mode?` · 只看 ${(s.allowed||[]).length} 个`:(s.muted||[]).length?` · 屏蔽 ${s.muted.length}`:"")+(imp?` · ${imp} 个重要`:""));
+  put("kw",(s.keywords||[]).length?`${s.keywords.length} 个`:"未设置");
+  const h2=+(s.digest_hour2??-1),qs=+(s.quiet_start??-1);
+  put("remind",`${pad(s.digest_hour)}:00${h2>=0?" · "+pad(h2)+":00":""} · ${qs<0?"免打扰关":`免打扰 ${pad(qs)}–${pad(s.quiet_end)}`}`);
+  const S=(SST&&SST.status)||{},on=o=>o?.online?"在线":o?.seen?"离线":"未接";
+  put("conn",`QQ ${on(S.qq)} · 微信 ${on(S.wx)}`);
+  put("data",`保留 ${s.keep_days||30} 天`);
+  put("acct","");put("about",S.version?`v${S.version}`:"");
+}
 function tagbox(el){
   const k=el.dataset.k,inp=el.querySelector("input");
   const draw=()=>{el.querySelectorAll(".tg").forEach(t=>t.remove());
@@ -885,7 +1045,7 @@ function tagbox(el){
 }
 async function loadSettings(){
   try{
-    const [s,st,chats]=await Promise.all([api("/api/settings"),api("/api/state"),api("/api/chats?hours=720")]);SET=s;
+    const [s,st,chats]=await Promise.all([api("/api/settings"),api("/api/state"),api("/api/chats?hours=720")]);SET=s;SST=st;SCHATS=chats;
     $("#s-profile").value=s.profile||"";
     $$(".tagbox").forEach(tagbox);
     $("#s-hour").innerHTML=[...Array(24).keys()].map(h=>`<option value="${h}" ${h==s.digest_hour?"selected":""}>每天 ${pad(h)}:00</option>`).join("");
@@ -893,7 +1053,9 @@ async function loadSettings(){
 const hs=[...Array(24).keys()].map(h=>[h,String(h).padStart(2,"0")+":00"]);
 const fill=(id,arr,cur)=>{$(id).innerHTML=arr.map(([v,l])=>`<option value="${v}" ${v==cur?"selected":""}>${l}</option>`).join("")};
 fill("#s-hour2",[[-1,"关闭"],...hs],s.digest_hour2??-1);fill("#s-qs",[[-1,"关闭"],...hs],s.quiet_start??-1);fill("#s-qe",hs,s.quiet_end??7);
+    fill("#s-auto",[[0,"关闭"],[15,"每 15 分钟"],[30,"每 30 分钟"],[60,"每 1 小时"],[120,"每 2 小时"]],s.auto_interval??30);
     $("#s-bark").value=s.bark_url||"";$("#s-site").value=s.site_url||location.origin;
+    if(!s.site_url){SET.site_url=location.origin;SILENT=true;saveSet()}  // 以前只显示不保存，点通知打不开群报
     $("#s-pushat").checked=!!s.push_at;$("#s-pushdg").checked=!!s.push_digest;$("#s-wk").checked=!!s.weekly_digest;$("#s-keep").value=String(s.keep_days||30);
     const OM=!!s.only_mode,LST=OM?(s.allowed||[]):s.muted;$("#s-only").checked=OM;
     const names=[...new Set([...chats.map(c=>c.chat),...LST])];
@@ -907,11 +1069,17 @@ $("#s-only").onchange=e=>{tick();SET.only_mode=e.target.checked;saveSet();CHATS=
     dot("#st-qq",S.qq);dot("#st-wx",S.wx);$("#st-ver span").textContent=S.version?`v${S.version}`:"—";
     api("/api/ingest").then(r=>{$("#wx-url").textContent=r.ready?`${location.origin}/ingest?token=${r.token}`:"服务器 .env 里还没设置 INGEST_TOKEN";$("#wx-copy").disabled=!r.ready}).catch(()=>{});
     $("#st-last span").textContent=S.last_msg?ago(S.last_msg):"还没有";
-    const l=$("#st-llm");l.className="stat-dot "+(S.llm?"ok":"bad");l.querySelector("span").textContent=S.llm?"已配置":"未配置";
+    $("#st-calls span").textContent=`${st.llm_calls||0} 次`;
+    const l=$("#st-llm");l.className="stat-dot "+(S.llm?(S.llm_err?"bad":"ok"):"bad");l.querySelector("span").textContent=S.llm?(S.llm_err?"最近一次调用失败":"已配置"):"未配置";
+    setSummary();
   }catch(e){toast(e.message)}
 }
 $("#s-profile").oninput=e=>{SET.profile=e.target.value;saveSet()};
 $("#s-hour").onchange=e=>{SET.digest_hour=+e.target.value;saveSet()};
+$("#s-full").onclick=async e=>{if(!confirm("完整重新整理最近 24 小时的消息？已完成和置顶的事项会保留。"))return;tick();const b=e.currentTarget;b.disabled=true;b.textContent="整理中…";
+  try{const r=await api("/api/digest",{hours:24,full:true});const x=r.stats||{};toast(`完成：送模型 ${x.sent||0} 条 · 调用 ${x.calls||0} 次 · ${(+x.secs||0).toFixed(1)} 秒`);ST=null;$("#st-calls span").textContent=`${(await api("/api/state")).llm_calls||0} 次`}
+  catch(err){toast("失败："+err.message)}finally{b.disabled=false;b.textContent="重新整理"}};
+$("#s-auto").onchange=e=>{tick();SET.auto_interval=+e.target.value;saveSet()};
 $("#s-hour2").onchange=e=>{SET.digest_hour2=+e.target.value;saveSet()};
 $("#s-qs").onchange=e=>{SET.quiet_start=+e.target.value;saveSet()};
 $("#s-qe").onchange=e=>{SET.quiet_end=+e.target.value;saveSet()};
@@ -931,11 +1099,11 @@ let lastY=0;window.addEventListener("scroll",()=>{const y=window.scrollY;$("#doc
 
 /* ---------- 启动 ---------- */
 setSeg(hours);load();
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&curView==="home"&&!viewId)api("/api/state").then(render).catch(()=>{})});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshQuiet()});
 $("#s-logout").onclick=async()=>{if(!confirm("退出登录？这台设备下次打开要重新输入密码。"))return;
   await fetch("/api/logout",{method:"POST"}).catch(()=>{});location.replace("/login")};
 function netUI(){$("#offbar").hidden=navigator.onLine}
-window.addEventListener("online",()=>{netUI();if(curView==="home"&&!viewId)api("/api/state").then(render).catch(()=>{})});
+window.addEventListener("online",()=>{netUI();refreshQuiet()});
 window.addEventListener("offline",netUI);netUI();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});
 </script>
