@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.17.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.18.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -32,6 +32,8 @@ DEFAULTS = {
     "profile": os.getenv("MY_PROFILE", ""),
     "vip": [],                 # 重要的人（昵称/群名片），他们说话一律值得看
     "keywords": ["截止", "ddl", "提交", "开会", "考试", "缴费", "通知", "报名", "@全体成员"],
+    "only_mode": False,        # 白名单模式：只总结 allowed 里的群
+    "allowed": [],
     "muted": [],               # 屏蔽的群：不进总结、不推送
     "levels": {},              # 每个群的级别：important 重要 / atonly 只看@我；缺省 = 普通
     "digest_hour": int(os.getenv("DIGEST_HOUR", "21")),
@@ -157,6 +159,12 @@ def _client_ip(req: Request) -> str:
 _held: list = []
 
 
+def is_muted(chat, s) -> bool:
+    if s.get("only_mode"):
+        return chat not in (s.get("allowed") or [])
+    return chat in s["muted"]
+
+
 def in_quiet(s, now=None) -> bool:
     a, b = int(s.get("quiet_start", -1)), int(s.get("quiet_end", 7))
     if a < 0 or a == b:
@@ -202,7 +210,7 @@ async def push(title: str, body: str, key: str = "", force=False, test=False):
 
 
 def hit_reason(chat, sender, text, at_me, s):
-    if chat in s["muted"]:
+    if is_muted(chat, s):
         return None
     if at_me:
         return "@了你"
@@ -413,7 +421,7 @@ def transcript(hours: int):
     with db() as c:
         rows = c.execute("SELECT * FROM msgs WHERE ts>=? ORDER BY ts", (since,)).fetchall()
     lv = s.get("levels") or {}
-    rows = [r for r in rows if r["chat"] not in s["muted"]
+    rows = [r for r in rows if not is_muted(r["chat"], s)
             and (lv.get(r["chat"]) != "atonly" or r["at_me"])]
     lines = [f"[{datetime.fromtimestamp(r['ts'], TZ):%m-%d %H:%M}][{r['source']}·{r['chat']}]"
              f"{'【重要群】' if lv.get(r['chat']) == 'important' else ''}"
@@ -723,7 +731,7 @@ def chats(hours: int = 168, source: str = ""):
                           (r["chat"], r["source"])).fetchone()
             out.append({"chat": r["chat"], "source": r["source"], "n": r["n"], "last_ts": r["last_ts"],
                         "ats": r["ats"] or 0, "last": f"{m['sender']}：{m['text']}" if m else "",
-                        "muted": r["chat"] in s["muted"],
+                        "muted": is_muted(r["chat"], s),
                         "level": (s.get("levels") or {}).get(r["chat"], "normal")})
     return out
 
