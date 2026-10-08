@@ -928,3 +928,12 @@ def test_chats_expose_at_ids():
     asyncio.run(app_mod.save("QQ", "角标群", "老师", "@我 交表", None, True))
     ch = [x for x in c.get("/api/chats", headers=AUTH).json() if x["chat"] == "角标群"][0]
     assert ch["at_ids"] and ch["ats"] == 1
+
+
+def test_tidy_bullets_cuts_at_punctuation():
+    from digest import app as m
+    a = "- 群里通知10月10日 23:00 前必须提交报名表格并且转发给班主任确认，别忘了 [#12]\n- 短句 [#3]"
+    out = m.tidy_bullets(a)
+    first = out.splitlines()[0]
+    assert first.endswith("[#12]") and "23:00 前必须" in first and "确认" not in first
+    assert out.splitlines()[1] == "- 短句 [#3]"
