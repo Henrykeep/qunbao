@@ -340,6 +340,10 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
 .fade{animation:fi .5s var(--ease) both}
 @keyframes fi{from{opacity:0;transform:translateY(8px)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.lk{display:block;padding:10px 0;border-bottom:1px solid var(--line,rgba(128,128,128,.25));text-decoration:none;color:inherit}
+.lk b{font-family:Georgia,"Songti SC",serif;display:block}
+.lk .lu{display:block;font-size:12px;opacity:.65;word-break:break-all}
+.lk .ls{display:block;font-size:12px;opacity:.5}
 </style>
 </head>
 <body>
@@ -630,6 +634,11 @@ function render(st){
   if(notices.length){
     h+=`<section><h2>值得知道 <span class="c">${notices.length}</span></h2>`+notices.map((n,i)=>`<div class="notice"><div class="num">${pad(i+1)}</div>
       <div><div class="t">${esc(n.title)}</div>${n.detail?`<div class="d">${esc(n.detail)}</div>`:""}<div class="src">${esc(n.chat)}</div></div></div>`).join("")+`</section>`;
+  }
+  const links=st.links||[];
+  if(links.length){
+    const host=u=>{try{return new URL(u).hostname.replace(/^www\./,"")}catch(e){return u}};
+    h+=`<section><h2>相关链接 <span class="c">${links.length}</span></h2>`+links.slice(0,8).map(l=>`<a class="lk" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><b>${esc(host(l.url))}</b><span class="lu">${esc(l.url.length>60?l.url.slice(0,60)+"…":l.url)}</span><span class="ls">${esc(l.sender||"")} · ${esc(l.chat)}</span></a>`).join("")+`</section>`;
   }
   if(ats.length){
     const row=a=>`<div class="at" data-chat="${esc(a.chat)}" data-q="${esc(a.text.slice(0,30))}"><div class="av" style="background:${avc(a.sender)}">${first(a.sender)}</div>
