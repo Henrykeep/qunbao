@@ -321,4 +321,313 @@ def test_todo_diff():
 def test_offline_bar():
     html = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
     assert 'id="offbar"' in html and "addEventListener(\"offline\"" in html
-    assert "0.29.0" in open(os.path.join(os.path.dirname(__file__), "..", "digest", "sw.js")).read()
+    assert app_mod.VERSION in open(os.path.join(os.path.dirname(__file__), "..", "digest", "sw.js")).read()
+
+
+# ---------------- 0.30.0 体验修复 ----------------
+def test_fuzzy_same_todo():
+    T = lambda t, ch="计科2201", d="": {"title": t, "chat": ch, "due": d}
+    st = app_mod.same_todo
+    assert st(T("交数据库实验报告"), T("提交数据库实验报告"))
+    assert st(T("交数据库实验报告"), T("把实验报告交到学习通"))
+    assert st(T("交数据库实验报告", d="10月10日 23:59"), T("提交实验报告到学习通", d="10月10日 23:59"))
+    assert not st(T("交数据库实验报告"), T("参加线上班会"))
+    assert not st(T("交班费", d="10月10日 23:59"), T("交实验报告", d="10月10日 23:59"))
+    assert not st(T("交报告"), T("交报告", "家族群"))  # 不同群不算
+    assert not st(T("交第一章作业"), T("交第二章作业")) and not st(T("任务1号要做的事"), T("任务2号要做的事"))
+    assert st(T("交第一章作业"), T("提交第一章作业"))
+
+
+def _fresh():
+    """隔离：把水位设到当前最后一条消息，清空事项/群状态。"""
+    with app_mod.db() as x:
+        x.execute("DELETE FROM items"); x.execute("DELETE FROM chat_state")
+        x.execute("DELETE FROM kv WHERE k IN ('auto_try')")
+        top = x.execute("SELECT MAX(id) i FROM msgs").fetchone()["i"] or 0
+    app_mod.kv_set("scan_id", top)
+    app_mod.save_settings({"muted": [], "only_mode": False, "levels": {}})
+
+
+class FakeLLM:
+    """按群回答的假模型：记录每次调用的群名和输入。"""
+    def __init__(self, per_chat):
+        self.per_chat, self.calls = per_chat, []
+
+    async def __call__(self, msgs, as_json=False):
+        sysm, user = msgs[0]["content"], msgs[-1]["content"]
+        if sysm.startswith("【群更新】"):
+            chat = sysm.split("「", 1)[1].split("」", 1)[0]
+            self.calls.append(("chat", chat, user))
+            r = self.per_chat.get(chat, {})
+            return json.dumps(r(user) if callable(r) else r, ensure_ascii=False)
+        self.calls.append(("head", "", user))
+        return "测试头条"
+
+    def chats(self):
+        return [c for k, c, _ in self.calls if k == "chat"]
+
+
+def _ingest(chat, text, sender="甲"):
+    c.post("/ingest?token=tok", json={"chat": chat, "sender": sender, "text": text})
+
+
+def test_noise_filter():
+    s = dict(app_mod.settings(), keywords=["奖学金"], vip=["王老师"], levels={"重要群": "important", "静群": "atonly"})
+    R = lambda text, chat="普通群", at=0, sender="甲": {"text": text, "chat": chat, "at_me": at, "sender": sender}
+    cl = lambda *a, **k: app_mod.classify(R(*a, **k), s)
+    for t in ["收到", "好的", "哈哈哈哈", "+1", "1", "666", "[图片]", "[表情][表情]", "👍👍", "嗯嗯", "张三撤回了一条消息", "ok"]:
+        assert cl(t) == "drop", t
+    assert cl("收到", at=1) == "key"                        # @我 永远保留
+    assert cl("明天 18:00 交材料") == "key"                 # 时间
+    assert cl("班费 50 元") == "key" and cl("看这个 https://a.cn") == "key"
+    assert cl("奖学金名单出来了") == "key"                   # 关键词
+    assert cl("大家周末愉快呀", sender="王老师") == "key"     # 重要的人
+    assert cl("这个电影挺好看的") == "keep"
+    assert cl("这个电影挺好看的", chat="重要群") == "key"
+    assert cl("这个电影挺好看的", chat="静群") == "drop"
+
+
+def test_incremental_per_chat_and_done_stays():
+    import asyncio
+    _fresh()
+    old = app_mod.llm
+    fake = FakeLLM({
+        "增量A": lambda u: {"summary": "实验报告", "new": [{"kind": "todo", "title": "交数据库实验报告", "due": "10月10日 23:59", "urgency": "high"}]}
+        if "提交" not in u else
+        # 第二次：模型漏传 id，把已完成的事换个说法又报成 new；还试图更新不存在的 id
+        {"summary": "实验报告", "new": [{"kind": "todo", "title": "提交数据库实验报告", "due": "10月10日 23:59"}], "update": [{"id": 999999, "detail": "x"}]},
+        "增量B": {"summary": "骑行", "new": [{"kind": "notice", "title": "周六骑行改到东门"}]},
+    })
+    app_mod.llm = fake
+    try:
+        _ingest("增量A", "周五晚 23:59 前交数据库实验报告", "王老师")
+        _ingest("增量A", "收到")                              # 噪音
+        _ingest("增量B", "周六骑行改到东门集合")
+        st = c.get("/api/state", headers=AUTH).json()
+        assert st["pending"] == {"msgs": 2, "chats": 2}       # 噪音不算
+        d = c.post("/api/digest", headers=AUTH, json={"hours": 24}).json()
+        assert sorted(fake.chats()) == ["增量A", "增量B"] and d["headline"] == "测试头条"
+        assert d["stats"]["new"] == 3 and d["stats"]["sent"] == 2 and d["stats"]["chats"] == 2
+        a_user = [u for k, ch, u in fake.calls if ch == "增量A"][0]
+        assert "收到" not in a_user                          # 噪音没送模型
+        t = [x for x in d["todos"] if x["chat"] == "增量A"][0]
+        assert t["key"] == f"item:{t['id']}" and not t["done"]
+        c.post("/api/todo", headers=AUTH, json={"key": t["key"], "done": True})
+        # 只有 A 有新消息：B 零调用；A 只收到新消息 + 旧状态（含 done_recent）
+        fake.calls.clear()
+        _ingest("增量A", "提交方式改成学习通，别忘了")
+        d2 = c.post("/api/digest", headers=AUTH, json={"hours": 24}).json()
+        assert fake.chats() == ["增量A"]
+        u = fake.calls[0][2]
+        assert "提交方式改成学习通" in u and "周五晚 23:59 前交" not in u and "交数据库实验报告" in u and "done_recent" in u
+        with app_mod.db() as x:
+            rows = x.execute("SELECT * FROM items WHERE chat='增量A' AND kind='todo'").fetchall()
+        assert len(rows) == 1 and rows[0]["status"] == "done"  # 没复活、没重复
+        st = c.get("/api/state", headers=AUTH).json()
+        assert all(x["done"] for x in st["digest"]["todos"] if x["chat"] == "增量A")
+        # 没有新消息：直接返回上一期，不调模型
+        fake.calls.clear()
+        d3 = c.post("/api/digest", headers=AUTH, json={"hours": 24}).json()
+        assert fake.calls == [] and d3.get("unchanged") and d3["id"] == d2["id"]
+        # 只有噪音：也不调模型
+        _ingest("增量B", "哈哈哈"); _ingest("增量B", "[图片]")
+        d4 = c.post("/api/digest", headers=AUTH, json={"hours": 24}).json()
+        assert fake.calls == [] and d4.get("unchanged")
+        # 截止提醒挂在事项 id 上：已完成的不提醒
+        sent = []
+        async def fp(title, body, key="", force=False, test=False):
+            sent.append(title); return True
+        op = app_mod.push; app_mod.push = fp
+        app_mod.save_settings({"bark_url": "http://x", "remind_hours": 24 * 400})
+        try:
+            asyncio.run(app_mod.check_reminders())
+            assert not any("实验报告" in x for x in sent)
+        finally:
+            app_mod.push = op; app_mod.save_settings({"bark_url": "", "remind_hours": 3})
+    finally:
+        app_mod.llm = old
+
+
+def test_id_update_no_duplicates():
+    _fresh()
+    old = app_mod.llm
+    step = {"n": 0}
+    def ans(u):
+        step["n"] += 1
+        if step["n"] == 1:
+            return {"new": [{"kind": "todo", "title": "交体测表", "due": "", "detail": "交给班长"}]}
+        iid = json.loads(u.split("旧状态：", 1)[1].split("\n新消息", 1)[0])["open_items"][0]["id"]
+        return {"update": [{"id": iid, "due": "10月12日 18:00", "title": "改名也没用"}],
+                "new": [{"kind": "todo", "title": "交体测表", "detail": "改交给体委"}]}  # 同一件事又报一遍
+    app_mod.llm = FakeLLM({"体育群": ans})
+    try:
+        _ingest("体育群", "下周交体测表，交给班长")
+        c.post("/api/digest", headers=AUTH, json={"hours": 24})
+        _ingest("体育群", "体测表 10月12日 18:00 前交给体委")
+        c.post("/api/digest", headers=AUTH, json={"hours": 24})
+        with app_mod.db() as x:
+            rows = x.execute("SELECT * FROM items WHERE chat='体育群'").fetchall()
+        assert len(rows) == 1
+        r = rows[0]
+        assert r["title"] == "交体测表" and r["due"] == "10月12日 18:00" and r["detail"] == "改交给体委"
+    finally:
+        app_mod.llm = old
+
+
+def test_chunked_merge():
+    _fresh()
+    old, oc = app_mod.llm, app_mod.CHUNK_MSGS
+    seen = []
+    def ans(u):
+        st = json.loads(u.split("旧状态：", 1)[1].split("\n新消息", 1)[0])
+        seen.append((len(st["open_items"]), u.count("\n#")))
+        return {"summary": f"第{len(seen)}块", "new": [{"kind": "todo", "title": f"任务{len(seen)}号要做的事"}]}
+    app_mod.llm, app_mod.CHUNK_MSGS = FakeLLM({"大群": ans}), 3
+    try:
+        for i in range(7):
+            _ingest("大群", f"第 {i} 条：明天上午 9 点讨论方案 {i}")
+        d = c.post("/api/digest", headers=AUTH, json={"hours": 24}).json()
+        assert [n for _, n in seen] == [3, 3, 1]          # 7 条分成 3 块
+        assert [k for k, _ in seen] == [0, 1, 2]          # 后一块带着前一块的结果逐块合并
+        assert len([t for t in d["todos"] if t["chat"] == "大群"]) == 3
+        with app_mod.db() as x:
+            assert x.execute("SELECT summary FROM chat_state WHERE chat='大群'").fetchone()["summary"] == "第3块"
+    finally:
+        app_mod.llm, app_mod.CHUNK_MSGS = old, oc
+
+
+def test_full_rebuild_keeps_ids():
+    _fresh()
+    old = app_mod.llm
+    app_mod.llm = FakeLLM({"重建群": {"new": [{"kind": "todo", "title": "交实验报告"}]}})
+    try:
+        _ingest("重建群", "周五交实验报告")
+        d = c.post("/api/digest", headers=AUTH, json={"hours": 24}).json()
+        i1 = [t["id"] for t in d["todos"] if t["chat"] == "重建群"]
+        app_mod.llm = FakeLLM({"重建群": {"new": [{"kind": "todo", "title": "提交实验报告"}]}})
+        d = c.post("/api/digest", headers=AUTH, json={"hours": 24, "full": True}).json()
+        assert [t["id"] for t in d["todos"] if t["chat"] == "重建群"] == i1 and d["mode"] == "full"
+    finally:
+        app_mod.llm = old
+
+
+def test_weekly_uses_items_not_raw():
+    old = app_mod.llm
+    fake = FakeLLM({})
+    app_mod.llm = fake
+    try:
+        _fresh()
+        with app_mod.db() as x:
+            x.execute("INSERT INTO items(source,chat,kind,title,status,first_ts,updated_ts) VALUES('QQ','周群','todo','写周记','open',?,?)",
+                      (int(time.time()), int(time.time())))
+        _ingest("周群", "这句原话只在原文里出现ABCXYZ，明天交")
+        app_mod.llm = FakeLLM({"周群": {"summary": "周记"}})
+        fake = app_mod.llm
+        import asyncio
+        d = asyncio.run(app_mod.make_digest(168))
+        head = [u for k, _, u in fake.calls if k == "head"][0]
+        assert "一周汇总" in head and "写周记" in head and "ABCXYZ" not in head
+        assert d["mode"] == "weekly"
+    finally:
+        app_mod.llm = old
+
+
+def test_migrate_old_digest():
+    _fresh()
+    with app_mod.db() as x:
+        x.execute("DELETE FROM kv WHERE k='migrated_items'")
+        x.execute("DELETE FROM todo_done")
+        x.execute("INSERT INTO todo_done(k,ts) VALUES('交旧报告|旧群',?)", (int(time.time()),))
+        x.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (int(time.time()), 24, json.dumps(
+            {"headline": "h", "todos": [{"title": "交旧报告", "chat": "旧群"}, {"title": "买车票", "chat": "旧群"}],
+             "notices": [{"title": "停水通知", "chat": "旧群"}], "groups": [{"chat": "旧群", "gist": "旧要点"}]}, ensure_ascii=False)))
+    assert app_mod.migrate_items() == 3
+    with app_mod.db() as x:
+        st = {r["title"]: r["status"] for r in x.execute("SELECT * FROM items")}
+        assert st == {"交旧报告": "done", "买车票": "open", "停水通知": "open"}
+        assert x.execute("SELECT summary FROM chat_state WHERE chat='旧群'").fetchone()["summary"] == "旧要点"
+    assert app_mod.migrate_items() == 0  # 只迁移一次
+
+
+def test_pin_fuzzy():
+    t = {"title": "交体测表", "chat": "体育群", "due": ""}
+    c.post("/api/todo", headers=AUTH, json={"key": "交体测表|体育群", "pin": True, **t})
+    body = app_mod.annotate_todos({"todos": [{"title": "提交体测表", "chat": "体育群"}]})
+    assert body["todos"][0]["pinned"]
+    c.post("/api/todo", headers=AUTH, json={"key": "提交体测表|体育群", "pin": False, "title": "提交体测表", "chat": "体育群"})
+    assert not app_mod.annotate_todos({"todos": [{"title": "交体测表", "chat": "体育群"}]})["todos"][0]["pinned"]
+
+
+def test_auto_digest_conditions():
+    _fresh()
+    with app_mod.db() as db_:
+        db_.execute("DELETE FROM digests")
+        db_.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (int(time.time()) - 600, 24, json.dumps({"todos": []})))
+    s = dict(app_mod.settings(), auto_interval=30, muted=["吵闹群"], only_mode=False, levels={"重要群": "important"})
+    chk = app_mod.auto_check
+    later = lambda m: time.time() + m * 60
+    assert chk(s) is None                                   # 没有新消息
+    _ingest("吵闹群", "今天下午 3 点开会")
+    _ingest("普通群", "哈哈哈")
+    assert chk(s, now=later(60)) is None                    # 屏蔽群 / 噪音不算
+    _ingest("普通群", "周末一起去爬山吗大家")
+    assert chk(s) is None                                   # 才过 10 分钟 < 30
+    assert chk(s, now=time.time() + 60) is None             # 间隔没到
+    assert chk(s, now=later(25)) == ("interval", 24)        # 间隔到了且已安静 2 分钟
+    assert chk(dict(s, auto_interval=0), now=later(999)) is None
+    with app_mod.db() as db_:                               # 防抖：消息还在刷（刚刚还有）就先等
+        db_.execute("UPDATE msgs SET ts=? WHERE chat='普通群'", (int(later(25)) - 30,))
+    assert chk(s, now=later(25)) is None
+    for i in range(50):
+        _ingest("普通群", f"刷屏消息第{i}条内容比较长")
+    with app_mod.db() as db_:
+        db_.execute("UPDATE msgs SET ts=? WHERE chat='普通群'", (int(later(25)) - 30,))
+    assert chk(s, now=later(25)) == ("interval", 24)        # 累计 ≥50 条不等安静
+    _fresh()
+    with app_mod.db() as db_:
+        db_.execute("UPDATE digests SET ts=?", (int(time.time()) - 600,))
+    _ingest("重要群", "这个周末的安排大家看一下")
+    assert chk(s) == ("urgent", 24)                         # 重要群：过了 5 分钟就提前
+    with app_mod.db() as db_:
+        db_.execute("UPDATE digests SET ts=?", (int(time.time()) - 120,))
+    assert chk(s) is None                                   # 至少间隔 5 分钟
+    with app_mod.db() as db_:
+        db_.execute("UPDATE digests SET ts=?, hours=72", (int(time.time()) - 3600,))
+    app_mod.kv_set("auto_try", int(time.time()))
+    assert chk(s) is None                                   # 刚试过（可能失败），不每分钟重试
+    with app_mod.db() as db_:
+        db_.execute("DELETE FROM kv WHERE k='auto_try'")
+    assert chk(s)[1] == 72                                  # 时间窗口跟上一次一致
+    # 自动整理：免打扰时段只更新不推送；标记 auto
+    import asyncio
+    sent = []
+    async def fake_push(*a, **k):
+        sent.append(a); return True
+    ol, op = app_mod.llm, app_mod.push
+    app_mod.llm, app_mod.push = FakeLLM({"重要群": {"new": [{"kind": "todo", "title": "看周末安排"}]}}), fake_push
+    try:
+        h = __import__("datetime").datetime.now(app_mod.TZ).hour
+        q = dict(s, bark_url="http://x", push_digest=True, quiet_start=h, quiet_end=(h + 1) % 24)
+        d = asyncio.run(app_mod.auto_digest(q))
+        assert d and d["auto"] and not sent
+        assert app_mod.auto_check(q) is None  # 整理完就没有待整理的消息了
+        assert c.get("/api/digests", headers=AUTH).json()[0]["auto"]
+    finally:
+        app_mod.llm, app_mod.push = ol, op
+
+
+def test_settings_groups_keep_fields():
+    st = c.get("/api/settings", headers=AUTH).json()
+    assert set(app_mod.DEFAULTS) <= set(st) and st["auto_interval"] in app_mod.AUTO_CHOICES
+    before = dict(st)
+    r = c.post("/api/settings", headers=AUTH, json={"auto_interval": 15}).json()
+    assert r["auto_interval"] == 15 and all(r[k] == before[k] for k in before if k != "auto_interval")
+    assert c.post("/api/settings", headers=AUTH, json={"auto_interval": 7}).json()["auto_interval"] == 30  # 非法值回默认
+    c.post("/api/settings", headers=AUTH, json={"auto_interval": before["auto_interval"]})
+    html = c.get("/", headers=AUTH).text
+    # 每个设置项都还在页面上有入口（重组后不丢字段）
+    for k in app_mod.DEFAULTS:
+        assert f"SET.{k}" in html or f'data-k="{k}"' in html or f"SET[k]" in html and k in ("muted", "allowed"), k
+    for sub in ("me", "groups", "kw", "remind", "conn", "data", "acct", "about"):
+        assert f'id="sub-{sub}"' in html and f'data-sub="{sub}"' in html
+    assert "refreshQuiet" in html and "已自动更新" in html and "visibilitychange" in html
