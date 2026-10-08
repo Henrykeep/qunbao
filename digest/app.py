@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.14.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.15.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -28,6 +28,7 @@ COOKIE = "qb_session"
 # 网页「设置」里可以改的项；.env 里的值只作为第一次启动时的默认值
 DEFAULTS = {
     "weekly_digest": True,
+    "keep_days": KEEP_DAYS,    # 消息保留天数
     "profile": os.getenv("MY_PROFILE", ""),
     "vip": [],                 # 重要的人（昵称/群名片），他们说话一律值得看
     "keywords": ["截止", "ddl", "提交", "开会", "考试", "缴费", "通知", "报名", "@全体成员"],
@@ -557,7 +558,7 @@ async def scheduler():
                 print("截止提醒失败:", ex)
             if now.hour == 4 and now.minute == 0:  # 每天凌晨清理过期消息
                 with db() as c:
-                    c.execute("DELETE FROM msgs WHERE ts<?", (int(time.time()) - KEEP_DAYS * 86400,))
+                    c.execute("DELETE FROM msgs WHERE ts<?", (int(time.time()) - max(1, int(settings().get("keep_days") or KEEP_DAYS)) * 86400,))
             await asyncio.sleep(60)
     asyncio.create_task(loop())
 
@@ -721,6 +722,17 @@ def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, sour
 @app.get("/api/settings", dependencies=[Depends(auth)])
 def get_settings():
     return settings()
+
+
+@app.get("/api/export", dependencies=[Depends(auth)])
+def export_all():
+    with db() as c:
+        msgs = [dict(r) for r in c.execute("SELECT * FROM msgs ORDER BY id")]
+        dg = [dict(r) for r in c.execute("SELECT * FROM digests ORDER BY id")]
+    st = settings()
+    st.pop("bark_url", None)
+    data = {"version": VERSION, "exported": int(time.time()), "settings": st, "digests": dg, "messages": msgs}
+    return JSONResponse(data, headers={"Content-Disposition": f'attachment; filename="qunbao-{datetime.now(TZ):%Y%m%d}.json"'})
 
 
 @app.post("/api/settings", dependencies=[Depends(auth)])
