@@ -86,7 +86,7 @@ def test_parse_due_and_reminders(monkeypatch):
     assert p("", now) is None and p("尽快", now) is None
     sent = []
 
-    async def fake(title, body, key="", force=False):
+    async def fake(title, body, key="", force=False, **k):
         sent.append(title)
         return True
     monkeypatch.setattr(app_mod, "push", fake)
@@ -116,12 +116,12 @@ def test_quiet_hours(monkeypatch):
         class R: status_code = 200
         return R()
     monkeypatch.setattr(app_mod.httpx.AsyncClient, "post", fake_post)
-    app_mod._held.clear()
+    app_mod.kv_set("held", "[]")
     app_mod.save_settings({"bark_url": "http://x/k", "quiet_start": 0, "quiet_end": 23})
     now_h = datetime.now(app_mod.TZ).hour
     if now_h == 23:
         app_mod.save_settings({"quiet_start": 1, "quiet_end": 23})
-    assert asyncio.run(app_mod.push("a", "b")) is False and not sent and len(app_mod._held) == 1
+    assert asyncio.run(app_mod.push("a", "b")) is False and not sent and len(app_mod._held_get()) == 1
     app_mod.save_settings({"quiet_start": -1})
     assert asyncio.run(app_mod.flush_held()) == 1 and "1 条" in sent[0]["title"]
     app_mod.save_settings({"bark_url": ""})
@@ -141,18 +141,19 @@ def test_ics():
 
 
 def test_group_levels():
-    s = dict(app_mod.DEFAULTS, levels={"静群": "atonly", "要紧群": "important"})
+    s = dict(app_mod.DEFAULTS, modes={"QQ|静群": "atonly", "QQ|要紧群": "focus"})
     assert app_mod.hit_reason("静群", "a", "截止明天", False, s) is None
-    assert app_mod.hit_reason("静群", "a", "x", True, s) == "@了你"
+    assert app_mod.hit_reason("静群", "a", "x", True, s)[0] == "@你"
     assert app_mod.hit_reason("普通群", "a", "截止明天", False, s)
-    c.post("/api/settings", headers=AUTH, json={"levels": {"静群": "atonly", "要紧群": "important"}})
+    app_mod.set_modes([("QQ", "静群")], "atonly"); app_mod.set_modes([("QQ", "要紧群")], "focus")
     now = int(time.time())
     for ch, at in (("静群", False), ("静群", True), ("要紧群", False)):
         app_mod.db().execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me) VALUES(?,?,?,?,?,?)",
                              (now, "QQ", ch, "u", f"lvtest{at}", int(at))).connection.commit()
     rows, text = app_mod.transcript(1)
-    assert "lvtestFalse" in text and text.count("lvtestTrue") == 1
-    assert "【重要群】" in text and sum(1 for r in rows if r["chat"] == "静群") == 1
+    # 0.31：只看@我 的群不进整理/问答原文（@我 的消息在首页「@我」里看）
+    assert "lvtestFalse" in text and "lvtestTrue" not in text
+    assert "【重点群】" in text and sum(1 for r in rows if r["chat"] == "静群") == 0
     assert "要紧群" in app_mod.about_me(app_mod.settings())
 
 
@@ -234,11 +235,11 @@ def test_links_extracted():
     assert any(l["url"] == "https://example.com/doc" for l in c.get("/api/state", headers=AUTH).json()["links"])
 
 
-def test_whitelist_mode():
-    s = {"muted": ["甲"], "only_mode": False, "allowed": ["乙"]}
-    assert app_mod.is_muted("甲", s) and not app_mod.is_muted("乙", s)
+def test_legacy_whitelist_maps_to_modes():
+    s = {"muted": ["甲"], "only_mode": False, "allowed": ["乙"], "modes": {}}
+    assert app_mod.chat_mode("QQ", "甲", s) == "off" and app_mod.chat_mode("QQ", "乙", s) == "normal"
     s["only_mode"] = True
-    assert app_mod.is_muted("甲", s) and not app_mod.is_muted("乙", s) and app_mod.is_muted("丙", s)
+    assert app_mod.chat_mode("QQ", "甲", s) == "off" and app_mod.chat_mode("QQ", "乙", s) == "normal" and app_mod.chat_mode("QQ", "丙", s) == "off"
 
 
 def test_todo_snooze():
@@ -302,7 +303,7 @@ def test_my_names_mention():
 def test_keyword_hit_reason_multi():
     s = {"vip": [], "keywords": ["截止", "DDL", "报名"], "muted": [], "levels": {}, "only_mode": False, "allowed": []}
     r = app_mod.hit_reason("群", "a", "报名截止 ddl 今天", False, s)
-    assert r == "关键词「截止」、「DDL」、「报名」"
+    assert r == ("关键词「截止、DDL」", "passive")  # 关键词命中：不响不震
 
 
 def test_done_fold_ui():
@@ -372,8 +373,8 @@ def _ingest(chat, text, sender="甲"):
 
 
 def test_noise_filter():
-    s = dict(app_mod.settings(), keywords=["奖学金"], vip=["王老师"], levels={"重要群": "important", "静群": "atonly"})
-    R = lambda text, chat="普通群", at=0, sender="甲": {"text": text, "chat": chat, "at_me": at, "sender": sender}
+    s = dict(app_mod.settings(), keywords=["奖学金"], vip=["王老师"], modes={"QQ|重要群": "focus", "QQ|静群": "atonly"})
+    R = lambda text, chat="普通群", at=0, sender="甲": {"text": text, "chat": chat, "at_me": at, "sender": sender, "source": "QQ"}
     cl = lambda *a, **k: app_mod.classify(R(*a, **k), s)
     for t in ["收到", "好的", "哈哈哈哈", "+1", "1", "666", "[图片]", "[表情][表情]", "👍👍", "嗯嗯", "张三撤回了一条消息", "ok"]:
         assert cl(t) == "drop", t
@@ -385,6 +386,9 @@ def test_noise_filter():
     assert cl("这个电影挺好看的") == "keep"
     assert cl("这个电影挺好看的", chat="重要群") == "key"
     assert cl("这个电影挺好看的", chat="静群") == "drop"
+    assert cl("收到", chat="静群", at=1) == "drop"           # 0.31：只看@我 的群不送模型（@我 在首页直接看）
+    assert cl("【神价】京东抽纸券后 ¥29.9 今晚 12 点截止 https://u.jd.com/x") == "drop"  # 线报广告
+    assert cl("砍一刀 https://mobile.yangkeduo.com/x") == "drop"
 
 
 def test_incremental_per_chat_and_done_stays():
@@ -563,7 +567,7 @@ def test_auto_digest_conditions():
     with app_mod.db() as db_:
         db_.execute("DELETE FROM digests")
         db_.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (int(time.time()) - 600, 24, json.dumps({"todos": []})))
-    s = dict(app_mod.settings(), auto_interval=30, muted=["吵闹群"], only_mode=False, levels={"重要群": "important"})
+    s = dict(app_mod.settings(), auto_interval=30, modes={"微信|吵闹群": "off", "微信|重要群": "focus"})
     chk = app_mod.auto_check
     later = lambda m: time.time() + m * 60
     assert chk(s) is None                                   # 没有新消息
@@ -586,8 +590,10 @@ def test_auto_digest_conditions():
     _fresh()
     with app_mod.db() as db_:
         db_.execute("UPDATE digests SET ts=?", (int(time.time()) - 600,))
-    _ingest("重要群", "这个周末的安排大家看一下")
-    assert chk(s) == ("urgent", 24)                         # 重要群：过了 5 分钟就提前
+    _ingest("重要群", "这个周末大家随便聊聊")
+    assert chk(s) is None                                   # 0.31：重点群的闲聊不触发提前整理
+    _ingest("重要群", "周六 9:00 东门集合，别迟到")
+    assert chk(s) == ("urgent", 24)                         # 重点群里有时间安排：过了 5 分钟就提前
     with app_mod.db() as db_:
         db_.execute("UPDATE digests SET ts=?", (int(time.time()) - 120,))
     assert chk(s) is None                                   # 至少间隔 5 分钟
@@ -627,7 +633,9 @@ def test_settings_groups_keep_fields():
     html = c.get("/", headers=AUTH).text
     # 每个设置项都还在页面上有入口（重组后不丢字段）
     for k in app_mod.DEFAULTS:
-        assert f"SET.{k}" in html or f'data-k="{k}"' in html or f"SET[k]" in html and k in ("muted", "allowed"), k
+        if k in ("only_mode", "allowed", "muted", "levels", "modes", "modes_tip_done"):  # 旧字段已迁移；modes 走 /api/chat_mode
+            continue
+        assert f"SET.{k}" in html or f'data-k="{k}"' in html, k
     for sub in ("me", "groups", "kw", "remind", "conn", "data", "acct", "about"):
         assert f'id="sub-{sub}"' in html and f'data-sub="{sub}"' in html
     assert "refreshQuiet" in html and "已自动更新" in html and "visibilitychange" in html
@@ -665,3 +673,250 @@ def test_messages_after_poll():
     new = c.get(f"/api/messages?chat=轮询群&after={first}", headers=AUTH).json()
     assert [m["text"] for m in new] == ["第1条消息内容", "第2条消息内容"]
     assert c.get(f"/api/messages?chat=轮询群&after={ms[-1]['id']}", headers=AUTH).json() == []
+
+
+# ================= 0.31.0 =================
+def _llm_spy(reply):
+    calls = []
+
+    async def fake(msgs, as_json=False):
+        calls.append(msgs)
+        return reply(msgs) if callable(reply) else reply
+    return calls, fake
+
+
+def test_mode_off_and_atonly_never_call_llm():
+    _fresh()
+    app_mod.set_modes([("微信", "水群A")], "off")
+    app_mod.set_modes([("微信", "线报群B")], "atonly")
+    _ingest("水群A", "明天 18:00 交材料，务必")
+    _ingest("线报群B", "今晚 12 点截止 速冲")
+    _ingest("线报群B", "@我 你的快递到了", sender="乙")
+    calls, fake = _llm_spy(lambda m: '{"summary":"x","new":[]}')
+    ol = app_mod.llm
+    app_mod.llm = fake
+    try:
+        import asyncio
+        st, _ = asyncio.run(app_mod.run_update())
+    finally:
+        app_mod.llm = ol
+    assert not calls, "不看/只看@我 的群一律不送模型"
+    assert st["skipped"] == 2 and st["calls"] == 0
+
+
+def test_atonly_push_only_when_at():
+    s = dict(app_mod.DEFAULTS, keywords=["截止"], modes={"QQ|吵群": "atonly", "QQ|关群": "off", "QQ|正常群": "normal", "QQ|重点群": "focus"})
+    assert app_mod.hit_reason("吵群", "a", "报名截止明天", False, s, "QQ") is None
+    assert app_mod.hit_reason("吵群", "a", "@全体成员 明天开会", True, s, "QQ") == ("@全体", "timeSensitive")
+    assert app_mod.hit_reason("吵群", "a", "@我 看下", True, s, "QQ") == ("@你", "timeSensitive")
+    assert app_mod.hit_reason("关群", "a", "@我 看下", True, s, "QQ") is None          # 不看：@我 也不推
+    assert app_mod.hit_reason("正常群", "a", "【神价】券后 ¥9.9 今晚截止", False, s, "QQ") is None  # 广告不推
+    assert app_mod.hit_reason("正常群", "a", "报名今晚截止", False, s, "QQ")[1] == "passive"  # 关键词：不响不震
+    assert app_mod.hit_reason("重点群", "a", "周六 9:00 集合", False, s, "QQ") == ("重点群", "active")
+    assert app_mod.hit_reason("重点群", "a", "哈哈哈", False, s, "QQ") is None
+
+
+def test_new_chat_default_mode_and_same_name_split():
+    app_mod.save_settings({"default_mode": "atonly"})
+    try:
+        _ingest("全新的群X", "大家好")
+        assert app_mod.settings()["modes"]["微信|全新的群X"] == "atonly"
+        app_mod.save_settings({"default_mode": "normal"})
+        assert app_mod.chat_mode("微信", "全新的群X", app_mod.settings()) == "atonly"   # 改默认不影响已有的群
+    finally:
+        app_mod.save_settings({"default_mode": "normal"})
+    # QQ 和微信同名群互不影响
+    app_mod.set_modes([("QQ", "同名群")], "off")
+    s = app_mod.settings()
+    assert app_mod.chat_mode("QQ", "同名群", s) == "off" and app_mod.chat_mode("微信", "同名群", s) == "normal"
+    r = c.post("/api/chat_mode", headers=AUTH, json={"chats": [{"source": "微信", "chat": "同名群"}], "mode": "focus"}).json()
+    assert r["ok"] and r["name"] == "重点盯"
+    assert c.post("/api/chat_mode", headers=AUTH, json={"chats": [{"chat": "x"}], "mode": "bad"}).status_code == 400
+    ch = {(x["source"], x["chat"]): x for x in c.get("/api/chats", headers=AUTH).json()}
+    assert ch[("微信", "全新的群X")]["mode"] == "atonly" and "today" in ch[("微信", "全新的群X")]
+
+
+def test_legacy_settings_migrate_to_modes():
+    s0 = app_mod.settings()
+    app_mod.save_settings({"muted": ["老屏蔽群"], "levels": {"老重要群": "important"}})
+    with app_mod.db() as d:
+        d.execute("INSERT INTO msgs(ts,source,chat,sender,text) VALUES(?,?,?,?,?)", (int(time.time()), "QQ", "老屏蔽群", "a", "x"))
+        d.execute("INSERT INTO msgs(ts,source,chat,sender,text) VALUES(?,?,?,?,?)", (int(time.time()), "QQ", "老重要群", "a", "x"))
+        st = json.loads(d.execute("SELECT v FROM kv WHERE k='settings'").fetchone()["v"]); st.pop("modes_migrated", None)
+        st["modes"] = {k: v for k, v in st["modes"].items() if not k.startswith("QQ|老")}
+        d.execute("UPDATE kv SET v=? WHERE k='settings'", (json.dumps(st, ensure_ascii=False),))
+    app_mod.migrate_modes()
+    s = app_mod.settings()
+    assert s["modes"]["QQ|老屏蔽群"] == "off" and s["modes"]["QQ|老重要群"] == "focus"
+    assert s["muted"] == [] and s["levels"] == {} and not s["only_mode"]
+
+
+def test_title_tidy_ads_and_headline():
+    t = app_mod.tidy_title
+    assert t("需要本学期班费每人 50，并且数据库实验报告 10月1，还要确认群公告") == "本学期班费每人 50"
+    assert t("请于10月12日 17:00 前在学工系统完成奖学金申报 https://x.cn/a?b=1", due="10月12日 17:00") == "在学工系统完成奖学金申报"
+    assert "https" not in t("字节内推 10月20日截止 https", due="10月20日")
+    assert t("关于班会改线上的通知事项") == "班会改线上"
+    assert len(t("这是一个非常非常长的标题而且中间没有任何标点符号可以截断的那种情况")) <= 22
+    assert t("交实验报告") == "交实验报告"
+    h = app_mod.tidy_headline("今天要交数据库实验报告、缴纳班费 50 元、参加周一组会汇报")
+    assert h == "今天要交数据库实验报告"
+    assert app_mod.tidy_headline("周五 23:59 前交数据库实验报告") == "周五 23:59 前交数据库实验报告"
+    assert app_mod.same_text("交实验报告", "@全体成员 实验报告周五前交到学习通")
+    assert not app_mod.same_text("交实验报告", "按模板命名，逾期不收")
+    # 模型把广告当事项：直接丢掉
+    _fresh()
+    app_mod.apply_changes("QQ", "线报群", {"new": [{"kind": "todo", "title": "【神价】京东抽纸券后 ¥29.9", "quote": "速冲 https://u.jd.com/x"},
+                                                  {"kind": "todo", "title": "交实验报告", "detail": "交实验报告"}]})
+    with app_mod.db() as d:
+        rows = [dict(r) for r in d.execute("SELECT title, detail FROM items WHERE chat='线报群'")]
+    assert rows == [{"title": "交实验报告", "detail": ""}]
+
+
+def test_parse_due_weekdays():
+    from datetime import datetime
+    now = datetime(2026, 10, 8, 22, 0, tzinfo=app_mod.TZ)  # 星期四
+    P = lambda x: app_mod.parse_due(x, now).strftime("%m-%d %H:%M")
+    assert P("本周五") == "10-09 23:59" and P("周五") == "10-09 23:59"
+    assert P("周一上午 9:00") == "10-12 09:00" and P("下周三 18:00") == "10-14 18:00"
+    assert P("月底") == "10-31 23:59" and P("周六晚 7 点") == "10-10 19:00" and P("明天 8 点半") == "10-09 08:30"
+    assert P("星期日") == "10-11 23:59" and P("明天上午") == "10-09 12:00"
+
+
+def test_invalid_json_retried_immediately():
+    _fresh()
+    _ingest("重试群", "明天 18:00 交材料")
+    n = {"i": 0}
+
+    def reply(m):
+        n["i"] += 1
+        return '好的：{"summary":"x","new":[{"kind":"todo","ti' if n["i"] == 1 else '{"summary":"交材料","new":[{"kind":"todo","title":"交材料","due":"明天 18:00"}]}'
+    calls, fake = _llm_spy(reply)
+    ol = app_mod.llm
+    app_mod.llm = fake
+    try:
+        import asyncio
+        st, _ = asyncio.run(app_mod.run_update())
+    finally:
+        app_mod.llm = ol
+    assert st["errors"] == 0 and st["calls"] == 2 and len(calls) == 2
+    assert "不是合法 JSON" in calls[1][-1]["content"]
+
+
+def test_llm_error_text():
+    assert "余额" in app_mod.llm_err_text(402, "Insufficient Balance")
+    assert "Key" in app_mod.llm_err_text(401, "invalid api key")
+    assert "限流" in app_mod.llm_err_text(429, "")
+    assert "服务商" in app_mod.llm_err_text(503, "")
+
+
+def test_held_push_survives_restart(monkeypatch):
+    import asyncio
+    app_mod.kv_set("held", "[]")
+    app_mod.save_settings({"bark_url": "http://x/k", "quiet_start": 0, "quiet_end": 23})
+    from datetime import datetime
+    if datetime.now(app_mod.TZ).hour == 23:
+        app_mod.save_settings({"quiet_start": 1, "quiet_end": 23})
+    try:
+        assert asyncio.run(app_mod.push("a", "b")) is False
+        assert json.loads(app_mod.kv_get("held")) == [["a", "b"]]   # 存在数据库里，重启不丢
+    finally:
+        app_mod.save_settings({"bark_url": "", "quiet_start": -1})
+        app_mod.kv_set("held", "[]")
+
+
+def _seed_chat(chat, texts, source="QQ"):
+    ids = []
+    with app_mod.db() as d:
+        for t in texts:
+            ids.append(d.execute("INSERT INTO msgs(ts,source,chat,sender,text) VALUES(?,?,?,?,?)",
+                                 (int(time.time()) - 60, source, chat, "王老师", t)).lastrowid)
+    return ids
+
+
+def test_ask_scoped_with_valid_citations():
+    ids = _seed_chat("问答群", ["周五 23:59 前交实验报告到学习通", "下周三班会改线上", "哈哈哈"])
+    other = _seed_chat("别的群", ["周五要交的是别的东西"])[0]
+    app_mod.set_modes([("QQ", "问答群")], "off")       # 不看的群也能问
+    seen = {}
+
+    def reply(m):
+        seen["ctx"] = m[1]["content"]
+        return f"要交实验报告 [#{ids[0]}]，班会改线上了 [#{ids[1]}]，还有个编的 [#99999999] 和别的群的 [#{other}]"
+    calls, fake = _llm_spy(reply)
+    ol = app_mod.llm
+    app_mod.llm = fake
+    try:
+        r = c.post("/api/ask", headers=AUTH, json={"q": "有要我做的吗", "chat": "问答群", "source": "QQ"}).json()
+    finally:
+        app_mod.llm = ol
+    assert "别的群" not in seen["ctx"] and f"#{other} " not in seen["ctx"]   # 只检索这个群
+    assert "哈哈哈" not in seen["ctx"]                                     # 去噪
+    assert [x["msg_id"] for x in r["citations"]] == ids[:2]                 # 非法 / 范围外引用丢弃
+    assert "[1]" in r["a"] and "[2]" in r["a"] and "99999999" not in r["a"] and str(other) not in r["a"]
+    # 跳转：按 id 取上下文
+    ms = c.get(f"/api/messages?chat=问答群&source=QQ&around={ids[1]}&limit=10", headers=AUTH).json()
+    assert ids[1] in [m["id"] for m in ms] and all(m["chat"] == "问答群" for m in ms)
+
+
+def test_ask_cite_parser():
+    rows = {5: {"ts": 1, "sender": "a", "chat": "c", "source": "QQ", "text": "x"}, 9: {"ts": 2, "sender": "b", "chat": "c", "source": "QQ", "text": "y"}}
+    t, cs = app_mod.cite("一 [#9] 二【#5】三 [#9] 四 [#7]", rows)
+    assert t == "一 [1] 二[2]三 [1] 四" and [x["msg_id"] for x in cs] == [9, 5]
+
+
+def test_chat_brief_cached_no_new_no_llm():
+    ids = _seed_chat("简报群", ["明天 9:00 东门集合", "记得带水"])
+    calls, fake = _llm_spy(lambda m: f"- 明天 9 点东门集合 [#{ids[0]}]")
+    ol = app_mod.llm
+    app_mod.llm = fake
+    try:
+        r1 = c.get("/api/chat_brief?chat=简报群&source=QQ", headers=AUTH).json()
+        r2 = c.get("/api/chat_brief?chat=简报群&source=QQ", headers=AUTH).json()
+        r3 = c.get(f"/api/chat_brief?chat=简报群&source=QQ&since_id={ids[-1]}", headers=AUTH).json()
+    finally:
+        app_mod.llm = ol
+    assert len(calls) == 1 and r2["cached"] and r3["nothing_new"] and r3["a"] == r1["a"]
+    assert r1["citations"][0]["msg_id"] == ids[0]
+    assert "【群简报】" in calls[0][0]["content"] and "口语" in calls[0][0]["content"]
+
+
+def test_state_at_me_covered_and_mode_filter():
+    _fresh()
+    _ingest("覆盖群", "@我 明天交表", sender="班长")
+    with app_mod.db() as d:
+        mid = d.execute("SELECT MAX(id) i FROM msgs").fetchone()["i"]
+    app_mod.apply_changes("微信", "覆盖群", {"new": [{"kind": "todo", "title": "交表", "msg_ids": [mid]}]}, {mid})
+    import asyncio
+    calls, fake = _llm_spy(lambda m: '{"summary":"交表","new":[]}' if m[0]["content"].startswith("【群更新】") else "交表")
+    ol = app_mod.llm
+    app_mod.llm = fake
+    try:
+        asyncio.run(app_mod.make_digest(24))
+    finally:
+        app_mod.llm = ol
+    st = c.get("/api/state", headers=AUTH).json()
+    a = [x for x in st["at_me"] if x["id"] == mid][0]
+    assert a["covered"]
+    assert any(t["title"] == "交表" for t in st["digest"]["todos"])
+    app_mod.set_modes([("微信", "覆盖群")], "off")      # 改成「不看」立刻从首页拿掉
+    st = c.get("/api/state", headers=AUTH).json()
+    assert not any(t["chat"] == "覆盖群" for t in st["digest"]["todos"]) and not any(x["chat"] == "覆盖群" for x in st["at_me"])
+    app_mod.set_modes([("微信", "覆盖群")], "normal")
+
+
+def test_suggest_quiet_groups():
+    with app_mod.db() as d:
+        for i in range(20):
+            d.execute("INSERT INTO msgs(ts,source,chat,sender,text) VALUES(?,?,?,?,?)",
+                      (int(time.time()) - 60, "QQ", "神价线报群", "a", f"【神价】券后 ¥{i}.9 https://u.jd.com/{i}"))
+    sg = {x["chat"]: x for x in c.get("/api/chat_suggest", headers=AUTH).json()}
+    assert "神价线报群" in sg and "广告" in sg["神价线报群"]["why"]
+    assert app_mod.chat_mode("QQ", "神价线报群", app_mod.settings()) != "atonly"   # 只建议，不自动改
+
+
+def test_ui_has_modes_and_chat_assistant():
+    h = c.get("/", headers=AUTH).text
+    for k in ("modeSheet", "/api/chat_mode", "swipeRow", "longPress", 'id="cmode"', 'id="g-q"', 'id="g-batch"', "/api/chat_suggest",
+              'id="chatask"', "问问这个群", "我没看的这段讲了啥", "/api/chat_brief", "button class=\"cite\"", "jumpTo", "visualViewport", "qb_ask:", "askclr"):
+        assert k in h, k
