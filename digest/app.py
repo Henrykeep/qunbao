@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.15.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.16.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -375,22 +375,36 @@ def ingest_info():
 
 
 # ---------------- 大模型 ----------------
+LLM_STATE = {"ok": True, "err": "", "ts": 0}
+LLM_RETRY_WAIT = 2
+
+
 async def llm(messages, as_json=False):
     if not LLM_KEY:
         raise HTTPException(500, "请先在 .env 里设置 LLM_API_KEY")
     body = {"model": LLM_MODEL, "messages": messages, "temperature": 0.2}
     if as_json:
         body["response_format"] = {"type": "json_object"}
-    try:
-        async with httpx.AsyncClient(timeout=180) as cl:
-            r = await cl.post(f"{LLM_BASE}/chat/completions", json=body,
-                              headers={"Authorization": f"Bearer {LLM_KEY}"})
-            r.raise_for_status()
-            return r.json()["choices"][0]["message"]["content"]
-    except httpx.HTTPStatusError as ex:
-        raise HTTPException(502, f"大模型接口报错 {ex.response.status_code}：{ex.response.text[:200]}")
-    except httpx.HTTPError as ex:
-        raise HTTPException(502, f"连不上大模型接口：{ex}")
+    err = None
+    for attempt in range(2):  # 失败自动重试 1 次
+        try:
+            async with httpx.AsyncClient(timeout=180) as cl:
+                r = await cl.post(f"{LLM_BASE}/chat/completions", json=body,
+                                  headers={"Authorization": f"Bearer {LLM_KEY}"})
+                r.raise_for_status()
+                out = r.json()["choices"][0]["message"]["content"]
+                LLM_STATE.update(ok=True, err="", ts=int(time.time()))
+                return out
+        except httpx.HTTPStatusError as ex:
+            err = f"大模型接口报错 {ex.response.status_code}：{ex.response.text[:200]}"
+            if ex.response.status_code < 500 and ex.response.status_code != 429:
+                break
+        except httpx.HTTPError as ex:
+            err = f"连不上大模型接口：{ex}"
+        if attempt == 0:
+            await asyncio.sleep(LLM_RETRY_WAIT)
+    LLM_STATE.update(ok=False, err=err, ts=int(time.time()))
+    raise HTTPException(502, err)
 
 
 def transcript(hours: int):
@@ -611,7 +625,8 @@ def state(id: int | None = None):
         "status": {"last_msg": last, "heartbeat": hb_ts, "online": qq_on or wx_on,
                    "qq": {"online": qq_on, "seen": hb_ts or last_qq, "last": last_qq},
                    "wx": {"online": wx_on, "seen": wx_ts, "last": last_wx, "ready": bool(INGEST_TOKEN)},
-                   "llm": bool(LLM_KEY), "version": VERSION},
+                   "llm": bool(LLM_KEY), "llm_err": (LLM_STATE["err"] if not LLM_STATE["ok"] else ""),
+                   "llm_err_ts": LLM_STATE["ts"], "version": VERSION},
     }
 
 
