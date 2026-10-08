@@ -219,6 +219,9 @@ footer{text-align:center;font-size:11px;color:var(--faint);margin-top:44px;lette
 .back{border:0;background:none;display:flex;align-items:center;gap:2px;color:var(--ink);font-size:15px;padding:6px 8px;width:70px}
 .back svg{width:20px;height:20px}
 .msgs{padding:8px 0 20px}
+.sfchip{margin:8px 0 0;font-size:13px;color:var(--mut,#888)}.sfchip button{border:1px solid var(--line);background:none;color:inherit;border-radius:14px;padding:3px 10px;margin-left:6px;font:inherit}
+#cmsgs.sf .m:not(.sfhit),#cmsgs.sf .day{display:none}
+#cmsgs .av.sm,#cmsgs .who{cursor:pointer}
 .day{text-align:center;font-size:11.5px;color:var(--faint);margin:18px 0 8px}
 .m{display:flex;gap:9px;margin-top:12px;align-items:flex-start}
 .m.cont{margin-top:4px}
@@ -386,6 +389,7 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
   <div id="msgs-chat" hidden>
     <div class="chat-head"><button class="back" id="cback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>返回</button>
       <div class="ttl" id="ctitle"></div><div style="width:70px"></div></div>
+    <div class="sfchip" id="sfchip" hidden></div>
     <div class="msgs" id="cmsgs"></div>
   </div>
 </div></div>
@@ -776,7 +780,7 @@ let chatName=null,chatSrc="",oldest=0;
 async function openChat(chat,focus,src){
   if(curView!=="msgs"){curView="msgs";$$(".view").forEach(e=>e.classList.toggle("on",e.id==="v-msgs"));
     $$(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v==="msgs"));$("#dock").classList.remove("home")}
-  chatName=chat;oldest=0;$("#msgs-list").hidden=true;$("#msgs-chat").hidden=false;
+  chatName=chat;oldest=0;SENDERF="";$("#msgs-list").hidden=true;$("#msgs-chat").hidden=false;
   if(!CHATS.length){try{CHATS=await api("/api/chats")}catch(e){}}
   const c=CHATS.find(x=>x.chat===chat&&(!src||x.source===src));chatSrc=src||c?.source||"";
   $("#ctitle").innerHTML=`${esc(chat)}<small>${c?`${c.n} 条 · ${esc(c.source)}`:"聊天记录"}</small>`;
@@ -795,15 +799,23 @@ function renderMsgs(ms,prepend){
   for(const m of ms){
     const dl=dayLabel(m.ts);if(dl!==lastDay){h+=`<div class="day">${dl}</div>`;lastDay=dl;lastSender=""}
     const cont=m.sender===lastSender&&m.ts-lastTs<300;lastSender=m.sender;lastTs=m.ts;
-    h+=`<div class="m ${cont?"cont":""} ${m.at_me?"atme":""}" data-t="${esc(m.text)}"><div class="av sm" style="background:${avc(m.sender)}">${first(m.sender)}</div>
+    h+=`<div class="m ${cont?"cont":""} ${m.at_me?"atme":""}" data-s="${esc(m.sender)}" data-t="${esc(m.text)}"><div class="av sm" style="background:${avc(m.sender)}">${first(m.sender)}</div>
       <div class="mb">${cont?"":`<div class="who">${esc(m.sender)} · ${hm(new Date(m.ts*1000))}</div>`}<div class="bub">${hlAt(m.text)}${m.imgs&&m.imgs.length?`<div class="thumbs">${m.imgs.map(u=>`<img loading="lazy" referrerpolicy="no-referrer" src="${esc(u)}" alt="图片" onerror="this.remove()">`).join("")}</div>`:""}</div></div></div>`;
   }
   const box=$("#cmsgs");
   if(prepend){$("#older")?.remove();const hBefore=document.body.scrollHeight;box.insertAdjacentHTML("afterbegin",h);window.scrollBy(0,document.body.scrollHeight-hBefore)}
   else box.innerHTML=h;
+  if(SENDERF)applySF();
   $("#older")?.addEventListener("click",async()=>{const ms2=await api(`/api/messages?chat=${encodeURIComponent(chatName)}&before=${oldest}&limit=120${chatSrc?`&source=${encodeURIComponent(chatSrc)}`:""}`);
     if(!ms2.length){$("#older").textContent="没有更早的了";return}renderMsgs(ms2,true)});
 }
+let SENDERF="";
+function applySF(){const b=$("#cmsgs"),c=$("#sfchip");b.classList.toggle("sf",!!SENDERF);
+  $$("#cmsgs .m").forEach(e=>e.classList.toggle("sfhit",e.dataset.s===SENDERF));
+  c.hidden=!SENDERF;c.innerHTML=SENDERF?`只看 <b>${esc(SENDERF)}</b><button id="sfx">取消</button>`:"";
+  $("#sfx")?.addEventListener("click",()=>{SENDERF="";applySF()})}
+$("#cmsgs").addEventListener("click",e=>{const t=e.target.closest(".av.sm,.who");if(!t)return;const m=t.closest(".m");
+  let n=m.dataset.s;SENDERF=SENDERF===n?"":n;applySF()});
 document.body.insertAdjacentHTML("beforeend",'<div id="imgbox" hidden><img alt=""></div>');
 $("#imgbox").onclick=()=>{$("#imgbox").hidden=true};
 $("#cmsgs").addEventListener("click",e=>{const t=e.target;if(t.tagName==="IMG"&&t.closest(".thumbs")){$("#imgbox img").src=t.src;$("#imgbox").hidden=false}});
