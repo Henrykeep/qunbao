@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.10.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.11.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -68,6 +68,10 @@ with db() as c:
     CREATE TABLE IF NOT EXISTS reminded(k TEXT PRIMARY KEY, ts INTEGER);
     CREATE TABLE IF NOT EXISTS sessions(h TEXT PRIMARY KEY, ts INTEGER, exp INTEGER, pw TEXT, ua TEXT);
     """)
+    try:
+        c.execute("ALTER TABLE msgs ADD COLUMN img TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
 
 
 def settings() -> dict:
@@ -210,13 +214,13 @@ def hit_reason(chat, sender, text, at_me, s):
     return None
 
 
-async def save(source, chat, sender, text, ts=None, at_me=False):
+async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
     text = (text or "").strip()
     if not text:
         return
     with db() as c:
-        c.execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me) VALUES(?,?,?,?,?,?)",
-                  (int(ts or time.time()), source, chat, sender, text[:4000], int(at_me)))
+        c.execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me,img) VALUES(?,?,?,?,?,?,?)",
+                  (int(ts or time.time()), source, chat, sender, text[:4000], int(at_me), imgs[:2000]))
     s = settings()
     why = hit_reason(chat, sender, text, at_me, s)
     if why and s.get("push_at"):
@@ -227,6 +231,17 @@ async def save(source, chat, sender, text, ts=None, at_me=False):
 CQ = re.compile(r"\[CQ:(\w+)([^\]]*)\]")
 CQ_NAME = {"image": "[图片]", "face": "", "record": "[语音]", "video": "[视频]", "file": "[文件]",
            "reply": "", "forward": "[聊天记录]", "json": "[卡片]", "xml": "[卡片]", "mface": "[表情]"}
+
+
+def cq_images(raw: str) -> str:
+    """提取 CQ 图片的 http(s) URL，空格分隔，最多 4 张。"""
+    out = []
+    for m in CQ.finditer(raw or ""):
+        if m.group(1) == "image":
+            u = re.search(r"url=(https?://[^,\]]+)", m.group(2))
+            if u:
+                out.append(u.group(1).replace("&amp;", "&"))
+    return " ".join(out[:4])
 
 
 def clean_cq(raw: str, self_id: str) -> str:
@@ -277,7 +292,7 @@ async def onebot(req: Request):
         chat = await group_name(int(e["group_id"]))
     else:
         chat, at_me = f"私聊·{sender}", True
-    await save("QQ", chat, sender, clean_cq(raw, self_id), e.get("time"), at_me)
+    await save("QQ", chat, sender, clean_cq(raw, self_id), e.get("time"), at_me, cq_images(raw))
     return {}
 
 
@@ -682,7 +697,8 @@ def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, sour
     with db() as c:
         rows = c.execute(sql, args).fetchall()
     return [{"id": r["id"], "ts": r["ts"], "chat": r["chat"], "sender": r["sender"], "text": r["text"],
-             "source": r["source"], "at_me": bool(r["at_me"])} for r in reversed(rows)]
+             "source": r["source"], "at_me": bool(r["at_me"]),
+             "imgs": r["img"].split() if r["img"] else []} for r in reversed(rows)]
 
 
 @app.get("/api/settings", dependencies=[Depends(auth)])
