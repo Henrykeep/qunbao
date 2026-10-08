@@ -279,3 +279,10 @@ def test_weekly_title_and_prompt():
                             "sender": {"nickname": "a"}, "raw_message": "hi", "time": int(time.time())})
     asyncio.run(app_mod.make_digest(168))
     assert "一周汇总" in seen["u"]
+
+
+def test_activity():
+    r = c.get("/api/activity", headers=AUTH).json()
+    assert len(r["hours"]) == 24 and r["total"] == sum(r["hours"])
+    assert isinstance(r["top"], list)
+    assert "loadAct" in c.get("/", headers=AUTH).text
