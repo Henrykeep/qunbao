@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.31.0"
+VERSION = "0.31.1"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -1695,8 +1695,11 @@ def chats(hours: int = 168, source: str = ""):
         for r in rows:
             m = c.execute("SELECT sender, text FROM msgs WHERE chat=? AND source=? ORDER BY id DESC LIMIT 1",
                           (r["chat"], r["source"])).fetchone()
+            at_ids = [x["id"] for x in c.execute(
+                "SELECT id FROM msgs WHERE chat=? AND source=? AND at_me=1 AND ts>=? ORDER BY id DESC LIMIT 50",
+                (r["chat"], r["source"], int(time.time()) - hours * 3600))]
             out.append({"chat": r["chat"], "source": r["source"], "n": r["n"], "last_ts": r["last_ts"],
-                        "ats": r["ats"] or 0, "last": f"{m['sender']}：{m['text']}" if m else "",
+                        "ats": r["ats"] or 0, "at_ids": at_ids, "last": f"{m['sender']}：{m['text']}" if m else "",
                         "mode": chat_mode(r["source"], r["chat"], s), "today": today.get((r["source"], r["chat"]), 0),
                         "muted": chat_mode(r["source"], r["chat"], s) == "off"})
     return out
