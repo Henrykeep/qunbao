@@ -308,3 +308,11 @@ def test_keyword_hit_reason_multi():
 def test_done_fold_ui():
     html = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
     assert "donebar" in html and "todos.fold" in html
+
+
+def test_todo_diff():
+    a = {"todos": [{"title": "A", "chat": "g"}, {"title": "B", "chat": "g"}]}
+    b = {"todos": [{"title": "B", "chat": "g"}, {"title": "C", "chat": "g"}]}
+    assert app_mod.todo_diff(b, a) == {"new": ["C"], "gone": 1, "kept": 1}
+    assert app_mod.todo_diff(b, None) is None
+    assert "diff" in c.get("/api/state", headers=AUTH).json()
