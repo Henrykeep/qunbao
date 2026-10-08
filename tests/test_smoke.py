@@ -265,3 +265,17 @@ def test_todo_pin():
     c.post("/api/todo", headers=AUTH, json={"key": "k|g", "pin": False})
     assert "k|g" not in c.get("/api/state", headers=AUTH).json()["pins"]
     assert "pinb" in c.get("/", headers=AUTH).text
+
+
+def test_weekly_title_and_prompt():
+    assert app_mod.weekly_title({"todos": []}) == "本周群报"
+    assert app_mod.weekly_title({"todos": [1, 2]}) == "本周群报 · 2 件待办"
+    seen = {}
+    async def fake(msgs, as_json=False):
+        seen["u"] = msgs[-1]["content"]; return '{"headline":"h","todos":[],"notices":[],"groups":[]}'
+    app_mod.llm = fake
+    import asyncio
+    c.post("/onebot", json={"post_type": "message", "message_type": "private", "user_id": 5, "self_id": 9,
+                            "sender": {"nickname": "a"}, "raw_message": "hi", "time": int(time.time())})
+    asyncio.run(app_mod.make_digest(168))
+    assert "一周汇总" in seen["u"]
