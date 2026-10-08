@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.16.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.17.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -578,6 +578,23 @@ async def scheduler():
 
 
 # ---------------- 网页接口 ----------------
+URL_RE = re.compile(r"https?://[A-Za-z0-9\-._~:/?#\[\]@!$&*+=%]+")
+
+
+def extract_links(rows, limit=20):
+    seen, out = set(), []
+    for r in rows:
+        for u in URL_RE.findall(r["text"] or ""):
+            u = u.rstrip(".,;!?，。；！？、")
+            if u in seen:
+                continue
+            seen.add(u)
+            out.append({"url": u, "chat": r["chat"], "sender": r["sender"], "ts": r["ts"]})
+            if len(out) >= limit:
+                return out
+    return out
+
+
 def digest_row(d):
     body = json.loads(d["body"])
     body["id"] = d["id"]
@@ -597,6 +614,8 @@ def state(id: int | None = None):
                         (ref - span, ref + 3600 * 24)).fetchall()
         per = c.execute("SELECT chat, COUNT(*) n FROM msgs WHERE ts>=? AND ts<=? GROUP BY chat",
                         (ref - span, ref)).fetchall()
+        link_rows = c.execute("SELECT ts, chat, sender, text FROM msgs WHERE text LIKE '%http%' AND ts>=? AND ts<=? ORDER BY ts DESC LIMIT 200",
+                              (ref - span, ref)).fetchall()
         today = c.execute("SELECT COUNT(*) n FROM msgs WHERE ts>=?", (now - 86400,)).fetchone()["n"]
         last = c.execute("SELECT MAX(ts) t FROM msgs").fetchone()["t"]
         hb = c.execute("SELECT v FROM kv WHERE k='heartbeat'").fetchone()
@@ -621,6 +640,7 @@ def state(id: int | None = None):
         "at_me": [{"ts": r["ts"], "chat": r["chat"], "sender": r["sender"], "text": r["text"],
                    "source": r["source"]} for r in ats],
         "today": today,
+        "links": extract_links(link_rows),
         "done": done,
         "status": {"last_msg": last, "heartbeat": hb_ts, "online": qq_on or wx_on,
                    "qq": {"online": qq_on, "seen": hb_ts or last_qq, "last": last_qq},
