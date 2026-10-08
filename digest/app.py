@@ -9,7 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.11.0"  # 和仓库根目录 VERSION 保持一致
+VERSION = "0.12.0"  # 和仓库根目录 VERSION 保持一致
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -683,7 +683,8 @@ def chats(hours: int = 168, source: str = ""):
 
 
 @app.get("/api/messages", dependencies=[Depends(auth)])
-def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, source: str = ""):
+def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, source: str = "",
+             sender: str = "", since: int = 0, until: int = 0):
     sql, args = "SELECT * FROM msgs WHERE 1=1", []
     if chat:
         sql += " AND chat=?"; args.append(chat)
@@ -691,6 +692,12 @@ def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, sour
         sql += " AND source=?"; args.append(source)
     if q:
         sql += " AND (text LIKE ? OR sender LIKE ?)"; args += [f"%{q}%", f"%{q}%"]
+    if sender:
+        sql += " AND sender LIKE ?"; args.append(f"%{sender}%")
+    if since:
+        sql += " AND ts>=?"; args.append(since)
+    if until:
+        sql += " AND ts<?"; args.append(until)
     if before:
         sql += " AND id<?"; args.append(before)
     sql += " ORDER BY id DESC LIMIT ?"; args.append(min(limit, 200))
