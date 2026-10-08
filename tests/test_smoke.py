@@ -138,3 +138,19 @@ def test_ics():
     assert "BEGIN:VEVENT" in r.text and "DTSTART:20261010T100000Z" in r.text and "交表\\, 谢谢" in r.text
     assert "VALUE=DATE" in c.get("/api/ics", params={"title": "x", "due": "随时"}, headers=AUTH).text
     assert c.get("/api/ics", headers=AUTH).status_code == 400
+
+
+def test_group_levels():
+    s = dict(app_mod.DEFAULTS, levels={"静群": "atonly", "要紧群": "important"})
+    assert app_mod.hit_reason("静群", "a", "截止明天", False, s) is None
+    assert app_mod.hit_reason("静群", "a", "x", True, s) == "@了你"
+    assert app_mod.hit_reason("普通群", "a", "截止明天", False, s)
+    c.post("/api/settings", headers=AUTH, json={"levels": {"静群": "atonly", "要紧群": "important"}})
+    now = int(time.time())
+    for ch, at in (("静群", False), ("静群", True), ("要紧群", False)):
+        app_mod.db().execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me) VALUES(?,?,?,?,?,?)",
+                             (now, "QQ", ch, "u", f"lvtest{at}", int(at))).connection.commit()
+    rows, text = app_mod.transcript(1)
+    assert "lvtestFalse" in text and text.count("lvtestTrue") == 1
+    assert "【重要群】" in text and sum(1 for r in rows if r["chat"] == "静群") == 1
+    assert "要紧群" in app_mod.about_me(app_mod.settings())
