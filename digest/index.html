@@ -1103,7 +1103,7 @@ function renderChats(){
   $("#clist").innerHTML=S.length?S.map(c=>`<button class="crow ${c.mode==="off"?"muted":""}" data-chat="${esc(c.chat)}" data-src="${esc(c.source)}">
     <div class="gav" style="background:hsl(${hue(c.chat)} 26% 46%)">${first(c.chat)}${srcBadge(c.source)}</div>
     <div class="ci"><div class="cn"><b>${esc(c.chat)}</b>${c.mode&&c.mode!=="normal"?`<span class="mtag ${c.mode}">${MODE[c.mode][0]}</span>`:""}<span style="flex:1"></span><span class="tm">${ago(c.last_ts)}</span></div>
-    <div class="cl">${c.mode==="off"?ICON.bell.replace("<svg",'<svg class="mute-ic"'):""}<span>${esc(prev(c.last))}</span>${c.ats?`<span class="badge">@${c.ats}</span>`:""}</div></div></button>`).join("")
+    <div class="cl">${c.mode==="off"?ICON.bell.replace("<svg",'<svg class="mute-ic"'):""}<span>${esc(prev(c.last))}</span>${unreadAts(c)?`<span class="badge">@${unreadAts(c)}</span>`:""}</div></div></button>`).join("")
     :`<div class="empty"><div class="big">还没有消息</div>连上 QQ 或微信后，这里能翻所有群的原始记录</div>`;
   $$(".crow").forEach(b=>{b.onclick=()=>{if(b._sw){b._sw=0;return}tick();openChat(b.dataset.chat,null,b.dataset.src)};swipeRow(b);longPress(b,()=>modeSheet(b.dataset.src,b.dataset.chat))});
 }
@@ -1129,6 +1129,7 @@ $("#sq").addEventListener("input",e=>{$("#sbox").classList.toggle("has",!!e.targ
 $("#sclr").onclick=()=>{$("#sq").value="";$("#sbox").classList.remove("has");renderChats()};
 
 let chatName=null,chatSrc="",oldest=0,chatSeq=0,READ0=0;
+const unreadAts=c=>{const r=readGet("qb_read:"+c.source+"|"+c.chat);return (c.at_ids||[]).filter(i=>i>r).length};
 const RK=()=>"qb_read:"+(chatSrc||"")+"|"+chatName;
 const readGet=k=>+(localStorage[k]||0), readSet=(k,v)=>{if(v>readGet(k))localStorage[k]=v};
 function showChatView(){
