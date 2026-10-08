@@ -1,5 +1,5 @@
 """群报：收集 QQ（NapCat / OneBot 11）和微信（通知转发）群消息，用大模型挑出重要的事和待办。"""
-import asyncio, hashlib, json, os, re, secrets, sqlite3, time
+import asyncio, contextlib, hashlib, json, os, re, secrets, sqlite3, time
 from difflib import SequenceMatcher
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs
@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.30.0"
+VERSION = "0.30.1"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -52,7 +52,16 @@ DEFAULTS = {
 AUTO_CHOICES = (0, 15, 30, 60, 120)
 AUTO_URGENT_GAP = 300          # 重要群 / @我 的新消息最少隔 5 分钟就可以提前整理
 
-app = FastAPI(docs_url=None, redoc_url=None)
+@contextlib.asynccontextmanager
+async def lifespan(_app):
+    task = await scheduler()
+    try:
+        yield
+    finally:
+        task.cancel()
+
+
+app = FastAPI(docs_url=None, redoc_url=None, lifespan=lifespan)
 _group_names: dict[int, str] = {}
 _group_miss: dict[int, float] = {}
 _last_push: dict[str, float] = {}
@@ -1190,7 +1199,6 @@ def digest_hours(s: dict) -> set:
     return hs
 
 
-@app.on_event("startup")
 async def scheduler():
     async def loop():
         last, cleaned = set(), None
@@ -1233,7 +1241,7 @@ async def scheduler():
                 with db() as c:
                     c.execute("DELETE FROM msgs WHERE ts<?", (int(time.time()) - max(1, int(settings().get("keep_days") or KEEP_DAYS)) * 86400,))
             await asyncio.sleep(60)
-    asyncio.create_task(loop())
+    return asyncio.create_task(loop())
 
 
 # ---------------- 网页接口 ----------------
