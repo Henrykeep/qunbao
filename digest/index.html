@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="群报">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -28,7 +28,11 @@
   --bubble:#1E1D1B; --mine:#33221D; --shadow:0 1px 2px rgba(0,0,0,.3);
 }}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html{background:var(--bg)}
+html{background:var(--bg);overflow-x:hidden;-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation}
+html,body{max-width:100%;overflow-x:hidden;overscroll-behavior-x:none}
+/* iOS 输入框字号 <16px 会在聚焦时自动放大页面，放大后页面能左右拖动 */
+input,select,textarea{font-size:16px!important}
+.headline,.greet,h1,h2,h3,.ttl,p{overflow-wrap:anywhere;word-break:break-word}
 body{font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.55;font-variant-numeric:tabular-nums;
   -webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top)}
 button{font:inherit;color:inherit;cursor:pointer}
