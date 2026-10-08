@@ -739,12 +739,14 @@ function renderChats(){
     :`<div class="empty"><div class="big">还没有消息</div>连上 QQ 或微信后，这里能翻所有群的原始记录</div>`;
   $$(".crow").forEach(b=>b.onclick=()=>{tick();openChat(b.dataset.chat,null,b.dataset.src)});
 }
+let SDAYS=0;
 const search=debounce(async q=>{
   if(!q){renderChats();return}
-  try{const rs=await api(`/api/messages?q=${encodeURIComponent(q)}&limit=80${SRCF?`&source=${encodeURIComponent(SRCF)}`:""}`);
-    $("#clist").innerHTML=rs.length?`<div class="gd" style="margin:14px 0 2px">找到 ${rs.length} 条${rs.length>=80?"（只显示最近 80 条）":""}</div>`+rs.reverse().map(m=>`<div class="sres" data-chat="${esc(m.chat)}" data-src="${esc(m.source)}" data-q="${esc(q)}">
-      <div class="sh"><span><b>${esc(m.sender)}</b> · ${esc(m.chat)}${srcTag(m.source)}</span><span>${ago(m.ts)}</span></div><div class="st">${hlQ(m.text,q)}</div></div>`).join("")
-      :`<div class="empty">没搜到「${esc(q)}」</div>`;
+  try{const rs=await api(`/api/messages?q=${encodeURIComponent(q)}&limit=80${SDAYS?`&since=${Math.floor(Date.now()/1000)-SDAYS*86400}`:""}${SRCF?`&source=${encodeURIComponent(SRCF)}`:""}`);
+    $("#clist").innerHTML=rs.length?`<div class="gd" style="margin:14px 0 2px;display:flex;gap:8px;align-items:center">找到 ${rs.length} 条${rs.length>=80?"（最近 80 条）":""}<span style="flex:1"></span>${[[0,"全部"],[1,"今天"],[7,"7天"],[30,"30天"]].map(([d,t])=>`<button class="sdf" data-d="${d}" style="border:1px solid var(--line);background:${SDAYS==d?"var(--ink)":"var(--card)"};color:${SDAYS==d?"var(--bg)":"var(--sub)"};border-radius:12px;padding:2px 9px;font-size:12px">${t}</button>`).join("")}</div>`+Object.entries(rs.reverse().reduce((g,m)=>((g[m.chat]=g[m.chat]||[]).push(m),g),{})).map(([chat,ms])=>`<div class="gd" style="margin:12px 0 2px">${esc(chat)} · ${ms.length}</div>`+ms.map(m=>`<div class="sres" data-chat="${esc(m.chat)}" data-src="${esc(m.source)}" data-q="${esc(q)}">
+      <div class="sh"><span><b>${esc(m.sender)}</b>${srcTag(m.source)}</span><span>${ago(m.ts)}</span></div><div class="st">${hlQ(m.text,q)}</div></div>`).join("")).join("")
+      :`<div class="empty">没搜到「${esc(q)}」${SDAYS?`<br><button class="sdf" data-d="0" style="margin-top:8px">取消时间限制</button>`:""}</div>`;
+    $$(".sdf").forEach(b=>b.onclick=()=>{SDAYS=+b.dataset.d;search(q)});
     $$(".sres").forEach(r=>r.onclick=()=>openChat(r.dataset.chat,r.dataset.q,r.dataset.src));
   }catch(e){toast(e.message)}
 },250);
