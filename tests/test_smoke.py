@@ -184,3 +184,12 @@ def test_weekly_digest_setting():
     c.post("/api/settings", json={"weekly_digest": False}, headers=AUTH)
     assert c.get("/api/settings", headers=AUTH).json()["weekly_digest"] is False
     c.post("/api/settings", json={"weekly_digest": True}, headers=AUTH)
+
+
+def test_export_and_keep_days():
+    r = c.get("/api/export", headers=AUTH)
+    j = r.json()
+    assert "attachment" in r.headers["content-disposition"] and "messages" in j and "bark_url" not in j["settings"]
+    c.post("/api/settings", json={"keep_days": 7}, headers=AUTH)
+    assert c.get("/api/settings", headers=AUTH).json()["keep_days"] == 7
+    c.post("/api/settings", json={"keep_days": 30}, headers=AUTH)
