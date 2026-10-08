@@ -920,3 +920,11 @@ def test_ui_has_modes_and_chat_assistant():
     for k in ("modeSheet", "/api/chat_mode", "swipeRow", "longPress", 'id="cmode"', 'id="g-q"', 'id="g-batch"', "/api/chat_suggest",
               'id="chatask"', "问问这个群", "我没看的这段讲了啥", "/api/chat_brief", "button class=\"cite\"", "jumpTo", "visualViewport", "qb_ask:", "askclr"):
         assert k in h, k
+
+
+def test_chats_expose_at_ids():
+    app_mod.save_sync = None
+    import asyncio
+    asyncio.run(app_mod.save("QQ", "角标群", "老师", "@我 交表", None, True))
+    ch = [x for x in c.get("/api/chats", headers=AUTH).json() if x["chat"] == "角标群"][0]
+    assert ch["at_ids"] and ch["ats"] == 1
