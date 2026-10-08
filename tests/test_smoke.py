@@ -303,3 +303,8 @@ def test_keyword_hit_reason_multi():
     s = {"vip": [], "keywords": ["截止", "DDL", "报名"], "muted": [], "levels": {}, "only_mode": False, "allowed": []}
     r = app_mod.hit_reason("群", "a", "报名截止 ddl 今天", False, s)
     assert r == "关键词「截止」、「DDL」、「报名」"
+
+
+def test_done_fold_ui():
+    html = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
+    assert "donebar" in html and "todos.fold" in html
