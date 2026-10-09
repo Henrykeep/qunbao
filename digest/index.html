@@ -661,6 +661,7 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
     <div class="group">
       <div class="row"><span class="rl">消息保留天数<small>超过的原文每天凌晨清理</small></span><select id="s-keep"><option value="7">7 天</option><option value="30">30 天</option><option value="90">90 天</option><option value="365">365 天</option></select></div>
       <div class="row"><span class="rl">导出备份<small>消息、总结、设置打包成 JSON</small></span><a class="btn" href="/api/export" download>导出</a></div>
+      <div class="row"><span class="rl">导出群报文字<small>当前待办、通知、各群要点，Markdown 格式</small></span><a class="btn" href="/api/digest.md?hours=24" download="群报.md">导出</a></div>
     </div>
   </div>
   <div class="sub" id="sub-acct" hidden>
