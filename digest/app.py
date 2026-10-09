@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.13"
+VERSION = "0.33.14"
 TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")   # 时间解析/免打扰/每日整理都按这个时区
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -21,6 +21,7 @@ NAPCAT_TOKEN = os.getenv("NAPCAT_TOKEN", "")
 WEB_USER = os.getenv("WEB_USER", "me")
 WEB_PASS = os.getenv("WEB_PASS", "")
 INGEST_TOKEN = os.getenv("INGEST_TOKEN", "")
+ONEBOT_TOKEN = os.getenv("ONEBOT_TOKEN", "")
 MAX_CHARS = int(os.getenv("MAX_CHARS", "60000"))
 KEEP_DAYS = int(os.getenv("KEEP_DAYS", "30"))
 NAPCAT_DATA = os.getenv("NAPCAT_DATA", "/napcat_qq")   # NapCat 的 QQ 数据目录（docker-compose 挂进来），用来清图片缓存
@@ -719,6 +720,11 @@ async def img_fresh(u: str, retry: int = 0):
 
 @app.post("/onebot")
 async def onebot(req: Request):
+    if ONEBOT_TOKEN:
+        auth = req.headers.get("Authorization", "")
+        tok = auth[7:] if auth.lower().startswith("bearer ") else (req.query_params.get("token") or "")
+        if not secrets.compare_digest(tok, ONEBOT_TOKEN):
+            raise HTTPException(401, "口令不对")
     e = await req.json()
     if e.get("post_type") == "meta_event":
         with db() as c:
