@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.32.8"
+VERSION = "0.32.9"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -608,6 +608,7 @@ def llm_err_text(code: int, text: str) -> str:
 
 LLM_TRIES = 5                 # 429 最多等 4 轮（3/8/20/45 秒，或按服务商的 Retry-After）
 LLM_429_WAITS = (3, 8, 20, 45)
+LLM_LAST_OK = [0.0]            # 最近一次调用成功的时间：判断「模型是好的，只是拒收这一块」还是「配置错了」
 LLM_COOL = [0.0]              # 全局冷却到这个时间点：被限流时所有调用一起等，而不是各自继续撞
 
 
@@ -617,6 +618,7 @@ def is_censored(code: int, text: str) -> bool:
         or "content you provided" in low or "敏感" in (text or "")
 
 
+REJECT_CODES = (451, 400, 413, 422)  # 模型拒收这一块内容（审核拦截 / 请求有问题 / 太长）：拆小跳过，不整个群卡死
 LLM_FATAL_CODES = (401, 402, 403, 404)  # 余额不足 / 密钥错误 / 地址或模型名错误：自动整理不重试，等设置变更或手动整理
 
 
@@ -689,6 +691,7 @@ async def llm(messages, as_json=False):
                 r.raise_for_status()
                 out = r.json()["choices"][0]["message"]["content"]
                 LLM_STATE.update(ok=True, err="", ts=int(time.time()), code=0, fail_since=0)
+                LLM_LAST_OK[0] = time.time()
                 kv_add("llm_calls", 1)
                 llm_log(kind)
                 return out
@@ -1230,19 +1233,24 @@ async def _update_chat(source, chat, rows, s, stats) -> bool:
         state = json.dumps({"summary": summary, "open_items": opens, "done_recent": done}, ensure_ascii=False)
         msgs = [{"role": "system", "content": chat_prompt(s, source, chat)},
                 {"role": "user", "content": f"旧状态：{state}\n新消息（{len(part)} 条）：\n" + "\n".join(x[2] for x in part)}]
-        try:
-            out = await llm(msgs, as_json=True)
-        except HTTPException as ex:
-            if _llm_code(ex) != 451:
-                raise
-            # 内容审核拦截：拆成两半各自重来；拆到 2 条以内还被拦就跳过这几条，水位照常前进，整个群不再卡死
+        def bisect_or_skip(why):
+            # 这一块被模型「拒收」（内容审核 / 请求本身有问题 / 反复吐不出合法 JSON）：重试同样内容没用。
+            # 拆成两半各自重来；拆到 2 条以内还不行就跳过这几条，水位照常前进，整个群不再卡死、待整理不再永远清不掉
             stats["calls"] += 1
             if len(part) > 2:
                 h = len(part) // 2
                 queue[:0] = [part[:h], part[h:]]
             else:
                 stats["skipped"] += len(part)
-                stats["blocked"] = stats.get("blocked", 0) + len(part)
+                stats[why] = stats.get(why, 0) + len(part)
+        try:
+            out = await llm(msgs, as_json=True)
+        except HTTPException as ex:
+            code = _llm_code(ex)
+            # 451 审核拦截一定是内容问题；400/413/422 也可能是模型名/参数配错了：只有最近 30 分钟模型成功响应过，才认定是这块内容的问题再拆小跳过
+            if code not in REJECT_CODES or (code != 451 and time.time() - LLM_LAST_OK[0] > 1800):
+                raise
+            bisect_or_skip("blocked")
             continue
         stats["calls"] += 1
         stats["sent"] += len(part)
@@ -1252,7 +1260,11 @@ async def _update_chat(source, chat, rows, s, stats) -> bool:
             out = await llm(msgs + [{"role": "assistant", "content": (out or "")[:500]},
                                     {"role": "user", "content": "上面不是合法 JSON。只输出一个完整的 JSON 对象，不要任何解释。"}], as_json=True)
             stats["calls"] += 1
-            d = _jparse(out)
+            try:
+                d = _jparse(out)
+            except HTTPException:  # 连问两次都不行：多半是这几条内容让模型犯迷糊，拆小再试，别永远卡在同一块
+                bisect_or_skip("garbled")
+                continue
         if isinstance(d.get("summary"), str) and d["summary"].strip():
             summary = d["summary"].strip()[:80]
         changed |= apply_changes(source, chat, d, {x[0]["id"] for x in part if x[0]["at_me"]})
@@ -2096,7 +2108,13 @@ def state(id: int | None = None, hours: int | None = None):
         for m in str(t.get("msg_ids") or "").split():
             if m.isdigit():
                 covered.add(int(m))
-    qs = [norm_title(t.get("quote") or "")[:16] for t in (body or {}).get("todos", []) if t.get("quote")]
+    qs = [(norm_title(t.get("quote") or "")[:16], t.get("key") or "") for t in (body or {}).get("todos", []) if t.get("quote")]
+    mid_key = {}  # 哪条待办「认领」了这条 @我 的消息：前端靠它判断 @我 算不算已处理（待办勾完成就不再算）
+    for t in (body or {}).get("todos", []):
+        for m in str(t.get("msg_ids") or "").split():
+            if m.isdigit():
+                mid_key.setdefault(int(m), t.get("key") or "")
+    at_by = lambda r: mid_key.get(r["id"]) or next((k for q, k in qs if q and q in norm_title(r["text"])), "")
     nowdt = datetime.now(TZ)
     for t in (body or {}).get("todos", []):
         dd = parse_due(t.get("due", ""), nowdt)
@@ -2113,6 +2131,7 @@ def state(id: int | None = None, hours: int | None = None):
         "llm_calls": int(kv_get("llm_calls", 0) or 0),
         "llm_hour": llm_calls_since(3600),
         "diff": todo_diff(digest_row(d), json.loads(pv["body"])) if d and pv else None,
+        "day_start": int(datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()),
         "digest_ts": d["ts"] if d else None,
         "hours": H,
         "is_latest": (not d) or d["id"] == latest,
@@ -2122,7 +2141,7 @@ def state(id: int | None = None, hours: int | None = None):
         "nchats": nchats,
         "chat_src": srcs,
         "at_me": [{"id": r["id"], "ts": r["ts"], "chat": r["chat"], "sender": r["sender"], "text": r["text"], "source": r["source"],
-                   "covered": r["id"] in covered or any(q and q in norm_title(r["text"]) for q in qs)} for r in ats],
+                   "covered": r["id"] in covered or any(q and q in norm_title(r["text"]) for q, _ in qs), "by": at_by(r)} for r in ats],
         "today": today,
         "links": extract_links(link_rows, s=s),
         "done": done,
