@@ -1266,3 +1266,17 @@ def test_img_rkey_swap():
     assert app_mod.swap_rkey(u.replace("1407", "1406"), k).endswith("rkey=NEWP")
     assert app_mod.swap_rkey("https://evil.com/download?fileid=1&rkey=x", k) == ""
     assert app_mod.swap_rkey("https://gchat.qpic.cn/gchatpic_new/1/2-3/0", k) == ""
+
+
+def test_clean_qq_cache(tmp_path):
+    import os as _o
+    pic = tmp_path / "nt_qq_x" / "nt_data" / "Pic" / "2026-10" / "Ori"; pic.mkdir(parents=True)
+    keep = tmp_path / "nt_qq_x" / "nt_db"; keep.mkdir(parents=True)
+    old, new, db_ = pic / "a.jpg", pic / "b.jpg", keep / "msg.db"
+    for f in (old, new, db_):
+        f.write_bytes(b"x" * 100)
+    t = time.time()
+    _o.utime(old, (t - 86400, t - 86400)); _o.utime(db_, (t - 86400, t - 86400))
+    n, freed = app_mod.clean_qq_cache(str(tmp_path), now=t)
+    assert n == 1 and freed == 100 and not old.exists() and new.exists() and db_.exists()
+    assert (tmp_path / "nt_qq_x" / "nt_data" / "Pic").is_dir()
