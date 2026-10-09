@@ -775,7 +775,7 @@ const SRC={"QQ":"s-qq","微信":"s-wx"};
 const srcTag=src=>src?`<span class="tag ${SRC[src]||""}">${esc(src)}</span>`:"";
 const srcBadge=src=>SRC[src]?`<span class="sb ${SRC[src]}">${src==="QQ"?"Q":"微"}</span>`:"";
 const hlAt=s=>esc(s).replace(/(@我|@全体成员|@所有人)/g,'<em class="at-hl">$1</em>');
-const hlQ=(s,q)=>{const e=hlAt(s);if(!q)return e;const qq=esc(q).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");return e.replace(new RegExp(qq,"gi"),m=>`<mark>${m}</mark>`)};
+const hlQ=(s,q)=>{const e=hlAt(s);if(!q)return e;const qq=esc(q).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");return e.split(/(<[^>]*>|&(?:amp|lt|gt|quot|#39);)/).map((x,i)=>i%2?x:x.replace(new RegExp(qq,"gi"),m=>`<mark>${m}</mark>`)).join("")};
 const debounce=(f,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>f(...a),ms)}};
 const ICON={
   clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
