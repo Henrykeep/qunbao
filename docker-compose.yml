@@ -21,5 +21,6 @@ services:
       - "8000:8000"          # 群报网页
     volumes:
       - ./data:/data
+      - ./napcat/qq:/napcat_qq   # 只用来定期清 QQ 的图片/视频/语音缓存（群报看图不靠它）
     depends_on:
       - napcat
