@@ -1374,14 +1374,14 @@ function msgHtml(ms,st){
     h+=`<div class="m ${cont?"cont":""} ${m.at_me?"atme":""}" data-s="${esc(m.sender)}" data-t="${esc(m.text)}" data-id="${m.id}"><div class="av sm" style="background:${avc(m.sender)}">${first(m.sender)}</div>
       <div class="mb">${cont?"":`<div class="who">${esc(m.sender)} · ${hm(new Date(m.ts*1000))}</div>`}<div class="bub">${bubText(m)}${m.imgs&&m.imgs.length?`<div class="thumbs">${m.imgs.map(u=>`<img loading="lazy" decoding="async" width="120" height="120" referrerpolicy="no-referrer" src="${esc(u)}" alt="图片" onerror="imgGone(this)">`).join("")}</div>`:""}</div></div></div>`;
   }
-  return {h,st:{day:lastDay,sender:lastSender,ts:lastTs,id:ms.length?ms[ms.length-1].id:st.id}};
+  return {h,st:{day:lastDay,sender:lastSender,ts:lastTs,id:ms.length?Math.max(st.id||0,...ms.map(m=>m.id)):st.id}};
 }
 function renderMsgs(ms,prepend){
   if(!ms.length&&!prepend){$("#cmsgs").innerHTML='<div class="empty">这个群还没有消息</div>';CHATTAIL={day:"",sender:"",ts:0,id:0};return}
-  if(ms.length)oldest=ms[0].id;
+  if(ms.length)oldest=Math.min(...ms.map(m=>m.id));
   let h="";
   if(ms.length>=6||prepend&&ms.length)h+=`<button class="more-btn" id="older">更早的消息</button>`;
-  if(!prepend)window._rlDone=!!(READ0&&ms.length&&ms[0].id>READ0);  // 第一条都比已读新：分隔线在更早的地方，不画
+  if(!prepend)window._rlDone=!!(READ0&&ms.length&&Math.min(...ms.map(m=>m.id))>READ0);  // 第一条都比已读新：分隔线在更早的地方，不画
   const r=msgHtml(ms,{day:"",sender:"",ts:0,id:0});h+=r.h;if(!prepend)CHATTAIL=r.st;
   const box=$("#cmsgs");
   if(prepend){$("#older")?.remove();const hBefore=document.body.scrollHeight;box.insertAdjacentHTML("afterbegin",h);window.scrollBy(0,document.body.scrollHeight-hBefore)}
