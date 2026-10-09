@@ -1178,3 +1178,22 @@ def test_history_one_per_day():
         hs = [d["headline"] for d in c.get("/api/digests", headers=AUTH).json()]
     assert hs[0] == "h0" and hs.count("old") == 1 and not any(h in hs for h in ("h1", "h2", "h5"))
     _fresh()
+
+
+def test_range_switch_is_pure_view():
+    import json as _j
+    _fresh()
+    with app_mod.db() as x:
+        x.execute("DELETE FROM digests")
+        x.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (int(time.time()), 24, _j.dumps({"headline": "今日头条", "todos": [], "notices": []})))
+    calls = int(app_mod.kv_get("llm_calls", 0) or 0)
+    with TestClient(app_mod.app) as cc:
+        for h in (72, 168, 24):
+            st = cc.get(f"/api/state?hours={h}", headers=AUTH).json()
+            assert st["hours"] == h and st["digest"]["headline"]
+        n = len(cc.get("/api/digests", headers=AUTH).json())
+    with app_mod.db() as x:
+        assert x.execute("SELECT COUNT(*) FROM digests").fetchone()[0] == 1   # 不新建一期
+    assert int(app_mod.kv_get("llm_calls", 0) or 0) == calls                 # 不调模型
+    assert n == 1
+    _fresh()
