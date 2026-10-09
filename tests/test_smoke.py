@@ -1163,3 +1163,18 @@ def test_429_global_cooldown_and_censor_detect():
         httpx.AsyncClient = real
         app_mod.LLM_KEY, app_mod.LLM_429_WAITS = old_key, old_waits
         app_mod.LLM_RETRY_WAIT = app_mod.LLM_RETRY_WAIT_OLD
+
+
+def test_history_one_per_day():
+    import json as _j
+    _fresh()
+    now = int(time.time())
+    with app_mod.db() as x:
+        x.execute("DELETE FROM digests")
+        for i in range(6):  # 旧版：同一天每半小时存一期
+            x.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (now - 600 * i, 24, _j.dumps({"headline": f"h{i}"})))
+        x.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (now - 86400 * 2, 24, _j.dumps({"headline": "old"})))
+    with TestClient(app_mod.app) as c:
+        hs = [d["headline"] for d in c.get("/api/digests", headers=AUTH).json()]
+    assert hs[0] == "h0" and hs.count("old") == 1 and not any(h in hs for h in ("h1", "h2", "h5"))
+    _fresh()
