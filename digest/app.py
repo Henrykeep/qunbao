@@ -1,5 +1,5 @@
 """群报：收集 QQ（NapCat / OneBot 11）和微信（通知转发）群消息，用大模型挑出重要的事和待办。"""
-import asyncio, contextlib, hashlib, json, os, re, secrets, sqlite3, time
+import asyncio, collections, contextlib, hashlib, json, os, re, secrets, sqlite3, time
 from difflib import SequenceMatcher
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, quote
@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.7"
+VERSION = "0.33.8"
 TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")   # 时间解析/免打扰/每日整理都按这个时区
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -852,6 +852,7 @@ LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "60"))  # 单次调用最多等这�
 LLM_TRIES = 5                 # 429 最多等 4 轮（3/8/20/45 秒，或按服务商的 Retry-After）
 LLM_429_WAITS = (3, 8, 20, 45)
 LLM_LAST_OK = [0.0]            # 最近一次调用成功的时间：判断「模型是好的，只是拒收这一块」还是「配置错了」
+_CALL_TS: collections.deque = collections.deque(maxlen=2000)   # 最近的模型请求时间
 LLM_COOL = [0.0]              # 全局冷却到这个时间点：被限流时所有调用一起等，而不是各自继续撞
 
 
@@ -927,6 +928,7 @@ async def llm(messages, as_json=False):
         wait = LLM_COOL[0] - time.time()
         if wait > 0:
             await asyncio.sleep(min(wait, 120))
+        _CALL_TS.append(time.time())  # 自动整理的全局限速看这个（含失败重试的请求）
         try:
             async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as cl:
                 r = await cl.post(f"{LLM_BASE}/chat/completions", json=body,
@@ -1211,12 +1213,34 @@ async def todo_snooze(req: Request):
 CHUNK_MSGS = int(os.getenv("CHUNK_MSGS", "120"))       # 单群新消息太多时，每块最多这么多条
 CHUNK_CHARS = int(os.getenv("CHUNK_CHARS", "6000"))   # 每块最多这么多字（约 token 上限的保守估计）
 LLM_PARALLEL = 4             # 手动/定时整理时同时整理的群数
-NOISE_WORDS = {"收到", "好的", "好", "好滴", "好哒", "嗯", "嗯嗯", "ok", "okk", "okay", "谢谢", "谢谢老师", "多谢", "感谢",
-               "哈", "哈哈", "哈哈哈", "哈哈哈哈", "哈哈哈哈哈", "1", "11", "111", "6", "66", "666", "6666", "牛", "牛啊",
-               "赞", "对", "对的", "是的", "可以", "行", "知道了", "明白", "了解", "晚安", "早", "早安", "在", "在吗", "嘿嘿",
-               "嗯呢", "好嘞", "收到收到", "好的收到", "收到谢谢", "辛苦了", "辛苦", "确实", "真的", "笑死", "啊这", "草"}
+# 0.34：噪音只跳过「跟一个表情一样没内容」的：整条就是附和/客套/笑（可能是回答的「可以」「行」「对」「在」不算噪音，照样送模型）
+NOISE_WORDS = {"收到", "收到收到", "好的收到", "收到谢谢", "好的", "好滴", "好哒", "好嘞", "嗯嗯", "嗯呢", "嗯", "ok", "okk", "okay",
+               "谢谢", "谢谢老师", "多谢", "感谢", "哈", "哈哈", "哈哈哈", "哈哈哈哈", "哈哈哈哈哈", "1", "11", "111", "6", "66", "666", "6666",
+               "牛", "牛啊", "赞", "知道了", "明白", "了解", "晚安", "早安", "嘿嘿", "辛苦了", "辛苦", "笑死", "啊这", "草"}
 PLACEHOLDER_RE = re.compile(r"^(\s*\[(图片|表情|动画表情|语音|视频|文件|卡片|聊天记录|红包|位置|名片)\]\s*)+$")
+# 只有这几种占位符算噪音（纯图片 / 表情 / 贴纸，没有文字）；[文件][聊天记录][卡片][语音][红包] 可能就是通知，照样送模型
+NOISE_PH = {"图片", "表情", "动画表情", "贴纸", "动画", "emoji"}
 RECALL_RE = re.compile(r"撤回了一条消息|撤回一条消息|recalled a message")
+SYS_RE = re.compile(r"^\s*\S{0,24}?(?:邀请\S{0,40}?加入了群聊|加入了群聊|加入本群|退出了群聊|被移出群聊|被移出了群聊|修改群名(?:称)?为\S{0,40}|"
+                    r"拍了拍\S{0,30}|开启了全员禁言|关闭了全员禁言|被设置为管理员|被取消了管理员|成为新群主)\s*[。.]?\s*$")
+
+
+def is_noise(text: str) -> bool:
+    """极保守的噪音：空 / 撤回 / 群系统提示 / 只有图片表情贴纸没有文字 / 整条只是附和客套或笑。拿不准一律不算。"""
+    t = (text or "").strip()
+    if not t or RECALL_RE.search(t) or (len(t) <= 80 and SYS_RE.match(t)):
+        return True
+    toks = re.findall(r"\[([^\[\]]{1,6})\]", t)
+    rest = re.sub(r"\[[^\[\]]{1,6}\]", "", t)
+    core = re.sub(r"[\s\W_]+", "", rest.lower())
+    if toks and not core:  # 只有 [xx] 占位符 / 微信小表情：全是图片表情贴纸类才算噪音，有 [文件] 之类的照样送
+        return all(x in NOISE_PH or (x not in ("文件", "卡片", "聊天记录", "红包", "位置", "名片", "语音", "视频", "链接", "小程序", "转账", "群公告", "公告")
+                                     and len(x) <= 4 and not re.search(r"\d", x)) for x in toks)
+    if not core:  # 纯 emoji / 标点
+        return True
+    return core in NOISE_WORDS or bool(re.fullmatch(r"(哈|呵|嘿|嘻)+|6+|1+|\+1", core))
+
+
 KEY_RE = re.compile(r"\d{1,2}[:：点时]\d{0,2}|\d{1,2}月\d{1,2}|\d{1,2}[/-]\d{1,2}|周[一二三四五六日天]|星期|今天|明天|后天|今晚|明早|下周|"
                     r"[¥￥]\s?\d|\d+(\.\d+)?\s?(元|块)|https?://|通知|截止|ddl|务必|提交|上交|缴费|交费|报名|考试|开会|会议|签到|作业|报告|"
                     r"取消|改到|推迟|提前|地点|集合", re.I)
@@ -1225,6 +1249,24 @@ ITEM_FIELDS = ("detail", "due", "urgency", "quote")
 AD_RE = re.compile(r"券后|优惠券|领券|返利|返现|包邮|秒杀|神价|线报|速度冲|速冲|复制这条|打开手淘|淘口令|￥[A-Za-z0-9]{6,}￥|"
                    r"砍一刀|帮我砍|助力一下|拼多多|yangkeduo|pinduoduo|m\.tb\.cn|u\.jd\.com|s\.click\.taobao|uland\.taobao|"
                    r"代取快递|代拿|跑腿|可小刀|出闲置|低价出|私聊下单|招代理|兼职日结|刷单", re.I)
+# 0.34：只有「高置信度广告」才不送模型：至少两类强特征同时命中（其中一类是促销/拼团/代取兼职），且不带任何通知类字眼。
+# 拿不准一律送模型（例：「缴费链接今晚截止 https://… ¥50」只命中 链接+金额，照样送）
+AD_CATS = (("promo", re.compile(r"券后|优惠券|领券|返利|返现|包邮|秒杀|神价|线报|速度冲|速冲|到手价|历史低价|好价|白菜价|限时抢", re.I)),
+           ("shop", re.compile(r"淘口令|￥[A-Za-z0-9]{6,}￥|复制这条|打开手淘|打开淘宝|m\.tb\.cn|u\.jd\.com|s\.click\.taobao|uland\.taobao|yangkeduo|pinduoduo|拼多多|item\.jd\.com|tb\.cn/", re.I)),
+           ("chop", re.compile(r"砍一刀|帮我砍|助力一下|帮忙助力|点一下助力")),
+           ("gig", re.compile(r"代取快递|代拿|跑腿|可小刀|出闲置|低价出|私聊下单|招代理|兼职日结|日结|刷单|宝妈")),
+           ("price", re.compile(r"[¥￥]\s?\d+(?:\.\d+)?|\d+(?:\.\d+)?\s?元")))
+AD_VETO = re.compile(r"缴费|交费|班费|学费|报名费|资料费|书费|通知|老师|辅导员|导员|班主任|班长|学委|团支书|学院|作业|考试|开会|班会|签到|查寝|点名|@全体|@所有人|截止前|务必|学校")
+
+
+def is_ad_sure(text: str) -> bool:
+    t = text or ""
+    if AD_VETO.search(t):
+        return False
+    cats = {n for n, rx in AD_CATS if rx.search(t)}
+    return len(cats) >= 2 and bool(cats & {"promo", "chop", "gig"})
+
+
 URL_ONLY_RE = re.compile(r"https?://\S+")
 
 
@@ -1275,14 +1317,11 @@ def classify(r, s) -> str:
         return "drop"
     if r["at_me"]:
         return "key"
-    if not text or RECALL_RE.search(text) or PLACEHOLDER_RE.match(text) or AD_RE.search(text):
+    vip = bool(r["sender"] and any(v and v in r["sender"] for v in s.get("vip") or []))
+    if is_noise(text) or (not vip and is_ad_sure(text)):  # 0.34：噪音极保守，广告只跳高置信度的；其余一律送模型，由模型判断
         return "drop"
-    if (KEY_RE.search(text) or any(k and k.lower() in text.lower() for k in s.get("keywords") or [])
-            or (r["sender"] and any(v and v in r["sender"] for v in s.get("vip") or []))):
+    if KEY_RE.search(text) or any(k and k.lower() in text.lower() for k in s.get("keywords") or []) or vip:
         return "key"
-    core = re.sub(r"[\s\W_]+", "", text.lower())
-    if core in NOISE_WORDS or len(core) <= 2 or re.fullmatch(r"(哈|呵|嘿|啊|哦|噢|嗯|6|1|\+)+", core or "x"):
-        return "drop"
     return "key" if mode == "focus" else "keep"
 
 
@@ -1895,29 +1934,42 @@ async def _make_digest(hours=24, auto=False, full=False):
     return body
 
 
-# ================= 近实时自动整理（0.32）：按群触发，整理完局部更新首页 =================
-# 每 5 秒（或收到消息时立刻）做一次便宜的 SQL 判断：哪个群的待整理新消息（已排除噪音、只看@我、不看）满足
-# 「安静 20 秒 / 攒满 20 条 / 要紧消息 / 最迟 90 秒」，就只整理这个群；同群至少隔 45 秒，全局最多 4 个群并发。
-AUTO_TICK = 5                 # 后台检查周期（秒）
-AUTO_QUIET = 20               # 群里安静 20 秒就整理
+# ================= 近实时自动整理（0.32 → 0.34 智能触发）：按群触发，整理完局部更新首页 =================
+# 收到消息立刻唤醒调度器，做一次便宜的判断（不调模型）：
+#   要紧消息（@我/@全体、重点群、规则认得的查寝/点名/考试/开会/交作业/缴费+时间、立刻/马上/紧急、重要的人、订阅关键词）
+#     → 安静 1 秒或最多 2 秒就单独整理这个群，不受同群最小间隔限制；
+#   普通消息 → 安静 5 秒 / 攒满 20 条 / 最多等 15 秒；同一个群两次「普通」整理至少隔 15 秒（从上次开始算）；
+#   噪音（纯图片表情贴纸、撤回、系统提示、附和客套、高置信度广告、不看 / 只看@我 的群）→ 不调模型，水位直接前进；
+#   正在整理时又来了新消息 → 这次一结束就接着整理（普通消息仍受 15 秒间隔）；
+#   兜底：任何一条非噪音消息等了 30 秒，不管间隔、不管排队，排最前面整理（「要紧 / 普通」只决定快慢，绝不决定送不送模型）。
+# 成本保护：每次只送这个群上次以来的增量；全局 1 分钟内模型调用达到 AUTO_RPM 次时，普通消息暂缓（要紧 / 30 秒兜底照常）；
+# 被 429 限流时全局冷却期间不启动新的整理；每次整理的条数 / 调用次数 / 耗时 / 等待时间记在日志（/api/auto/log）。
+AUTO_TICK = 5                 # 后台检查周期（秒）；收到消息时立刻唤醒，不等这 5 秒
+AUTO_QUIET = 5                # 普通消息：群里安静 5 秒就整理（一段对话说完再整理，避免一句一调）
 AUTO_BURST = 20               # 或攒满 20 条
-AUTO_MAX_WAIT = 60            # 持续刷屏也最迟 60 秒整理一次（防抖不能被无限推迟）
-AUTO_FORCE = 60               # 巡检兜底：任何一条待整理消息等了 60 秒，不管最小间隔，立刻排上（排在最前）
+AUTO_MAX_WAIT = 15            # 持续刷屏也最多等 15 秒
+AUTO_FORCE = 30               # 兜底：任何一条非噪音消息等了 30 秒，不管最小间隔，立刻排上（排在最前）
 AUTO_RUN_LIMIT = int(os.getenv("AUTO_RUN_LIMIT", "100"))  # 单个群一次自动整理最多跑这么久，超时算失败，不让「正在整理」挂着不动
 AUTO_GIVEUP_N = 3             # 同一个群连续失败 3 次、而别的群期间整理成功过（模型是好的，是这几条有问题）：
 AUTO_GIVEUP_SECS = 180        # 或待整理消息已等 3 分钟且失败过 2 次：按规则兜底提取待办后跳过，水位前进，待整理清零
 AUTO_GIVEUP_HARD = 600        # 硬上限：任何待整理消息最多挂 10 分钟（模型整体故障也一样；余额不足/密钥错这类要你处理的除外）
-AUTO_URGENT_QUIET = 2         # 要紧消息（@我/@全体/重点群里带时间金额通知）：安静 2 秒（连发的几句凑一批）
-AUTO_URGENT_WAIT = 5          # 最多等 5 秒；加上模型耗时，10 秒内上首页
-AUTO_MIN_GAP = 45             # 同一个群两次整理至少隔 45 秒
-AUTO_URGENT_GAP = 10          # 要紧消息只要求隔 10 秒（否则 @我 可能要等 45 秒）
-AUTO_PARALLEL = 6             # 全局最多同时整理 6 个群
-AUTO_BACKOFF0, AUTO_BACKOFF_MAX = 10, 60    # 失败退避 10s → 20s → 40s → 最多 60 秒（以前最多 10 分钟：别的群照常成功，这个群的几条就一直挂着）
+AUTO_URGENT_QUIET = 1         # 要紧消息：安静 1 秒（同一个人连发的两三句凑一批）
+AUTO_URGENT_WAIT = 2          # 最多等 2 秒；加上唤醒延迟约 2–3 秒开始整理
+AUTO_MIN_GAP = 15             # 同一个群两次「普通」整理至少隔 15 秒（只管闲聊；要紧消息和 30 秒兜底不受限）
+AUTO_URGENT_GAP = 0           # 要紧消息不等间隔
+AUTO_PARALLEL = int(os.getenv("AUTO_PARALLEL", "6"))   # 全局最多同时整理 6 个群
+AUTO_RPM = int(os.getenv("AUTO_RPM", "30"))            # 全局 1 分钟内模型调用到这个数，普通消息暂缓（防限流）；要紧和兜底不受限
+AUTO_BACKOFF0, AUTO_BACKOFF_MAX = 10, 60    # 失败退避 10s → 20s → 40s → 最多 60 秒
 AUTO_FAIL_SHOW = 300          # 连续失败 5 分钟才在页面提示
 HEAD_GAP = 600                # 头条最多 10 分钟用模型重写一次；其间出现新的要紧事项用规则拼
-AUTO = {"running": {}, "last_run": {}, "fail": {}, "fatal": None, "ok_ts": 0.0, "done_ts": 0}
+AUTO = {"running": {}, "last_run": {}, "last_end": {}, "fail": {}, "fatal": None, "ok_ts": 0.0, "done_ts": 0}
 AUTO_TASKS: set = set()
+AUTO_LOG: collections.deque = collections.deque(maxlen=500)   # 每次自动整理：群、原因、条数、送模型条数、调用次数、耗时、最久等待
 _BUMP = [0]
+URGENT_WORDS = re.compile(r"立刻|马上|立即|紧急|速来|尽快|赶紧|火速|十万火急")
+# 交作业 / 交报告 / 报名 / 截止这类「带时间的要你做的事」：只用来走快车道（不影响送不送模型，也不生成规则待办）
+DUE_TASK_RE = re.compile(r"交作业|交报告|交材料|交表|提交|上交|作业|实验报告|报名|缴费|交费|截止|ddl|签到|打卡|填表|填报|问卷", re.I)
+DUE_WHEN_RE = re.compile(r"今天|今晚|今日|明天|明早|明晚|后天|下周|本周|这周|周[一二三四五六日天]|星期[一二三四五六日天]|\d{1,2}月\d{1,2}|\d{1,2}[:：]\d{2}|\d{1,2}\s*点|[一二三四五六七八九十]{1,3}点|月底|之前|以前|前交")
 
 
 def bump():
@@ -1928,11 +1980,47 @@ def _shash(s: dict) -> str:
     return hashlib.md5(json.dumps(s, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
+_urg_cache = {"key": None, "v": {}}
+
+
 def is_urgent(r, s) -> bool:
+    """要紧 = 走快车道（约 3 秒内整理）。只影响快慢：不要紧的消息最迟 30 秒也一定送模型。"""
+    key = _shash(s)
+    if _urg_cache["key"] != key or len(_urg_cache["v"]) > 100000:
+        _urg_cache.update(key=key, v={})
+    ck = (r["id"], r["source"], r["chat"]) if "id" in r.keys() else None
+    if ck is not None and ck in _urg_cache["v"]:
+        return _urg_cache["v"][ck]
+    v = _is_urgent(r, s)
+    if ck is not None:
+        _urg_cache["v"][ck] = v
+    return v
+
+
+def _is_urgent(r, s) -> bool:
     t = r["text"] or ""
     if r["at_me"] or "@全体" in t or "@所有人" in t:
         return True
-    return chat_mode(r["source"], r["chat"], s) == "focus" and classify(r, s) == "key" and bool(KEY_RE.search(t))
+    if chat_mode(r["source"], r["chat"], s) == "focus":
+        return True
+    if r["sender"] and any(v and v in r["sender"] for v in s.get("vip") or []):
+        return True
+    if any(k and k.lower() in t.lower() for k in s.get("keywords") or []):
+        return True
+    if URGENT_WORDS.search(t):
+        return True
+    if DUE_TASK_RE.search(t) and DUE_WHEN_RE.search(t) and not re.search(r"[吗嘛？?]\s*$", t):
+        return True
+    with contextlib.suppress(Exception):
+        if rule_event(r):
+            return True
+    return False
+
+
+def _rpm_now(now: float) -> int:
+    while _CALL_TS and _CALL_TS[0] < now - 60:
+        _CALL_TS.popleft()
+    return sum(1 for x in _CALL_TS if x <= now)
 
 
 def auto_blocked(s: dict):
@@ -1948,14 +2036,17 @@ def auto_blocked(s: dict):
 
 
 def auto_plan(s: dict, now: float | None = None):
-    """返回 (ready, next_due)。ready = [(群, 待整理消息, 原因)]，要紧的排前面；next_due = 最近一个还没到点的群的到期时间。"""
+    """返回 (ready, next_due)。ready = [(群, 待整理消息, 原因)]，等太久的排最前；next_due = 最近一个还没到点的群的到期时间。"""
     now = now or time.time()
     if not s.get("auto_on") or auto_blocked(s):
         return [], None
+    if LLM_COOL[0] > now:  # 被限流：冷却期间不启动新整理（启动了也只是在 llm() 里干等，白占单次 100 秒上限）
+        return [], LLM_COOL[0]
     rows, _ = pending_info(s)
     by = {}
     for r in rows:
         by.setdefault((r["source"], r["chat"]), []).append(r)
+    busy = _rpm_now(now) >= AUTO_RPM
     ready, nxt = [], None
     for k, rs in by.items():
         if k in AUTO["running"]:
@@ -1965,24 +2056,32 @@ def auto_plan(s: dict, now: float | None = None):
         cands = [(last + AUTO_QUIET, "quiet"), (first + AUTO_MAX_WAIT, "maxwait")]
         if len(arr) >= AUTO_BURST:
             cands.append((arr[AUTO_BURST - 1], "burst"))
+        start, end = AUTO["last_run"].get(k, 0), AUTO["last_end"].get(k, 0)
+        if end >= start > 0 and any(start < a <= end for a in arr):  # 上次整理进行中来的消息：一结束就接着整理
+            cands.append((end, "follow"))
         urg = [min(ARRIVE.get(r["id"], r["ts"]), now) for r in rs if is_urgent(r, s)]
         if urg:
             cands.append((min(last + AUTO_URGENT_QUIET, min(urg) + AUTO_URGENT_WAIT), "urgent"))
         due, why = min(cands)
-        due = max(due, AUTO["last_run"].get(k, 0) + (AUTO_URGENT_GAP if urg else AUTO_MIN_GAP))
+        if not urg:  # 同群最小间隔只管闲聊
+            due = max(due, start + AUTO_MIN_GAP)
+            if busy:  # 全局调用快到上限：闲聊暂缓（30 秒兜底照常）
+                due = max(due, now + 2)
         f = AUTO["fail"].get(k)
         if f:
             due = max(due, f["until"])
         force = first + AUTO_FORCE
-        if force <= now and not (f and f["until"] > now):  # 巡检兜底：等了 60 秒还没整理，不管最小间隔，立刻排最前
+        if force <= now and not (f and f["until"] > now):  # 兜底：等了 30 秒还没整理，不管间隔，立刻排最前
             due, why = min(due, force), "force"
+        elif not f:
+            due = min(due, force)
         if due <= now:
-            ready.append((why != "force", due, k, rs, why))
+            ready.append((why != "force", 0 if urg else 1, due, k, rs, why))
         else:
             nxt = due if nxt is None else min(nxt, due)
-    # 先排等太久的，再按到点先后（要紧消息本来就到点早）：以前要紧群永远排在前面，忙的时候普通群的几条可能一直轮不上
-    ready.sort(key=lambda x: (x[0], x[1]))
-    return [(k, rs, why) for _, _, k, rs, why in ready], nxt
+    # 先排等太久的，再排要紧的，再按到点先后
+    ready.sort(key=lambda x: (x[0], x[1], x[2]))
+    return [(k, rs, why) for _, _, _, k, rs, why in ready], nxt
 
 
 def auto_sweep(s: dict):
@@ -2017,7 +2116,7 @@ def _llm_code(ex) -> int:
     return _int(h.get("x-llm-code")) or 0
 
 
-async def auto_run_chat(k, rows, s, now: float | None = None):
+async def auto_run_chat(k, rows, s, now: float | None = None, why: str = ""):
     """只整理一个群；成功后局部刷新首页那一期（不整篇重写）。"""
     now = now or time.time()
     AUTO["running"][k] = now
@@ -2025,6 +2124,8 @@ async def auto_run_chat(k, rows, s, now: float | None = None):
     bump()
     stats = {"new": len(rows), "sent": 0, "calls": 0, "chats": 1, "changed": 0, "secs": 0.0, "errors": 0, "skipped": 0}
     t0 = time.time()
+    waited = max(0.0, now - min((min(ARRIVE.get(r["id"], r["ts"]), now) for r in rows), default=now))
+    ok = False
     try:
         try:
             changed = await asyncio.wait_for(update_chat(k[0], k[1], rows, s, stats), AUTO_RUN_LIMIT)
@@ -2040,6 +2141,7 @@ async def auto_run_chat(k, rows, s, now: float | None = None):
             await refresh_live(s, stats, now, bg_head=True)
         AUTO["done_ts"] = int(time.time())
         kv_set("checked_ts", AUTO["done_ts"])
+        ok = True
         return changed
     except Exception as ex:
         code = _llm_code(ex)
@@ -2065,7 +2167,25 @@ async def auto_run_chat(k, rows, s, now: float | None = None):
         return None
     finally:
         AUTO["running"].pop(k, None)
+        AUTO["last_end"][k] = time.time()
+        secs = round(time.time() - t0, 2)
+        AUTO_LOG.append({"ts": int(now), "chat": k[1], "source": k[0], "why": why, "n": len(rows), "sent": stats["sent"],
+                         "calls": stats["calls"], "secs": secs, "wait": round(waited, 1), "ok": ok})
+        print(f"自动整理 {k[1]}（{why or '-'}）：{len(rows)} 条，送模型 {stats['sent']} 条，调用 {stats['calls']} 次，"
+              f"用时 {secs} 秒，最早一条等了 {waited:.1f} 秒{'' if ok else '，失败'}")
         bump()
+        wake_auto()  # 整理期间又来的消息：马上排下一轮
+
+
+def auto_log_summary(sec: int = 3600) -> dict:
+    """最近一段时间自动整理的真实成本：次数、调用次数、送模型条数、等待时间中位/最慢。"""
+    cut = time.time() - sec
+    rs = [x for x in AUTO_LOG if x["ts"] >= cut]
+    w = sorted(x["wait"] + x["secs"] for x in rs if x["ok"])
+    return {"runs": len(rs), "calls": sum(x["calls"] for x in rs), "msgs": sum(x["n"] for x in rs), "sent": sum(x["sent"] for x in rs),
+            "fails": sum(1 for x in rs if not x["ok"]), "avg_secs": round(sum(x["secs"] for x in rs) / len(rs), 1) if rs else 0,
+            "p50_latency": w[len(w) // 2] if w else 0, "max_latency": w[-1] if w else 0,
+            "by_why": {k: sum(1 for x in rs if x["why"] == k) for k in sorted({x["why"] for x in rs})}}
 
 
 def give_up_chat(k, rows, why=""):
@@ -2171,7 +2291,7 @@ async def auto_tick(s: dict | None = None, now: float | None = None) -> float | 
     room = AUTO_PARALLEL - len(AUTO["running"])
     for k, rs, why in ready[:max(0, room)]:
         AUTO["running"][k] = now or time.time()  # 先占位，避免下一轮重复启动
-        t = asyncio.create_task(auto_run_chat(k, rs, s, now))
+        t = asyncio.create_task(auto_run_chat(k, rs, s, now, why))
         AUTO_TASKS.add(t)
         t.add_done_callback(AUTO_TASKS.discard)
     if len(ready) > room:
@@ -2689,6 +2809,15 @@ def rev():
     with db() as c:
         mrev = c.execute("SELECT COALESCE(MAX(id),0) FROM msgs").fetchone()[0]
     return {"rev": data_rev(s), "auto": auto_status(s), "pending": pend, "updated_ts": updated_ts(), "mrev": mrev}
+
+
+@app.get("/api/auto/log", dependencies=[Depends(auth)])
+def auto_log(limit: int = 100):
+    """自动整理的真实成本：最近每次整理的群 / 原因 / 条数 / 送模型条数 / 调用次数 / 耗时 / 等待，及最近 1 小时、24 小时汇总。"""
+    return {"recent": list(AUTO_LOG)[-max(1, min(limit, 500)):][::-1], "hour": auto_log_summary(3600), "day": auto_log_summary(86400),
+            "params": {"quiet": AUTO_QUIET, "burst": AUTO_BURST, "max_wait": AUTO_MAX_WAIT, "force": AUTO_FORCE, "urgent_quiet": AUTO_URGENT_QUIET,
+                       "urgent_wait": AUTO_URGENT_WAIT, "min_gap": AUTO_MIN_GAP, "parallel": AUTO_PARALLEL, "rpm": AUTO_RPM},
+            "llm_hour": llm_calls_since(3600)}
 
 
 @app.post("/api/digest", dependencies=[Depends(auth)])
