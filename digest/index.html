@@ -138,6 +138,8 @@ h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
 .chip svg,.chip .tag{flex:none}
 .chip svg{width:11px;height:11px}
 .chip.due{background:color-mix(in srgb,var(--u) 13%,transparent);color:var(--u);font-weight:600}
+.chip.due.late{background:color-mix(in srgb,var(--red,#e5484d) 14%,transparent);color:var(--red,#e5484d)}
+.diffline[hidden]{display:none}
 .chip.cal{text-decoration:none;color:var(--accent);font-weight:600}
 .chip.more svg{transition:transform .3s var(--ease)}
 .todo.open .chip.more svg{transform:rotate(180deg)}
@@ -467,6 +469,7 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
 .pend i.wait{background:var(--amber)}
 .pend .plink{border:0;background:none;color:var(--accent);font:inherit;padding:0;text-decoration:underline}
 /* 左边缘右滑返回：被拖动的这一层跟手平移，背后露出上一层 */
+.nofx .view.on,.nofx .fade{animation:none!important}
 .under{display:block!important;position:fixed!important;left:0;right:0;top:0;height:100vh;overflow:hidden!important;z-index:0;pointer-events:none;animation:none!important}
 #edgeShade{position:fixed;inset:0;background:#000;opacity:0;z-index:1;pointer-events:none;display:none}
 .dragging{position:relative;z-index:2;background:var(--bg);min-height:100vh;box-shadow:-10px 0 28px rgba(0,0,0,.35);will-change:transform}
@@ -795,6 +798,8 @@ window.addEventListener("popstate",e=>{
   if(POPWAIT){POPWAIT--;if(!POPWAIT){const q=NAVQ;NAVQ=[];q.forEach(f=>f())}return}
   const d=(e.state&&e.state.qb)||0;while(NAV.length>d)NAV.pop().close();
 });
+// 滚动位置由各层自己恢复；浏览器自动恢复会在返回后把页面又拽回别处（右滑返回后跳一下）
+if("scrollRestoration" in history)history.scrollRestoration="manual";
 history.replaceState({qb:0},"",location.pathname+location.search+location.hash);
 
 /* ---------- 标签页 ---------- */
@@ -875,22 +880,23 @@ function render(st,live){
   const isDone=t=>!!t.done||done.has(doneKey(t)),isPin=t=>!!t.pinned||pins.has(doneKey(t));
   const todos=d.todos||[],notices=d.notices||[],allAts=st.at_me||[],ps=st.per_src||{},per=st.per_chat||{};
   const ats=allAts.filter(a=>!a.covered),covered=allAts.length-ats.length;
-  const open=todos.filter(t=>!isDone(t)),now=Date.now()/1000,soon=open.filter(t=>t.due_ts&&t.due_ts-now<48*3600&&t.due_ts>now-86400).length;
+  const open=todos.filter(t=>!isDone(t)),now=Date.now()/1000,soon=open.filter(t=>t.due_ts&&t.due_ts-now<48*3600&&t.due_ts>now).length;
   const gN=g=>ps[(g.source||"QQ")+"|"+g.chat]??per[g.chat]??0;
   const groups=(d.groups||[]).map(g=>({...g,n:gN(g)})).sort((a,b)=>(b.open||0)-(a.open||0)||(b.focus?1:0)-(a.focus?1:0)||b.n-a.n);
   const maxN=Math.max(1,...groups.map(g=>g.n));
   let h=`<div class="greet fade">${st.is_latest?greet()+" · ":""}${RANGE[st.hours]||"最近"} ${d.count??0} 条消息 · ${d.chats??0} 个群</div>
   <div class="headline fade">${esc(d.headline)}</div>
   <div class="stats fade"><div class="stat"><div class="n" id="prog-n">${open.length}</div><div class="l">件待办</div></div>
-  <div class="stat ${soon?"hot":""}"><div class="n">${soon}</div><div class="l">48 小时内截止</div></div>
-  <div class="stat ${ats.length?"hot":""}"><div class="n">${allAts.length}</div><div class="l">条 @我</div></div></div>`;
+  <div class="stat ${soon?"hot":""}" id="st-soon"><div class="n">${soon}</div><div class="l">48 小时内截止</div></div>
+  <div class="stat" id="st-at"><div class="n">0</div><div class="l">条 @我 没处理</div></div></div>`;
+  window._atCov=allAts.filter(a=>a.covered).map(a=>a.by||"");window._atFree=ats.length;
 
-  h+=`<section data-sec="todo"><h2>要你做的 <span class="c">${open.length||""}</span></h2>${st.diff&&st.diff.new.length?`<div class="diffline">较上一期新增 <b>${st.diff.new.length}</b> 件</div>`:""}<div class="todos" id="todos">`;
+  h+=`<section data-sec="todo"><h2>要你做的 <span class="c">${open.length||""}</span></h2><div class="diffline" hidden></div><div class="todos" id="todos">`;
   h+=todos.length?todos.map((t,i)=>{const det=t.detail&&!dupText(t.title,t.detail)?t.detail:"",src=t.source||(st.chat_src||{})[t.chat];
-    return `<div class="todo ${esc(t.urgency||"mid")} ${isDone(t)?"done":""} ${isPin(t)?"pinned":""} fade" style="animation-delay:${i*30}ms" data-i="${i}" data-k="${esc(doneKey(t))}" data-chat="${esc(t.chat)}" data-src="${esc(src||"")}" data-mid="${esc(String(t.msg_ids||"").split(" ")[0]||"")}" data-q="${esc(t.quote||"")}">
+    return `<div class="todo ${esc(t.urgency||"mid")} ${isDone(t)?"done":""} ${isPin(t)?"pinned":""} fade" style="animation-delay:${i*30}ms" data-i="${i}" data-k="${esc(doneKey(t))}" data-ik="${esc(t.key||"")}" data-due="${t.due_ts||""}" data-first="${t.first_ts||""}" data-chat="${esc(t.chat)}" data-src="${esc(src||"")}" data-mid="${esc(String(t.msg_ids||"").split(" ")[0]||"")}" data-q="${esc(t.quote||"")}">
     <button class="check" aria-label="完成"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i></button>
     <div class="tbody"><div class="t">${isPin(t)?'<span class="pinmark">置顶</span>':""}${esc(t.title)}</div>${det?`<div class="d">${esc(det)}</div>`:""}
-    <div class="meta">${t.due?`<span class="chip due">${ICON.clock}${esc(t.due)}</span>`:""}<span class="chip">${ICON.chat}<span class="cn2">${esc(t.chat)}</span>${srcTag(src)}</span>
+    <div class="meta">${t.due?`<span class="chip due ${t.due_ts&&t.due_ts<now&&!isDone(t)?"late":""}">${ICON.clock}${t.due_ts&&t.due_ts<now&&!isDone(t)?"已过 · ":""}${esc(t.due)}</span>`:""}<span class="chip">${ICON.chat}<span class="cn2">${esc(t.chat)}</span>${srcTag(src)}</span>
       <span class="chip more" aria-hidden="true">${ICON.down}</span></div>
     ${t.quote?`<div class="quote"><div><blockquote>${hlAt(t.quote)}<cite>— ${esc(t.sender||"")}${t.sender?" · ":""}${esc(t.chat)}</cite></blockquote></div></div>`:""}
     <div class="acts2"><button class="go">去原文${ICON.arrow}</button><button class="pinb">${isPin(t)?"取消置顶":"置顶"}</button><button class="snz">稍后提醒</button>${t.due?`<a class="cal" href="/api/ics?${new URLSearchParams({title:t.title,due:t.due,detail:t.detail||"",chat:t.chat||""})}">加到日历</a>`:""}</div></div></div>`}).join("")
@@ -939,7 +945,7 @@ function render(st,live){
       const on=!el.classList.contains("done");el.classList.toggle("done",on);el.classList.remove("open");el.querySelector(".snzmenu")?.remove();
       T.done=on;tick();updateProg();
       setTimeout(()=>sortTodos(true),on?420:0);
-      api("/api/todo",{...who,done:on}).catch(()=>toast("没保存上，网络不太好"));
+      api("/api/todo",{...who,done:on}).then(()=>refreshQuiet()).catch(()=>toast("没保存上，网络不太好"));
     };
     el.querySelector(".tbody").addEventListener("click",e=>{if(e.target.closest(".acts2,.snzmenu"))return;
       const on=!el.classList.contains("open");el.classList.toggle("open",on);
@@ -1015,6 +1021,19 @@ function updateProg(){
   if(bx&&bar){if(!bar._b){bx.classList.add("fold");bar._b=1;bar.onclick=()=>{bx.classList.toggle("fold");updateProg()}}
     bar.classList.toggle("on",done>0);bar.textContent=bx.classList.contains("fold")?`已完成 ${done} 项 · 展开`:`收起已完成`}
   $("#prog-n").textContent=String(all-done);
+  // 其余数字都跟着勾选实时重算，不等下一次刷新：待办数、48 小时内截止、没处理的 @我、今天新增
+  const now=Date.now()/1000,open=$$(".todo:not(.done)");
+  const soon=open.filter(e=>{const d=+e.dataset.due;return d&&d>now&&d-now<48*3600}).length;
+  const ss=$("#st-soon");if(ss){ss.querySelector(".n").textContent=String(soon);ss.classList.toggle("hot",soon>0)}
+  const openKeys=new Set(open.map(e=>e.dataset.ik).filter(Boolean));
+  const at=(window._atFree||0)+(window._atCov||[]).filter(k=>k&&openKeys.has(k)).length;
+  const sa=$("#st-at");if(sa){sa.querySelector(".n").textContent=String(at);sa.classList.toggle("hot",at>0)}
+  const hc=document.querySelector('[data-sec="todo"] h2 .c');if(hc)hc.textContent=all-done||"";
+  const dl=document.querySelector(".diffline");
+  if(dl&&ST){let n=0,label="今天新增";
+    if(ST.is_latest!==false&&ST.day_start)n=open.filter(e=>+e.dataset.first>=ST.day_start).length;
+    else if(ST.diff){n=(ST.diff.new||[]).length;label="较前一期新增"}
+    dl.hidden=!(n>0&&n<open.length);dl.innerHTML=`${label} <b>${n}</b> 件`}
 }
 function sortTodos(animate){
   const box=$("#todos");if(!box)return;const items=$$(".todo");
@@ -1239,7 +1258,7 @@ function showChatView(){
 async function openChat(chat,focus,src,msgId){
   const prev=curView,top=NAV[NAV.length-1],h0=chatHash(src||"",chat);
   if(top&&top.t==="chat")history.replaceState({qb:NAV.length},"",h0);  // 群里跳到另一个群：替换，不叠
-  else{const pv=$("#msgs-chat").hidden?prev:"msgs";navPush({t:"chat",prev:pv,close:()=>closeChatUI(pv)},h0)}
+  else{const pv=$("#msgs-chat").hidden?prev:"msgs",sy=window.scrollY;navPush({t:"chat",prev:pv,sy,close:()=>closeChatUI(pv,sy)},h0)}
   showChatView();
   chatName=chat;oldest=0;SENDERF="";$("#cfq").value="";$("#cfn").hidden=true;$("#msgs-list").hidden=true;$("#msgs-chat").hidden=false;
   if(!CHATS.length){try{CHATS=await api("/api/chats")}catch(e){}}
@@ -1370,8 +1389,9 @@ $("#cmsgs").addEventListener("click",e=>{const t=e.target.closest(".av.sm,.who")
 document.body.insertAdjacentHTML("beforeend",'<div id="imgbox" hidden><img alt=""></div>');
 $("#imgbox").onclick=()=>{$("#imgbox").hidden=true};
 $("#cmsgs").addEventListener("click",e=>{const t=e.target;if(t.tagName==="IMG"&&t.closest(".thumbs")){$("#imgbox img").src=t.src;$("#imgbox").hidden=false}});
-function closeChatUI(prev){chatSeq++;chatName=null;$("#msgs-chat").hidden=true;$("#msgs-list").hidden=false;$("#brief").hidden=true;$("#dock").classList.remove("chat");$("#tolatestmsg").hidden=true;
-  if(prev&&prev!=="msgs"&&curView==="msgs"){showView(prev);return}window.scrollTo(0,0);loadChats()}
+function closeChatUI(prev,sy){chatSeq++;chatName=null;$("#msgs-chat").hidden=true;$("#msgs-list").hidden=false;$("#brief").hidden=true;$("#dock").classList.remove("chat");$("#tolatestmsg").hidden=true;
+  // 回到进群前的位置，不跳回顶部（右滑时露出来的也是这个位置，松手不闪）
+  if(prev&&prev!=="msgs"&&curView==="msgs"){showView(prev);window.scrollTo(0,sy||0);return}window.scrollTo(0,sy||0);loadChats()}
 function closeChat(){const l=navTop("chat");if(!l||!navClose(l))closeChatUI()}
 $("#cback").onclick=()=>{tick();closeChat()};
 
@@ -1417,13 +1437,13 @@ $("#g-q").addEventListener("input",debounce(drawGroups,150));
 /* 二级页：点一行进入，左上角返回（也支持浏览器返回手势） */
 function openSub(n){
   if(SUB){const l=navTop("sub");if(l)navClose(l);else closeSubUI()}
-  SUB=n;$("#set-main").hidden=true;$$("#v-set .sub").forEach(e=>e.hidden=e.id!=="sub-"+n);window.scrollTo(0,0);
-  navPush({t:"sub",close:closeSubUI},"#set/"+n);
+  const sy=window.scrollY;SUB=n;$("#set-main").hidden=true;$$("#v-set .sub").forEach(e=>e.hidden=e.id!=="sub-"+n);window.scrollTo(0,0);
+  navPush({t:"sub",sy,close:()=>closeSubUI(sy)},"#set/"+n);
   if(n==="groups")loadGroups();
 }
-function closeSubUI(){
+function closeSubUI(sy){
   if(!SUB)return;const was=SUB;SUB=null;$$("#v-set .sub").forEach(e=>e.hidden=true);$("#set-main").hidden=false;setSummary();
-  const row=$(`.row.nav[data-sub="${was}"]`);window.scrollTo(0,row&&curView==="set"?Math.max(0,row.getBoundingClientRect().top+window.scrollY-200):0);
+  const row=$(`.row.nav[data-sub="${was}"]`);window.scrollTo(0,sy!=null?sy:row&&curView==="set"?Math.max(0,row.getBoundingClientRect().top+window.scrollY-200):0);
 }
 function closeSub(){const l=navTop("sub");if(!l||!navClose(l))closeSubUI()}
 $$(".row.nav").forEach(b=>b.onclick=()=>{tick();openSub(b.dataset.sub)});
@@ -1530,15 +1550,19 @@ setSeg(hours);load();
     if(g.un){g.un.style.transition=tr;g.un.style.transform=`translateX(${-0.28*w*(1-p)}px)`}
     shade.style.transition=anim?"opacity .24s":"none";shade.style.opacity=g.un?String(.28*(1-p)):"0"};
   const clean=()=>{if(g.mv){g.mv.classList.remove("dragging");g.mv.style.transform=g.mv.style.transition=""}
-    if(g.un){g.un.classList.remove("under");g.un.style.transform=g.un.style.transition=""}shade.style.display="none";shade.style.opacity="0"};
+    if(g.un){g.un.classList.remove("under");const u=g.un.style;u.transform=u.transition=u.top=u.left=u.width=u.right=u.height=""}shade.style.display="none";shade.style.opacity="0"};
   document.addEventListener("touchstart",e=>{
     if(e.touches.length!==1||!NAV.length){g=null;return}const t=e.touches[0];if(t.clientX>24){g=null;return}
     const l=NAV[NAV.length-1];g={l,...els(l),x0:t.clientX,y0:t.clientY,on:false,lx:t.clientX,lt:e.timeStamp,vx:0,dx:0};
+    // 露出的下层要和松手后真实的样子一模一样：同样的左右边距、同样的滚动位置，否则松手那一下会「跳」
+    if(g.un&&g.mv){const r=g.mv.getBoundingClientRect(),top=r.top+window.scrollY,sy=l.sy||0,full=g.un.classList.contains("view");
+      const vw=g.mv.closest(".view");g.pos={top:(full&&vw?vw.getBoundingClientRect().top+window.scrollY:top)-sy,left:full?0:r.left,width:full?innerWidth:r.width,h:innerHeight+sy}}
   },{passive:true,capture:true});
   document.addEventListener("touchmove",e=>{
     if(!g)return;const t=e.touches[0],dx=t.clientX-g.x0,dy=t.clientY-g.y0;
     if(!g.on){if(Math.abs(dy)>10&&Math.abs(dy)>dx){g=null;return}if(dx<8)return;
-      g.on=true;if(g.mv&&!g.sheet)g.mv.classList.add("dragging");if(g.un){g.un.classList.add("under");shade.style.display="block"}}
+      g.on=true;if(g.mv&&!g.sheet)g.mv.classList.add("dragging");
+      if(g.un){g.un.classList.add("under");if(g.pos){const u=g.un.style;u.top=g.pos.top+"px";u.left=g.pos.left+"px";u.width=g.pos.width+"px";u.right="auto";u.height=g.pos.h+"px"}shade.style.display="block"}}
     e.preventDefault();e.stopPropagation();
     const dt=e.timeStamp-g.lt;if(dt>0){g.vx=(t.clientX-g.lx)/dt;g.lx=t.clientX;g.lt=e.timeStamp}
     g.dx=Math.max(0,dx);set(g.dx,false);
@@ -1547,7 +1571,9 @@ setSeg(hours);load();
     if(!g)return;const G=g;if(!G.on){g=null;return}e.stopPropagation();
     const go=G.dx>innerWidth/3||(G.vx>0.5&&G.dx>40);
     set(go?innerWidth:0,true);
-    setTimeout(()=>{g=G;if(go)navClose(G.l);clean();g=null},240);
+    // 关闭这一下不放入场动画（否则下层会从透明再淡入一次 = 闪屏）
+    // 先撤掉拖动用的定位再关（同一帧内，不会露出中间态），否则下层还是 fixed，页面高度不够，滚动位置会被夹回顶部
+    setTimeout(()=>{g=G;clean();g=null;if(go){document.documentElement.classList.add("nofx");navClose(G.l);setTimeout(()=>document.documentElement.classList.remove("nofx"),600)}},240);
   };
   document.addEventListener("touchend",end,{capture:true});document.addEventListener("touchcancel",end,{capture:true});
 })();
