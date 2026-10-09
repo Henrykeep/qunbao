@@ -1318,7 +1318,12 @@ async function pollChat(){
   }catch(e){}
 }
 setInterval(pollChat,20000);
-function imgGone(i){const d=document.createElement("span");d.className="imgx";d.textContent="图片已失效";i.replaceWith(d)}
+// 图片链接过期：先找服务器换个新链接（QQ 上图片还在，只是链接里的 key 过期了），换不了才显示失效
+function imgGone(i){const n=+(i.dataset.try||0);const u=i.dataset.orig||i.src;
+  const gone=()=>{const d=document.createElement("span");d.className="imgx";d.textContent="图片已失效";i.replaceWith(d)};
+  if(n>=2||!/multimedia\.nt\.qq\.com\.cn/.test(u))return gone();
+  i.dataset.orig=u;i.dataset.try=n+1;
+  api("/api/img_fresh?u="+encodeURIComponent(u)+(n?"&retry=1":"")).then(r=>{if(r.url&&r.url!==i.src)i.src=r.url;else gone()}).catch(gone)}
 const IMGPH=/\s*\[(图片|动画表情)\]\s*/g;
 const bubText=m=>{const t=m.imgs&&m.imgs.length?String(m.text||"").replace(IMGPH," ").trim():m.text;return hlAt(t)};
 let CHATTAIL={day:"",sender:"",ts:0,id:0};
