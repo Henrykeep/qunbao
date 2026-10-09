@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.32.9"
+VERSION = "0.33.0"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -106,6 +106,9 @@ with db() as c:
     CREATE INDEX IF NOT EXISTS i_items ON items(source, chat, status);
     CREATE TABLE IF NOT EXISTS llm_log(ts INTEGER, kind TEXT);
     CREATE INDEX IF NOT EXISTS i_llm_log ON llm_log(ts);
+    CREATE TABLE IF NOT EXISTS push_subs(endpoint TEXT PRIMARY KEY, p256dh TEXT, auth TEXT, ua TEXT DEFAULT '',
+        ts INTEGER, ok_ts INTEGER DEFAULT 0, fails INTEGER DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS pushed(k TEXT PRIMARY KEY, ts INTEGER);
     CREATE TABLE IF NOT EXISTS chat_brief(source TEXT, chat TEXT, since_id INTEGER, upto_id INTEGER, body TEXT, ts INTEGER,
         PRIMARY KEY(source, chat));
     """)
@@ -291,39 +294,204 @@ async def flush_held():
     return len(items)
 
 
-async def push(title: str, body: str, key: str = "", force=False, test=False, level: str = "active", gap: int = 60):
-    """level：timeSensitive（@我、快截止，专注模式也能响）/ active / passive（只进通知中心，不响不震）。
+def has_push(s=None) -> bool:
+    """有没有任何推送渠道：Bark 地址，或至少一台设备开了网页通知（Web Push）。"""
+    s = s or settings()
+    return bool(s.get("bark_url")) or push_sub_count() > 0
+
+
+def chat_path(key: str) -> str:
+    """某个群的推送点开后进这个群：/#chat/来源/群名"""
+    if "|" not in (key or ""):
+        return "/"
+    src, ch = key.split("|", 1)
+    return "/#chat/" + {"QQ": "qq", "微信": "wx"}.get(src, quote(src, safe="")) + "/" + quote(ch, safe="")
+
+
+async def push(title: str, body: str, key: str = "", force=False, test=False, level: str = "active", gap: int = 60,
+               url: str = "", tag: str = "", web: bool = True, bark: bool = True):
+    """同时发 Bark 和 Web Push（主屏幕网页 App 的原生通知），哪个配了发哪个。
+    level：timeSensitive（@我、快截止，专注模式也能响）/ active / passive（只进通知中心，不响不震；Web Push 不发）。
+    url：点开后打开的群报内地址（/#todo/12、/#chat/qq/群名）；不给就按 key 跳到群。
     免打扰期间攒进数据库（重启不丢），到点合并成一条。"""
     s = settings()
-    if not test and s.get("bark_url") and in_quiet(s):
+    if not has_push(s):
+        return False
+    if not test and in_quiet(s):
         held = _held_get()
         if len(held) < 50:
             held.append([title, body])
             kv_set("held", json.dumps(held, ensure_ascii=False))
         return False
-    url = (s.get("bark_url") or "").rstrip("/")
-    if not url:
-        return False
     if key and not force and time.time() - _last_push.get(key, 0) < gap:  # 同一个群限频
         return False
     _last_push[key] = time.time()
-    payload = {"title": title[:60], "body": body[:300], "group": "群报"}
-    if level in ("timeSensitive", "passive"):
-        payload["level"] = level
-    if s.get("site_url"):
-        payload["url"] = s["site_url"]
-        if "|" in key:  # 某个群的推送：点开直接进这个群（#chat/来源/群名）
-            src, ch = key.split("|", 1)
-            payload["url"] = (s["site_url"].rstrip("/") + "/#chat/" + {"QQ": "qq", "微信": "wx"}.get(src, quote(src, safe=""))
-                              + "/" + quote(ch, safe=""))
-        payload["icon"] = s["site_url"].rstrip("/") + "/icon.png"
+    path = url or chat_path(key)
+    ok_b = ok_w = False
+    burl = (s.get("bark_url") or "").rstrip("/")
+    if bark and burl:
+        payload = {"title": title[:60], "body": body[:300], "group": "群报"}
+        if level in ("timeSensitive", "passive"):
+            payload["level"] = level
+        if s.get("site_url"):
+            payload["url"] = s["site_url"].rstrip("/") + path if path != "/" else s["site_url"]
+            payload["icon"] = s["site_url"].rstrip("/") + "/icon.png"
+        try:
+            async with httpx.AsyncClient(timeout=8) as cl:
+                r = await cl.post(burl, json=payload)
+                ok_b = r.status_code < 300
+        except Exception as ex:
+            print("推送失败:", ex)
+    if web and level != "passive":
+        ok_w = await webpush_all({"title": title[:60], "body": body[:300], "url": path, "tag": tag or key or "",
+                                  "badge": open_todo_count(s)}) > 0
+    return ok_b or ok_w
+
+
+# ---------------- Web Push：iPhone 主屏幕网页 App 的原生通知 ----------------
+# VAPID 密钥第一次启动自动生成，存在数据库 kv 表里（不用配置）。订阅按设备存在 push_subs，
+# 推送服务回 404/410（用户删了 App、关了通知、换了设备）就自动删掉。
+VAPID_SUB = os.getenv("VAPID_SUB", "mailto:qunbao@users.noreply.github.com")   # 联系方式：mailto: 或不带路径的 https 域名；苹果拒收 localhost
+
+
+def _b64u(b: bytes) -> str:
+    import base64
+    return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+
+
+def vapid_keys() -> tuple[str, str]:
+    """(私钥：32 字节 raw 的 base64url, 公钥：非压缩点的 base64url，给浏览器 applicationServerKey 用)"""
+    v = kv_get("vapid")
+    if v:
+        d = json.loads(v)
+        return d["priv"], d["pub"]
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    k = ec.generate_private_key(ec.SECP256R1())
+    priv = _b64u(k.private_numbers().private_value.to_bytes(32, "big"))
+    pub = _b64u(k.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint))
+    with db() as c:  # 并发启动时只认第一份
+        c.execute("INSERT OR IGNORE INTO kv(k,v) VALUES('vapid',?)", (json.dumps({"priv": priv, "pub": pub}),))
+    d = json.loads(kv_get("vapid"))
+    return d["priv"], d["pub"]
+
+
+def push_sub_count() -> int:
+    with db() as c:
+        return c.execute("SELECT COUNT(*) FROM push_subs").fetchone()[0]
+
+
+def _wp_send(sub: dict, data: str, priv: str):
+    """真正发一条 Web Push（同步，放线程里跑）。测试里替换掉它。"""
+    from pywebpush import webpush
+    return webpush(sub, data, vapid_private_key=priv, vapid_claims={"sub": VAPID_SUB}, ttl=86400, timeout=10,
+                   headers={"Urgency": "high"})
+
+
+def _wp_status(ex) -> int:
+    r = getattr(ex, "response", None)
+    return int(getattr(r, "status_code", 0) or 0) if r is not None else 0
+
+
+async def webpush_all(payload: dict, endpoint: str = "") -> int:
+    """给所有订阅的设备（或指定的那一台）发一条，返回成功台数。失效的订阅自动删除。"""
+    with db() as c:
+        subs = c.execute("SELECT * FROM push_subs" + (" WHERE endpoint=?" if endpoint else ""),
+                         (endpoint,) if endpoint else ()).fetchall()
+    if not subs:
+        return 0
     try:
-        async with httpx.AsyncClient(timeout=8) as cl:
-            r = await cl.post(url, json=payload)
-            return r.status_code < 300
+        priv, _ = vapid_keys()
     except Exception as ex:
-        print("推送失败:", ex)
+        print("Web Push 密钥不可用:", ex)
+        return 0
+    data = json.dumps(payload, ensure_ascii=False)
+
+    def one(r):
+        try:
+            _wp_send({"endpoint": r["endpoint"], "keys": {"p256dh": r["p256dh"], "auth": r["auth"]}}, data, priv)
+            return "ok"
+        except ImportError:
+            return "noimp"
+        except Exception as ex:
+            code = _wp_status(ex)
+            if code in (404, 410):
+                return "gone"
+            print("Web Push 失败:", code or ex)
+            return "err"
+    res = await asyncio.gather(*(asyncio.to_thread(one, r) for r in subs))
+    now = int(time.time())
+    with db() as c:
+        for r, x in zip(subs, res):
+            if x == "gone":
+                c.execute("DELETE FROM push_subs WHERE endpoint=?", (r["endpoint"],))
+            elif x == "ok":
+                c.execute("UPDATE push_subs SET ok_ts=?, fails=0 WHERE endpoint=?", (now, r["endpoint"]))
+            elif x == "err":
+                c.execute("UPDATE push_subs SET fails=fails+1 WHERE endpoint=?", (r["endpoint"],))
+    if "noimp" in res:
+        print("Web Push 需要 pywebpush：pip install pywebpush")
+    return res.count("ok")
+
+
+def open_todo_count(s=None) -> int:
+    """主屏幕图标角标：还没完成的待办数（不看 / 只看@我 的群不算）。"""
+    s = s or settings()
+    with db() as c:
+        rows = c.execute("SELECT source, chat FROM items WHERE kind='todo' AND status='open'").fetchall()
+    return sum(1 for r in rows if in_digest(r["source"], r["chat"], s))
+
+
+def was_pushed(keys) -> bool:
+    keys = [k for k in keys if k]
+    if not keys:
         return False
+    with db() as c:
+        return c.execute(f"SELECT 1 FROM pushed WHERE k IN ({','.join('?' * len(keys))}) LIMIT 1", keys).fetchone() is not None
+
+
+def mark_pushed(keys):
+    now = int(time.time())
+    with db() as c:
+        c.executemany("INSERT OR REPLACE INTO pushed(k,ts) VALUES(?,?)", [(k, now) for k in keys if k])
+        c.execute("DELETE FROM pushed WHERE ts<?", (now - 30 * 86400,))
+
+
+async def push_msg(mid: int, *a, **k):
+    """即时推送一条消息（@我 / 重点群…）。推了（或免打扰攒着了）就记下消息 id，之后整理成待办时不再推第二遍。"""
+    ok = await push(*a, **k)
+    if ok or in_quiet(settings()):
+        mark_pushed([f"msg:{mid}"])
+    return ok
+
+
+async def push_new_todos(todos, s=None) -> bool:
+    """自动整理出新待办：每件事只推一次；它来自的那条消息已经即时推过（@我）就不再推。
+    一件：标题 = 群名，正文 = 事项一句话，点开定位到这件待办；多件合并成一条。"""
+    s = s or settings()
+    fresh = []
+    for t in todos:
+        if not t.get("id") or was_pushed([f"item:{t['id']}"]):
+            continue
+        mids = [f"msg:{m}" for m in str(t.get("msg_ids") or "").split() if m.isdigit()]
+        mark_pushed([f"item:{t['id']}"])
+        if mids and was_pushed(mids):
+            continue
+        fresh.append(t)
+    if not fresh:
+        return False
+    one = lambda t: t.get("title", "") + (f"（{t['due']}）" if t.get("due") else "")
+    chats = {(t.get("source") or "QQ", t.get("chat") or "") for t in fresh}
+    if len(fresh) == 1:
+        t = fresh[0]
+        title, body, url = (t.get("chat") or "新待办"), "新待办：" + one(t), f"/#todo/{t['id']}"
+    elif len(chats) == 1:
+        title, body, url = (fresh[0].get("chat") or "新待办"), f"{len(fresh)} 件新待办：" + "；".join(one(t) for t in fresh[:3]), "/"
+    else:
+        title, body, url = "新待办", "；".join(f"{one(t)} · {t.get('chat', '')}" for t in fresh[:3]) + (
+            f" 等 {len(fresh)} 件" if len(fresh) > 3 else ""), "/"
+    lvl = "timeSensitive" if any(t.get("at_me") or t.get("urgency") == "high" for t in fresh) else "active"
+    return await push(title, body, force=True, level=lvl, url=url, tag=f"todo-{fresh[0]['id']}")
 
 
 def hit_reason(chat, sender, text, at_me, s, source="QQ"):
@@ -368,8 +536,8 @@ async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
         why, level = hit
         # 标题直接说是什么事：「@你 · 计科2201」+ 原话；非 @我 的每群 10 分钟最多一条
         brief = re.sub(r"\s+", " ", text)[:120]
-        asyncio.create_task(push(f"{why} · {chat}", f"{sender}：{brief}", key=ckey(source, chat),
-                                 level=level, gap=60 if level == "timeSensitive" else 600))
+        asyncio.create_task(push_msg(cur.lastrowid, f"{why} · {chat}", f"{sender}：{brief}", key=ckey(source, chat),
+                                     level=level, gap=60 if level == "timeSensitive" else 600))
 
 
 # ---------------- 收消息 ----------------
@@ -944,7 +1112,7 @@ async def todo_snooze(req: Request):
     with db() as c:
         c.execute("INSERT OR REPLACE INTO snooze(k,title,until,chat,due) VALUES(?,?,?,?,?)",
                   (d["key"], d.get("title") or t0, until, d.get("chat") or ch0, d.get("due") or ""))
-    warn = "" if settings().get("bark_url") else "还没填 Bark 推送地址，到点发不出提醒"
+    warn = "" if has_push() else "还没开启通知（设置 → 通知），到点发不出提醒"
     return {"ok": True, "until": until, "warn": warn}
 
 
@@ -1663,8 +1831,8 @@ async def refresh_live(s: dict | None = None, stats: dict | None = None, now: fl
                 body["id"] = c.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)",
                                        (int(time.time()), hours, json.dumps(body, ensure_ascii=False))).lastrowid
     newtodo = [t for t in new if t in body["todos"]]
-    if newtodo and s.get("push_digest") and s.get("bark_url") and not in_quiet(s):
-        await push(f"群报 · 新增 {len(newtodo)} 件待办", "；".join(t.get("title", "") for t in newtodo[:3]), key="auto")
+    if newtodo and s.get("push_digest"):  # 免打扰时 push 会攒着，到点合并成一条
+        await push_new_todos(newtodo, s)
     if want_model and bg_head:  # 自动整理：模型头条放后台，不占这个群的「正在整理」时间
         t = asyncio.create_task(_model_head(body, s, stats))
         AUTO_TASKS.add(t)
@@ -1784,13 +1952,13 @@ async def check_snoozed():
         if it is not None:  # 挂在事项 id 上：完成了 / 已关闭就不提醒
             if it["status"] != "open":
                 continue
-            t = {"title": it["title"], "chat": it["chat"]}
+            t = {"title": it["title"], "chat": it["chat"], "id": it["id"]}
         else:
             t0, ch0 = split_key(r["k"])
             t = {"title": r["title"] or t0, "chat": r["chat"] or ch0, "due": r["due"] or ""}
             if find_match(t, done):
                 continue
-        await push("提醒：" + t["title"], t["chat"], force=True, level="timeSensitive")
+        await push("提醒：" + t["title"], t["chat"], force=True, level="timeSensitive", url=f"/#todo/{t['id']}" if t.get("id") else "")
         sent += 1
     return sent
 
@@ -1799,7 +1967,7 @@ async def check_reminders():
     await check_snoozed()
     s = settings()
     n = int(s.get("remind_hours") or 0)
-    if n <= 0 or not s.get("bark_url"):
+    if n <= 0 or not has_push(s):
         return 0
     now = datetime.now(TZ)
     sent = 0
@@ -1810,7 +1978,8 @@ async def check_reminders():
             return False
         left = int((due - now).total_seconds() // 60)
         when = f"{left // 60} 小时 {left % 60} 分钟" if left >= 60 else f"{left} 分钟"
-        await push(f"还剩 {when}：{t.get('title', '')}", f"截止 {t.get('due')} · {t.get('chat', '')}", force=True, level="timeSensitive")
+        await push(f"还剩 {when}：{t.get('title', '')}", f"截止 {t.get('due')} · {t.get('chat', '')}", force=True, level="timeSensitive",
+                   url=f"/#todo/{t['id']}" if t.get("id") else "", tag=f"due-{t.get('id') or todo_key(t)}")
         return True
     with db() as c:  # 新：挂在事项 id 上，每件事只提醒一次，完成的不提醒
         its = c.execute("SELECT * FROM items WHERE kind='todo' AND status='open' AND reminded=0 AND due!=''").fetchall()
@@ -1892,7 +2061,7 @@ async def scheduler():
                     d = await make_digest(24)
                     if s.get("push_digest"):
                         n = len([t for t in d.get("todos", []) if not t.get("done")])
-                        await push(("群报 · " + (f"{n} 件待办" if n else "没什么要你管的")), d.get("headline", ""), force=True)
+                        await push(("群报 · " + (f"{n} 件待办" if n else "没什么要你管的")), d.get("headline", ""), force=True, web=False)
                 except Exception as ex:
                     print("自动总结失败:", ex)
             if (s.get("weekly_digest") and now.weekday() == 6 and now.hour == 20
@@ -1902,7 +2071,7 @@ async def scheduler():
                 try:
                     d = await make_digest(168)
                     if s.get("push_digest"):
-                        await push(weekly_title(d), f"{d.get('count', 0)} 条消息 · {d.get('chats', 0)} 个群。" + d.get("headline", ""), force=True)
+                        await push(weekly_title(d), f"{d.get('count', 0)} 条消息 · {d.get('chats', 0)} 个群。" + d.get("headline", ""), force=True, web=False)
                 except Exception as ex:
                     print("周报失败:", ex)
             if not ran and s.get("auto_on"):
@@ -2388,11 +2557,69 @@ async def post_settings(req: Request):
     return save_settings(await req.json())
 
 
+@app.get("/api/push/key", dependencies=[Depends(auth)])
+def push_key(endpoint: str = ""):
+    """网页通知的公钥（浏览器订阅时用），以及这台设备的订阅服务器上还在不在。"""
+    _, pub = vapid_keys()
+    known = False
+    if endpoint:
+        with db() as c:
+            known = c.execute("SELECT 1 FROM push_subs WHERE endpoint=?", (endpoint,)).fetchone() is not None
+    return {"key": pub, "subs": push_sub_count(), "known": known}
+
+
+MAX_SUBS = 20
+
+
+@app.post("/api/push/sub", dependencies=[Depends(auth)])
+async def push_sub(req: Request):
+    """存一台设备的订阅（PushSubscription.toJSON()）；同一 endpoint 覆盖。带 remove:true 等同删除。"""
+    d = await req.json()
+    sub = d.get("sub") or d
+    ep = str(sub.get("endpoint") or "")
+    if d.get("remove"):
+        return push_unsub_ep(ep)
+    keys = sub.get("keys") or {}
+    if not ep.startswith("https://") or len(ep) > 1000 or not keys.get("p256dh") or not keys.get("auth"):
+        raise HTTPException(400, "订阅信息不完整")
+    now = int(time.time())
+    with db() as c:
+        c.execute("INSERT OR REPLACE INTO push_subs(endpoint,p256dh,auth,ua,ts,ok_ts,fails) VALUES(?,?,?,?,?,0,0)",
+                  (ep, str(keys["p256dh"])[:200], str(keys["auth"])[:100], (req.headers.get("user-agent") or "")[:200], now))
+        extra = c.execute("SELECT endpoint FROM push_subs ORDER BY ts DESC LIMIT -1 OFFSET ?", (MAX_SUBS,)).fetchall()
+        for r in extra:
+            c.execute("DELETE FROM push_subs WHERE endpoint=?", (r["endpoint"],))
+    return {"ok": True, "subs": push_sub_count()}
+
+
+def push_unsub_ep(ep: str):
+    with db() as c:
+        n = c.execute("DELETE FROM push_subs WHERE endpoint=?", (ep,)).rowcount
+    return {"ok": True, "removed": n, "subs": push_sub_count()}
+
+
+@app.delete("/api/push/sub", dependencies=[Depends(auth)])
+async def push_unsub(req: Request):
+    d = await req.json()
+    return push_unsub_ep(str((d.get("sub") or d).get("endpoint") or ""))
+
+
 @app.post("/api/push/test", dependencies=[Depends(auth)])
-async def push_test():
+async def push_test(req: Request):
+    try:
+        d = await req.json()
+    except Exception:
+        d = {}
+    if (d or {}).get("channel") == "web":
+        ep = str(d.get("endpoint") or "")
+        n = await webpush_all({"title": "群报", "body": "通知开好了。之后有新待办、有人 @你，会直接提醒你。", "url": "/",
+                               "tag": "test", "badge": open_todo_count()}, endpoint=ep)
+        if not n:
+            raise HTTPException(502, "没发出去：这台设备的订阅失效了，关掉再开一次通知试试" if ep else "还没有设备开启通知")
+        return {"ok": True, "sent": n}
     if not settings().get("bark_url"):
         raise HTTPException(400, "先填 Bark 推送地址")
-    ok = await push("群报", "推送通了。之后有人 @你 或说到关键词，会第一时间提醒你。", force=True, test=True)
+    ok = await push("群报", "推送通了。之后有人 @你 或说到关键词，会第一时间提醒你。", force=True, test=True, web=False)
     if not ok:
         raise HTTPException(502, "推送失败，检查 Bark 地址是否正确")
     return {"ok": True}
@@ -2641,3 +2868,5 @@ def healthz():
 
 migrate_items()
 migrate_modes()
+with contextlib.suppress(Exception):  # 第一次启动就生成网页通知的密钥，之后不变
+    vapid_keys()
