@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.32.3"
+VERSION = "0.32.4"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -1990,9 +1990,16 @@ async def digest_now(req: Request):
 @app.get("/api/digests", dependencies=[Depends(auth)])
 def digests(limit: int = 30):
     with db() as c:
-        rows = c.execute("SELECT * FROM digests ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
-    out = []
+        rows = c.execute("SELECT * FROM digests ORDER BY ts DESC, id DESC LIMIT ?", (max(limit, 1) * 40,)).fetchall()
+    out, seen = [], set()
     for r in rows:
+        # 往期每天只留一期（当天最新那期；周报单独一期）：旧版每半小时整理一次会存一堆几乎一样的
+        k = (datetime.fromtimestamp(r["ts"], TZ).strftime("%Y-%m-%d"), r["hours"] >= 168)
+        if k in seen:
+            continue
+        seen.add(k)
+        if len(out) >= limit:
+            break
         b = json.loads(r["body"])
         out.append({"id": r["id"], "ts": r["ts"], "hours": r["hours"], "headline": b.get("headline", ""),
                     "todos": len([t for t in b.get("todos", []) if not t.get("done")]), "count": b.get("count", 0), "auto": bool(b.get("auto"))})
