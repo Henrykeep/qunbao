@@ -29,6 +29,7 @@
 }}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg);overflow-x:hidden;-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation}
+html,body{overscroll-behavior:none}
 /* 只在 html 上 hidden（传给视口）；body 用 clip：body 设 hidden 会变成滚动容器，导致 position:sticky 失效（标题栏滚走） */
 html,body{max-width:100%;overscroll-behavior-x:none}
 body{overflow-x:clip}
@@ -462,6 +463,8 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
 #updated.busy::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent);margin-left:5px;vertical-align:middle;animation:blink 1s infinite}
 @keyframes blink{50%{opacity:.2}}
 .pend i.bad{background:var(--red,#e5484d)}
+.pend i.ok{background:var(--calm)}
+.pend i.wait{background:var(--amber)}
 .pend .plink{border:0;background:none;color:var(--accent);font:inherit;padding:0;text-decoration:underline}
 /* 左边缘右滑返回：被拖动的这一层跟手平移，背后露出上一层 */
 .under{display:block!important;position:fixed!important;left:0;right:0;top:0;height:100vh;overflow:hidden!important;z-index:0;pointer-events:none;animation:none!important}
@@ -1037,7 +1040,12 @@ function renderPend(st){
   const p=(st&&st.pending)||{},a=(st&&st.auto)||{},e=$("#pend");let h="";
   if(st&&st.is_latest!==false&&!viewId){
     if(a.state==="failed")h=`<i class="bad"></i>${a.fatal?"自动整理已暂停":"自动整理失败，稍后自动重试"}：${esc(a.reason||"")}${a.fatal?` · <button class="plink" id="pendset">去设置</button>`:""}`;
-    else if(p.msgs&&a.state==="off")h=`<i></i>新消息 ${p.msgs} 条 · 自动整理已关闭，点「整理」看看`;  // 自动整理开着时不打扰：后台几十秒内自己整理好
+    else if(p.msgs&&a.state==="off")h=`<i></i>新消息 ${p.msgs} 条 · 自动整理已关闭，点「整理」看看`;
+    else{  // 新鲜度一行：一眼看出是不是最新、几分钟前整理的
+      const ts=st.updated_ts||st.digest_ts;
+      if(ts){const sec=Date.now()/1000-ts,d=new Date(ts*1000),rel=sec<60?"刚刚":sec<3600?`${sec/60|0} 分钟前`:sameDay(d,new Date())?`今天 ${hm(d)} `:ago(ts);
+        h=p.msgs?`<i class="wait"></i>${rel}整理 · 又来了 ${p.msgs} 条，马上合入`:`<i class="ok"></i>已是最新 · ${rel}整理`}
+    }
   }
   e.hidden=!h;if(e._h===h)return;e._h=h;e.innerHTML=h;
   $("#pendset")?.addEventListener("click",()=>{tick();go("set");openSub("about")});
@@ -1047,9 +1055,7 @@ function updLabel(){
   const el=$("#updated");if($("#regen").classList.contains("spin"))return;
   const a=(ST&&ST.auto)||{};el.classList.toggle("err",a.state==="failed");
   if(a.state==="failed"){el.textContent=`整理失败：${a.reason||""}`;return}
-  const ts=ST&&(ST.updated_ts||ST.digest_ts);if(!ts){el.textContent="整理";return}
-  const s=Date.now()/1000-ts,d=new Date(ts*1000);
-  el.textContent=s<60?"刚刚更新":s<3600?`${s/60|0} 分钟前更新`:sameDay(d,new Date())?`${hm(d)} 更新`:`${ago(ts)}更新`;
+  el.textContent="整理";if(ST)renderPend(ST);  // 新鲜度在按钮下面那一行，按钮只留手动「整理」
 }
 let polling=false;
 async function refreshQuiet(){
