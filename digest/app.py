@@ -10,7 +10,11 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.15"
+VERSION = "0.33.16"
+def _ceq(a, b):
+    return secrets.compare_digest(str(a).encode(), str(b).encode())
+
+
 TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")   # 时间解析/免打扰/每日整理都按这个时区
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -181,7 +185,7 @@ def _basic_ok(req: Request) -> bool:
         u, _, p = base64.b64decode(a[6:]).decode().partition(":")
     except Exception:
         return False
-    return secrets.compare_digest(u, WEB_USER) and secrets.compare_digest(p, WEB_PASS)
+    return _ceq(u, WEB_USER) and _ceq(p, WEB_PASS)
 
 
 def _session_ok(req: Request, resp: Response | None = None) -> bool:
@@ -723,7 +727,7 @@ async def onebot(req: Request):
     if ONEBOT_TOKEN:
         auth = req.headers.get("Authorization", "")
         tok = auth[7:] if auth.lower().startswith("bearer ") else (req.query_params.get("token") or "")
-        if not secrets.compare_digest(tok, ONEBOT_TOKEN):
+        if not _ceq(tok, ONEBOT_TOKEN):
             raise HTTPException(401, "口令不对")
     e = await req.json()
     if e.get("post_type") == "meta_event":
@@ -788,7 +792,7 @@ def mark_seen(key):
 async def ingest(req: Request):
     """通用入口：微信通知转发等。口令放 Header X-Token，或网址 ?token=。JSON 或表单都行。"""
     tok = req.headers.get("X-Token") or req.query_params.get("token") or ""
-    if not INGEST_TOKEN or not secrets.compare_digest(tok, INGEST_TOKEN):
+    if not INGEST_TOKEN or not _ceq(tok, INGEST_TOKEN):
         raise HTTPException(401, "口令不对")
     ct = req.headers.get("content-type", "")
     raw = (await req.body()).decode("utf-8", "ignore")
@@ -3359,7 +3363,7 @@ async def login(req: Request):
         raise HTTPException(429, "错太多次了，10 分钟后再试")
     d = await req.json()
     u, p = str(d.get("user") or WEB_USER), str(d.get("password") or "")
-    if not (secrets.compare_digest(u, WEB_USER) and secrets.compare_digest(p, WEB_PASS)):
+    if not (_ceq(u, WEB_USER) and _ceq(p, WEB_PASS)):
         _fails[ip] = fails + [now]
         await asyncio.sleep(0.6)
         raise HTTPException(401, "用户名或密码不对")
