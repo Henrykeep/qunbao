@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.32.7"
+VERSION = "0.32.8"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -1990,6 +1990,33 @@ def digest_row(d):
     return body
 
 
+def _head_score(head, title):
+    nh, nt = norm_title(head), norm_title(title)
+    if not nh or not nt:
+        return 0.0
+    if nt in nh or nh in nt:
+        return 1.0
+    return SequenceMatcher(None, nh, nt).ratio()
+
+
+def fresh_headline(body):
+    """头条说的那件事已经勾完成 / 过期了，就别再挂在最上面：换成还没做的最要紧的一件（不调模型）。"""
+    head = body.get("headline") or ""
+    if head in QUIET_HEADS:
+        return head
+    opens = [t for t in body.get("todos", []) if not t.get("done")] + (body.get("notices") or [])
+    best_open = max((_head_score(head, t.get("title", "")) for t in opens), default=0.0)
+    with db() as c:
+        gone = [r["title"] for r in c.execute(
+            "SELECT title FROM items WHERE status!='open' AND updated_ts>=? ORDER BY updated_ts DESC LIMIT 200",
+            (int(time.time()) - 7 * 86400,))]
+    gone += [t.get("title", "") for t in body.get("todos", []) if t.get("done")]
+    best_gone = max((_head_score(head, t) for t in gone), default=0.0)
+    if best_gone >= 0.6 and best_gone > best_open:
+        return rule_headline(opens) or "群里没什么要你管的"
+    return head
+
+
 def view_headline(hours, body):
     """3 天 / 7 天视图的头条：今天已为这个范围写过就沿用，否则用规则从未完成事项里挑一句（不调模型）。"""
     today = datetime.now(TZ).strftime("%Y-%m-%d")
@@ -2041,6 +2068,15 @@ def state(id: int | None = None, hours: int | None = None):
         body = annotate_todos(vb)
     else:
         body = annotate_todos(digest_row(d)) if d else None
+    if body and body.get("headline") and (not d or d["id"] == latest_id):
+        fixed = fresh_headline(body)
+        if fixed != body["headline"]:
+            body["headline"] = fixed
+            if not body.get("view"):  # 存回去：头条说的事已经勾完成/过期了，换成还没做的最要紧的一件
+                with contextlib.suppress(Exception), db() as c:
+                    cur = json.loads(c.execute("SELECT body FROM digests WHERE id=?", (d["id"],)).fetchone()["body"])
+                    cur["headline"] = fixed
+                    c.execute("UPDATE digests SET body=? WHERE id=?", (json.dumps(cur, ensure_ascii=False), d["id"]))
     # done / pins：存着的原始 key + 当前这期里被模糊匹配上的 key（前端两者都认）
     with db() as c:
         done = [r["k"] for r in c.execute("SELECT k FROM todo_done ORDER BY ts DESC LIMIT 500")]
