@@ -1298,3 +1298,83 @@ def test_headline_drops_done_item():
     with app_mod.db() as x:
         assert "打卡" in _j.loads(x.execute("SELECT body FROM digests").fetchone()["body"])["headline"]
     _fresh()
+
+
+def _run_auto_once():
+    import asyncio
+    s = dict(app_mod.settings(), auto_on=True)
+
+    async def go():
+        await app_mod.auto_tick(s, time.time() + 999)
+        while app_mod.AUTO_TASKS:
+            await asyncio.gather(*list(app_mod.AUTO_TASKS))
+    asyncio.run(go())
+
+
+def test_rejected_chunk_bisected_not_stuck_400_and_garbled():
+    """模型对某几条一直回 400，或一直吐不出合法 JSON：拆块跳过，其余照常整理，不让待整理永远清不掉。"""
+    from fastapi import HTTPException
+    _fresh(); _auto_reset()
+    for i in range(6):
+        _ingest("卡壳群", f"第{i}条：周五 18:00 前交材料{i}" if i not in (2, 4) else f"毒消息POISON{i}")
+    app_mod.LLM_LAST_OK[0] = time.time()  # 模型最近是好的
+
+    async def fake(msgs, as_json=False):
+        if not msgs[0]["content"].startswith("【群更新】"):
+            return "头条"
+        body = msgs[1]["content"]
+        if "POISON2" in body:
+            raise HTTPException(502, "bad request", headers={"x-llm-code": "400"})
+        if "POISON4" in body:
+            return "这不是 JSON"
+        return json.dumps({"summary": "交材料", "new": [{"kind": "todo", "title": "交材料", "due": "周五 18:00", "urgency": "high"}]})
+    old = app_mod.llm; app_mod.llm = fake
+    try:
+        _run_auto_once()
+        st = c.get("/api/state", headers=AUTH).json()
+        assert any(t["title"] == "交材料" for t in st["digest"]["todos"])
+        assert st["pending"]["msgs"] == 0
+        assert not app_mod.AUTO["fail"]
+    finally:
+        app_mod.llm = old
+
+
+def test_400_with_no_recent_success_is_config_error_not_skipped():
+    """模型从没成功过就回 400（多半是模型名/参数配错）：不能把消息当毒消息全跳过，要留着等修好。"""
+    from fastapi import HTTPException
+    _fresh(); _auto_reset()
+    for i in range(3):
+        _ingest("配置错群", f"周五 18:00 前交材料{i}")
+    app_mod.LLM_LAST_OK[0] = 0.0
+
+    async def fake(msgs, as_json=False):
+        raise HTTPException(502, "model not found", headers={"x-llm-code": "400"})
+    old = app_mod.llm; app_mod.llm = fake
+    try:
+        _run_auto_once()
+        assert app_mod.AUTO["fail"]
+        assert c.get("/api/state", headers=AUTH).json()["pending"]["msgs"] == 3
+    finally:
+        app_mod.llm = old
+
+
+def test_at_by_and_day_start_in_state():
+    """@我 的消息被哪条待办认领、今天从几点算：前端靠它们在勾选后实时重算「没处理的 @我」「今天新增」。"""
+    _fresh(); _auto_reset()
+    now = int(time.time())
+    with app_mod.db() as x:
+        mid = x.execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me) VALUES(?,?,?,?,?,1)",
+                        (now, "QQ", "认领群", "老师", "@我 周五 18:00 前交材料", )).lastrowid
+        x.execute("INSERT INTO items(source,chat,kind,title,due,urgency,status,first_ts,updated_ts,msg_ids,at_me) "
+                  "VALUES('QQ','认领群','todo','交材料','周五 18:00','high','open',?,?,?,1)", (now, now, str(mid)))
+        k = "item:%d" % x.execute("SELECT MAX(id) i FROM items").fetchone()["i"]
+        x.execute("INSERT INTO chat_state(source,chat,last_msg_id,summary,updated_ts) VALUES('QQ','认领群',?,'交材料',?)", (mid, now))
+    app_mod.kv_set("scan_id", mid)
+    import asyncio
+    asyncio.run(app_mod.refresh_live(dict(app_mod.settings()), {}, now, model_head=False))
+    st = c.get("/api/state?hours=24", headers=AUTH).json()
+    assert isinstance(st["day_start"], int) and st["day_start"] <= time.time() < st["day_start"] + 86400
+    a = [m for m in st["at_me"] if m["id"] == mid][0]
+    assert a["covered"] and a["by"] == k
+    t = [t for t in st["digest"]["todos"] if t["key"] == k][0]
+    assert t["first_ts"] >= st["day_start"]
