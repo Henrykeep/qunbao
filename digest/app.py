@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.32.4"
+VERSION = "0.32.5"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -1882,13 +1882,28 @@ def digest_row(d):
     return body
 
 
+def view_headline(hours, body):
+    """3 天 / 7 天视图的头条：今天已为这个范围写过就沿用，否则用规则从未完成事项里挑一句（不调模型）。"""
+    today = datetime.now(TZ).strftime("%Y-%m-%d")
+    try:
+        c = json.loads(kv_get(f"head_{hours}", "") or "{}")
+    except Exception:
+        c = {}
+    if c.get("day") == today and c.get("h"):
+        return c["h"]
+    opens = [t for t in body.get("todos", []) if not t.get("done")] + body.get("notices", [])
+    return rule_headline(opens) or "这段时间群里没什么要你管的"
+
+
 @app.get("/api/state", dependencies=[Depends(auth)])
-def state(id: int | None = None):
+def state(id: int | None = None, hours: int | None = None):
     now = int(time.time())
     with db() as c:
         d = (c.execute("SELECT * FROM digests WHERE id=?", (id,)).fetchone() if id else
              c.execute("SELECT * FROM digests ORDER BY id DESC LIMIT 1").fetchone())
-        span = (d["hours"] if d else 24) * 3600
+        # 切「今天/3天/7天」只是换个时间范围看已经整理好的事项：现拼，不调模型、不重新整理、不新建一期
+        H = hours if (hours in (24, 72, 168) and not id and d) else (d["hours"] if d else 24)
+        span = H * 3600
         latest_id = c.execute("SELECT MAX(id) i FROM digests").fetchone()["i"]
         pv = c.execute("SELECT body FROM digests WHERE id<? ORDER BY id DESC LIMIT 1", (d["id"],)).fetchone() if d else None
         ref = now if (not d or d["id"] == latest_id) else d["ts"]
@@ -1911,7 +1926,13 @@ def state(id: int | None = None):
     wx_ts = max(int(wx["v"]) if wx else 0, last_wx or 0) or None
     qq_on = bool(hb_ts and now - hb_ts < 180) or bool(last_qq and now - last_qq < 1800)
     wx_on = bool(wx_ts and now - wx_ts < 6 * 3600)
-    body = annotate_todos(digest_row(d)) if d else None
+    if d and H != d["hours"]:
+        vb = build_body(H, settings())
+        vb["headline"] = view_headline(H, vb) or json.loads(d["body"]).get("headline", "")
+        vb.update(id=d["id"], view=True)
+        body = annotate_todos(vb)
+    else:
+        body = annotate_todos(digest_row(d)) if d else None
     # done / pins：存着的原始 key + 当前这期里被模糊匹配上的 key（前端两者都认）
     with db() as c:
         done = [r["k"] for r in c.execute("SELECT k FROM todo_done ORDER BY ts DESC LIMIT 500")]
@@ -1949,7 +1970,7 @@ def state(id: int | None = None):
         "llm_hour": llm_calls_since(3600),
         "diff": todo_diff(digest_row(d), json.loads(pv["body"])) if d and pv else None,
         "digest_ts": d["ts"] if d else None,
-        "hours": d["hours"] if d else 24,
+        "hours": H,
         "is_latest": (not d) or d["id"] == latest,
         "per_chat": {r["chat"]: r["n"] for r in per},
         "per_src": {ckey(r["source"], r["chat"]): r["n"] for r in per},
