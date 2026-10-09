@@ -582,6 +582,7 @@ def test_pin_fuzzy():
 def _auto_reset():
     A = app_mod.AUTO
     A["running"].clear(); A["last_run"].clear(); A["fail"].clear(); A["fatal"] = None
+    A.get("last_end", {}).clear()
     app_mod.ARRIVE.clear()
 
 
@@ -593,46 +594,185 @@ def _arrive(chat, offset):
 
 
 def test_auto_trigger_rules():
+    """0.34 智能触发：要紧 ≈3 秒、闲聊安静 5 秒 / 攒 20 条 / 最多 15 秒、30 秒兜底、闲聊同群间隔 15 秒。"""
     _fresh(); _auto_reset()
-    s = dict(app_mod.settings(), auto_on=True, modes={"微信|吵闹群": "off", "微信|只看群": "atonly", "微信|重要群": "focus"})
+    s = dict(app_mod.settings(), auto_on=True, vip=["王老师"], modes={"微信|吵闹群": "off", "微信|只看群": "atonly", "微信|重要群": "focus"})
     plan = lambda now=None: {k[1]: why for k, _, why in app_mod.auto_plan(s, now)[0]}
     T = time.time()
     assert plan() == {}                                          # 没有新消息
     _ingest("吵闹群", "今天下午 3 点开会"); _ingest("只看群", "明天交表"); _ingest("普通群", "哈哈哈")
     assert plan(T + 999) == {}                                   # 不看 / 只看@我 / 噪音都不触发
     _ingest("普通群", "周末一起去爬山吗大家")
-    assert "普通群" not in plan(T + 5)                            # 才 5 秒，还在等安静
-    assert plan(T + 21)["普通群"] == "quiet"                      # 安静 20 秒
+    assert "普通群" not in plan(T + 3)                            # 才 3 秒，还在等安静
+    assert plan(T + 5.5)["普通群"] == "quiet"                     # 安静 5 秒
     assert app_mod.auto_plan(dict(s, auto_on=False), T + 999)[0] == []  # 开关关了不整理
-    # 持续刷屏：每条都把安静计时往后推，但最迟 90 秒
-    _arrive("普通群", -85)
+    # 持续刷屏：每条都把安静计时往后推，但最多 15 秒
+    _arrive("普通群", -14)
     _ingest("普通群", "有人带水吗我带两瓶")
     with app_mod.db() as x:
         mid = x.execute("SELECT MAX(id) i FROM msgs WHERE chat='普通群'").fetchone()["i"]
     app_mod.ARRIVE[mid] = T  # 最后一条刚到
-    assert plan(T + 3)["普通群"] == "force"                       # 第一条已等 88 秒：巡检兜底，立刻整理（0.33.7 起最迟 60 秒）
+    assert "普通群" not in plan(T + 0.5) and plan(T + 1.5)["普通群"] == "maxwait"
     # 攒满 20 条：不等安静
     for i in range(20):
         _ingest("刷屏群", f"刷屏消息第{i}条内容比较长")
     assert plan(time.time() + 1)["刷屏群"] == "burst"
-    # 要紧：@我 / @全体 / 重点群带时间
-    _ingest("重要群", "这个周末大家随便聊聊")
-    assert "重要群" not in plan(time.time() + 3)                  # 重点群的闲聊不算要紧
-    _ingest("重要群", "周六 9:00 东门集合，别迟到")
-    assert plan(time.time() + 6)["重要群"] == "urgent"            # ≤10 秒
-    _ingest("普通群2", "@全体成员 明早交材料")
-    assert plan(time.time() + 6)["普通群2"] == "urgent"
-    # 同群最小间隔：普通 45 秒，要紧 10 秒
+    # 要紧：重点群任何消息 / @全体 / VIP / 紧急词 / 规则事件（查寝+时间）≈ 3 秒内
+    for chat, text, who in (("重要群", "这个周末大家随便聊聊", "甲"), ("普通群2", "@全体成员 明早交材料", "甲"),
+                            ("普通群3", "大家看一下这个", "王老师"), ("普通群4", "紧急，有人在实验室吗", "甲"),
+                            ("普通群5", "今晚导员会来查寝", "乙"), ("普通群6", "明天下午三点班会", "乙"),
+                            ("普通群7", "周五 18:00 前交实验报告", "乙"), ("普通群8", "缴费链接今晚截止 https://pay.example.com/x", "乙")):
+        _ingest(chat, text, who)
+        p = plan(time.time() + 2.1)
+        assert p.get(chat) == "urgent", (chat, p.get(chat))
+    # 同群最小间隔：只管闲聊（15 秒），要紧消息不受限
     _arrive("普通群", 0)
     k = ("微信", "普通群")
-    app_mod.AUTO["last_run"][k] = time.time()
-    assert "普通群" not in plan(time.time() + 30) and "普通群" in plan(time.time() + 46)
+    app_mod.AUTO["last_run"][k] = app_mod.AUTO["last_end"][k] = time.time() - 1
+    assert "普通群" not in plan(time.time() + 10) and "普通群" in plan(time.time() + 15)
     app_mod.AUTO["last_run"][("微信", "重要群")] = time.time()
-    assert "重要群" not in plan(time.time() + 5) and plan(time.time() + 11)["重要群"] == "urgent"
+    assert plan(time.time() + 2.1)["重要群"] == "urgent"
     # 正在整理的群不重复启动
     app_mod.AUTO["running"][k] = time.time()
     assert "普通群" not in plan(time.time() + 99)
     _auto_reset(); _fresh()
+
+
+def test_auto_urgent_never_decides_model_and_force_30s():
+    """「要紧 / 普通」只影响快慢：普通群里看似闲聊的「今晚查寝」照样 30 秒内进模型；任何非噪音消息最迟 30 秒必进模型。"""
+    _fresh(); _auto_reset()
+    s = dict(app_mod.settings(), auto_on=True)
+    _ingest("普通群", "今晚查寝哈哈哈，你们收拾了没")        # 带「哈哈」的闲聊口吻
+    _ingest("普通群", "随便聊聊今天食堂的菜")
+    k = ("微信", "普通群")
+    rows = [r for r in app_mod.pending_info(s)[0] if r["chat"] == "普通群"]
+    assert len(rows) == 2                                          # 都算待整理（会送模型）
+    # 最坏情况：刚整理过（闲聊间隔）+ 全局调用到上限：仍然 30 秒兜底
+    app_mod.AUTO["last_run"][k] = app_mod.AUTO["last_end"][k] = time.time() + 20
+    now = time.time()
+    app_mod._CALL_TS.extend([now] * (app_mod.AUTO_RPM + 5))
+    try:
+        _arrive("普通群", -31)
+        ready = app_mod.auto_plan(s, time.time())[0]
+        assert ready and ready[0][0] == k and ready[0][2] == "force"
+        # 纯闲聊消息也一样：最迟 30 秒
+        _fresh(); _auto_reset()
+        _ingest("闲聊群", "这部电影真不错推荐给大家")
+        app_mod.AUTO["last_run"][("微信", "闲聊群")] = time.time() + 999
+        _arrive("闲聊群", -29)
+        assert "闲聊群" not in {x[1] for x, _, _ in app_mod.auto_plan(s, time.time())[0]}
+        _, nxt = app_mod.auto_plan(s, time.time())
+        assert nxt is not None and nxt - time.time() <= 1.5          # 调度器会在 30 秒点醒来
+        _arrive("闲聊群", -30.5)
+        assert app_mod.auto_plan(s, time.time())[0][0][2] == "force"
+    finally:
+        app_mod._CALL_TS.clear(); _auto_reset(); _fresh()
+
+
+def test_noise_conservative_ads_and_notice():
+    """噪音极保守：像广告其实是通知的不跳过；高置信度广告才跳过；[文件]/[聊天记录] 照样送模型。"""
+    s = dict(app_mod.settings(), modes={"QQ|只看群": "atonly", "QQ|不看群": "off"})
+    cl = lambda t, chat="普通群", at=0, who="甲": app_mod.classify({"text": t, "chat": chat, "at_me": at, "sender": who, "source": "QQ"}, s)
+    keep = ["缴费链接今晚截止 https://pay.example.com/x ¥50", "班费 30 元，拼多多买的扫把，链接 https://mobile.yangkeduo.com/x",
+            "教材费在淘宝下单，券后 ¥29.9，班长统一订", "[文件]", "[聊天记录]", "[语音]", "[红包]", "可以", "行", "对", "在", "几点？", "改了",
+            "[图片] 明天 8 点集合", "今晚查寝", "拍照的同学注意", "有人要出闲置的教材吗"]
+    for t in keep:
+        assert cl(t) != "drop", t
+    drop = ["[图片]", "[表情][表情]", "[动画表情]", "👍👍", "[微笑][微笑]", "张三撤回了一条消息", "李四加入了群聊", "王五拍了拍赵六",
+            "收到", "好的", "哈哈哈哈", "666", "+1",
+            "【神价】京东抽纸券后 ¥29.9 今晚 12 点截止 https://u.jd.com/x", "砍一刀 https://mobile.yangkeduo.com/x",
+            "兼职日结 300 元，私聊下单"]
+    for t in drop:
+        assert cl(t) == "drop", t
+    s["vip"] = ["王老师"]
+    assert cl("【神价】京东抽纸券后 ¥29.9 https://u.jd.com/x", who="王老师") != "drop"   # 重要的人发的不当广告跳过
+    assert cl("收到", at=1) == "key" and cl("[图片]", at=1) == "key"   # @我 永远送
+    assert cl("明天交表", chat="只看群") == "drop" and cl("明天交表", chat="不看群") == "drop"
+
+
+def test_auto_noise_never_calls_model():
+    """只有噪音的群：一次模型都不调，水位直接前进，不计入待整理。"""
+    import asyncio
+    _fresh(); _auto_reset()
+    s = dict(app_mod.settings(), auto_on=True, modes={"微信|不看群": "off"})
+    calls = []
+
+    async def spy(msgs, as_json=False):
+        calls.append(msgs[0]["content"][:20]); return json.dumps({"summary": "x"})
+    old = app_mod.llm; app_mod.llm = spy
+    try:
+        for t in ("[图片]", "收到", "哈哈哈", "[表情]", "张三撤回了一条消息", "【神价】抽纸券后 ¥9.9 https://u.jd.com/x 速冲"):
+            _ingest("噪音群", t)
+        _ingest("不看群", "明天下午三点开会")
+        assert app_mod.pending_info(s)[1]["msgs"] == 0
+        asyncio.run(app_mod.auto_tick(s, time.time() + 999))
+        assert calls == [] and not app_mod.AUTO_TASKS
+        with app_mod.db() as x:
+            top = x.execute("SELECT MAX(id) i FROM msgs").fetchone()["i"]
+            wm = {r["chat"]: r["last_msg_id"] for r in x.execute("SELECT * FROM chat_state")}
+        assert wm.get("噪音群") == top - 1 and wm.get("不看群") == top    # 水位前进
+    finally:
+        app_mod.llm = old; _auto_reset(); _fresh()
+
+
+def test_auto_follow_up_after_running():
+    """整理进行中来的新消息：这次一结束马上接着跑（要紧的立即；闲聊受 15 秒间隔，从上次开始算）。"""
+    import asyncio
+    _fresh(); _auto_reset()
+    s = dict(app_mod.settings(), auto_on=True)
+    seen = []
+
+    async def slow(msgs, as_json=False):
+        if not msgs[0]["content"].startswith("【群更新】"):
+            return "头条"
+        seen.append(msgs[1]["content"].split("新消息（", 1)[1])
+        if len(seen) == 1:
+            _ingest("接续群", "@全体成员 改到明天 9 点")             # 整理进行中来的要紧消息
+        await asyncio.sleep(0.3)
+        return json.dumps({"summary": "x"})
+    old = app_mod.llm; app_mod.llm = slow
+    try:
+        _ingest("接续群", "周五 18:00 交报告")
+        _arrive("接续群", -5)
+
+        async def go():
+            t0 = time.time()
+            await app_mod.auto_tick(s, time.time())
+            while app_mod.AUTO_TASKS:
+                await asyncio.gather(*list(app_mod.AUTO_TASKS))
+            ready = app_mod.auto_plan(s, time.time())[0]
+            assert ready and ready[0][0][1] == "接续群" and ready[0][2] in ("urgent", "follow")
+            await app_mod.auto_tick(s, time.time())
+            while app_mod.AUTO_TASKS:
+                await asyncio.gather(*list(app_mod.AUTO_TASKS))
+            return time.time() - t0
+        took = asyncio.run(go())
+        assert len(seen) == 2 and "改到明天 9 点" in seen[1] and "交报告" not in seen[1]   # 第二轮只送增量
+        assert took < 2 and app_mod.pending_info(s)[1]["msgs"] == 0
+        # 闲聊的接续：结束后受 15 秒间隔（从上次开始算），且 ≤ 30 秒兜底
+        _ingest("接续群2", "随便聊聊今天食堂")
+        k = ("微信", "接续群2")
+        t = time.time()
+        app_mod.AUTO["last_run"][k] = t - 10; app_mod.AUTO["last_end"][k] = t - 1
+        _arrive("接续群2", -6)
+        assert "接续群2" not in {x[1] for x, _, _ in app_mod.auto_plan(s, t)[0]}
+        assert app_mod.auto_plan(s, t + 5.1)[0][0][2] in ("follow", "quiet", "maxwait")
+        assert app_mod.AUTO_LOG and app_mod.AUTO_LOG[-1]["chat"] == "接续群" and app_mod.AUTO_LOG[-1]["calls"] >= 1
+        assert c.get("/api/auto/log", headers=AUTH).json()["hour"]["runs"] >= 2
+    finally:
+        app_mod.llm = old; _auto_reset(); _fresh()
+
+
+def test_auto_429_cooldown_holds_new_runs():
+    _fresh(); _auto_reset()
+    s = dict(app_mod.settings(), auto_on=True)
+    _ingest("限流群", "@全体成员 明早交材料")
+    app_mod.LLM_COOL[0] = time.time() + 20
+    try:
+        r, nxt = app_mod.auto_plan(s, time.time() + 5)
+        assert r == [] and abs(nxt - app_mod.LLM_COOL[0]) < 0.01
+    finally:
+        app_mod.LLM_COOL[0] = 0; _auto_reset(); _fresh()
 
 
 def test_auto_parallel_backoff_and_fatal():
@@ -1677,7 +1817,7 @@ def test_force_sweep_beats_urgent_queue():
     _fresh(); _auto_reset()
     s = dict(app_mod.settings(), auto_on=True)
     _ingest("老实群", "周末大家一起去图书馆自习吧")
-    _arrive("老实群", -70)
+    _arrive("老实群", -35)
     app_mod.AUTO["last_run"][("微信", "老实群")] = time.time() - 5   # 刚整理过也不挡
     for i in range(8):
         _ingest(f"吵群{i}", f"@全体成员 第{i}个通知明天交")
