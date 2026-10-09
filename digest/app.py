@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.1"
+VERSION = "0.33.2"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -1318,6 +1318,8 @@ def apply_changes(source, chat, d: dict, at_ids=frozenset(), now=None) -> bool:
             if f.get("urgency") not in (None, "high", "mid", "low"):
                 f.pop("urgency")
             if f:
+                if "due" in f:
+                    f["reminded"] = 0  # 截止时间改了（会议改期）：新的时间重新提醒一次
                 c.execute(f"UPDATE items SET {', '.join(k + '=?' for k in f)}, updated_ts=? WHERE id=?", (*f.values(), now, it["id"]))
                 it.update(f); changed = True
         for x in d.get("close") or []:
@@ -1344,10 +1346,19 @@ def apply_changes(source, chat, d: dict, at_ids=frozenset(), now=None) -> bool:
                 if dup["status"] == "rebuild":  # 完整重新整理：同一件事沿用原 id
                     c.execute("UPDATE items SET status='open' WHERE id=?", (dup["id"],))
                     dup["status"] = "open"; changed = True
+                nd = parse_due(cand["due"], datetime.fromtimestamp(now, TZ)) if cand["due"] else None
+                if (dup["status"] == "expired" and nd and nd > datetime.fromtimestamp(now, TZ)
+                        and _norm_due(cand["due"]) != _norm_due(dup["due"])):
+                    # 过期/被关闭的事项，群里又给了一个还没到的新时间（改期）：重新打开，沿用原 id，并重新提醒
+                    c.execute("UPDATE items SET status='open', due=?, reminded=0, updated_ts=? WHERE id=?", (cand["due"][:60], now, dup["id"]))
+                    dup.update(status="open", due=cand["due"][:60], reminded=0); changed = True
+                    continue
                 if dup["status"] == "open":
                     f = {k: str(n[k])[:200] for k in ITEM_FIELDS if n.get(k) and str(n[k]) != str(dup[k])}
                     if f.get("urgency") not in (None, "high", "mid", "low"):
                         f.pop("urgency")
+                    if "due" in f:
+                        f["reminded"] = 0
                     if f:
                         c.execute(f"UPDATE items SET {', '.join(k + '=?' for k in f)}, updated_ts=? WHERE id=?", (*f.values(), now, dup["id"]))
                         dup.update(f); changed = True
