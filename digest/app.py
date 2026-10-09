@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.5"
+VERSION = "0.33.6"
 TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")   # 时间解析/免打扰/每日整理都按这个时区
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -73,6 +73,7 @@ def wake_auto():
         ev.set()
 _group_names: dict[int, str] = {}
 _group_miss: dict[int, float] = {}
+_group_ts: dict[int, float] = {}
 _last_push: dict[str, float] = {}
 
 
@@ -594,10 +595,58 @@ def clean_cq(raw: str, self_id: str) -> str:
     return CQ.sub(rep, raw).replace("&#91;", "[").replace("&#93;", "]").replace("&#44;", ",").replace("&amp;", "&").strip()
 
 
+GROUP_NAME_TTL = 3600  # 群名缓存 1 小时：群主改了名，最迟一小时后跟上
+
+
+def rename_chat(source: str, old: str, new: str) -> int:
+    """群改名：把旧名下的消息、整理状态、事项、完成/置顶/稍后记录和群档位都改到新名下，
+    不然改名后群会拆成两个（旧的一半历史 + 新的一半），待办和档位也对不上。"""
+    if not old or not new or old == new:
+        return 0
+    with db() as c:
+        n = c.execute("UPDATE msgs SET chat=? WHERE source=? AND chat=?", (new, source, old)).rowcount
+        c.execute("UPDATE items SET chat=? WHERE source=? AND chat=?", (new, source, old))
+        for tb in ("todo_done", "pins", "reminded", "snooze"):
+            c.execute(f"UPDATE {tb} SET chat=? WHERE chat=?", (new, old))
+        o = c.execute("SELECT * FROM chat_state WHERE source=? AND chat=?", (source, old)).fetchone()
+        if o:
+            t = c.execute("SELECT * FROM chat_state WHERE source=? AND chat=?", (source, new)).fetchone()
+            if not t:
+                c.execute("UPDATE chat_state SET chat=? WHERE source=? AND chat=?", (new, source, old))
+            else:  # 新名下已经有状态（改名前后消息交错到过）：水位取小的，宁可多看一遍也不漏
+                keep = o if o["updated_ts"] > t["updated_ts"] else t
+                c.execute("UPDATE chat_state SET last_msg_id=?, summary=?, updated_ts=? WHERE source=? AND chat=?",
+                          (min(o["last_msg_id"], t["last_msg_id"]), keep["summary"], keep["updated_ts"], source, new))
+                c.execute("DELETE FROM chat_state WHERE source=? AND chat=?", (source, old))
+        c.execute("DELETE FROM chat_brief WHERE source=? AND chat=?", (source, old))  # 速览缓存，重算即可
+    s = settings()
+    modes = dict(s.get("modes") or {})
+    if ckey(source, old) in modes:
+        m = modes.pop(ckey(source, old))
+        modes.setdefault(ckey(source, new), m)
+        s["modes"] = modes
+        with db() as c:
+            c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('settings',?)", (json.dumps(s, ensure_ascii=False),))
+    return n
+
+
+def note_group_name(gid: int, got: str):
+    """记下 群号→群名；和上次记的不一样就是改名了，历史跟着搬过去。"""
+    k = f"gname:{gid}"
+    old = kv_get(k) or f"群{gid}"  # 没记过：可能是以前 NapCat 没查到、消息存在「群123」名下
+    if old != got:
+        with db() as c:  # 别的群号现在还叫旧名（两个群同名）：不搬，免得把人家的历史抢走
+            twin = c.execute("SELECT 1 FROM kv WHERE k LIKE 'gname:%' AND k!=? AND v=?", (k, old)).fetchone()
+        if not twin:
+            rename_chat("QQ", old, got)
+    kv_set(k, got)
+
+
 async def group_name(gid: int) -> str:
-    if gid in _group_names:
+    fresh = time.time() - _group_ts.get(gid, time.time()) < GROUP_NAME_TTL
+    if gid in _group_names and fresh:
         return _group_names[gid]
-    name = f"群{gid}"
+    name = _group_names.get(gid) or f"群{gid}"
     if time.time() - _group_miss.get(gid, 0) < 600:  # 查不到的 10 分钟后再试
         return name
     _group_miss[gid] = time.time()
@@ -607,7 +656,10 @@ async def group_name(gid: int) -> str:
             r = await cl.post(f"{NAPCAT_HTTP}/get_group_info", json={"group_id": gid}, headers=h)
             got = (r.json().get("data") or {}).get("group_name")
         if got:  # 只缓存查到的真名；查不到时下次再查，不要永远显示成「群123」
+            got = str(got).strip() or got
+            note_group_name(gid, got)
             _group_names[gid] = name = got
+            _group_ts[gid] = time.time()
     except Exception:
         pass
     return name
@@ -2468,7 +2520,7 @@ def activity_stats(days: int = 7, source: str = "", now: int = 0):
     groups = {}
     with db() as c:
         for r in c.execute("SELECT ts, chat FROM msgs WHERE ts>=? AND (?='' OR source=?)", (since, source, source)):
-            hours[time.localtime(r["ts"]).tm_hour] += 1
+            hours[datetime.fromtimestamp(r["ts"], TZ).hour] += 1
             groups[r["chat"]] = groups.get(r["chat"], 0) + 1
     top = sorted(groups.items(), key=lambda x: -x[1])[:5]
     return {"days": days, "hours": hours, "total": sum(hours), "top": [{"chat": k, "n": v} for k, v in top]}
