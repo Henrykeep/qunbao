@@ -1026,7 +1026,7 @@ async function load(){skeleton();try{render(await api("/api/state"+(viewId?`?id=
     $("#retry").onclick=()=>{tick();load()}}}
 async function regen(){
   const b=$("#regen");if(b.classList.contains("spin"))return;b.classList.add("spin");
-  const p=ST&&ST.pending;$("#updated").textContent=p&&p.msgs?`整理新消息 ${p.msgs} 条`:"整理中";
+  const p=ST&&ST.pending;$("#updated").textContent=p&&p.msgs?`正在整理 ${p.msgs} 条…`:"正在整理…";
   const wasView=viewId;viewId=null;if(wasView||!ST||!ST.digest)skeleton();
   try{const r=await api("/api/digest",{hours});const m=$("#main");m.classList.add("quiet");render(await api("/api/state"));setTimeout(()=>m.classList.remove("quiet"),50);
     const x=r.stats||{};toast(r.unchanged?(x.new?`看了新消息 ${x.new} 条，没有要更新的事`:"没有新消息，已是最新"):`处理新消息 ${x.new||0} 条 · 涉及 ${x.chats||0} 个群 · ${(+x.secs||0).toFixed(1)} 秒`)}
@@ -1044,7 +1044,7 @@ function renderPend(st){
     else{  // 新鲜度一行：一眼看出是不是最新、几分钟前整理的
       const ts=st.updated_ts||st.digest_ts;
       if(ts){const sec=Date.now()/1000-ts,d=new Date(ts*1000),rel=sec<60?"刚刚":sec<3600?`${sec/60|0} 分钟前`:sameDay(d,new Date())?`今天 ${hm(d)} `:ago(ts);
-        h=p.msgs?`<i class="wait"></i>${rel}整理 · 又来了 ${p.msgs} 条，马上合入`:`<i class="ok"></i>已是最新 · ${rel}整理`}
+        h=p.msgs?`<i class="wait"></i>下面是${rel}整理的 · 还有 ${p.msgs} 条新消息没整理进来，正在自动整理`:`<i class="ok"></i>已是最新 · 所有消息都已整理（${rel.trim()}）`}
     }
   }
   e.hidden=!h;if(e._h===h)return;e._h=h;e.innerHTML=h;
