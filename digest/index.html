@@ -265,7 +265,7 @@ details.actd summary::-webkit-details-marker{display:none}
 .lvsel{font:inherit;font-size:13px;color:var(--muted,#888);background:transparent;border:1px solid var(--line,#8884);border-radius:8px;padding:3px 6px;margin-left:auto;margin-right:10px}
 .mute-ic{width:12px;height:12px;color:var(--faint);flex:none}
 
-.chat-head{position:sticky;top:0;z-index:4;background:var(--glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+.chat-head{position:sticky;top:0;z-index:4;background:var(--bg);
   margin:0 -20px;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line)}
 .chat-head .ttl{flex:1;min-width:0;text-align:center;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-head .ttl small{display:block;font-size:11px;color:var(--faint);font-weight:400}
@@ -374,12 +374,12 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
 @keyframes sh{to{background-position:-200% 0}}
 
 /* 底部：提问栏 + 标签栏 */
-.dock{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--glass);
-  backdrop-filter:saturate(1.6) blur(20px);-webkit-backdrop-filter:saturate(1.6) blur(20px);border-top:1px solid var(--line)}
+/* 不透明、独立合成层、不随滚动改样式：iOS 滚动时毛玻璃 + 视口高度变化会让整块底栏抖、闪、散 */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--bg);border-top:1px solid var(--line);
+  transform:translateZ(0);-webkit-transform:translateZ(0);will-change:transform;contain:layout paint}
 .askbox{padding:10px 16px 2px;display:none}
 .dock.home #homeask{display:block}
 .dock.chat #chatask{display:block}
-.dock.compact .suggest{max-height:0;margin-bottom:0;opacity:0}
 .askbox form,.sheet form{max-width:608px;margin:0 auto;display:flex;gap:8px}
 .inp{flex:1;font-size:16px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:11px 18px;outline:none;transition:border-color .2s;min-width:0}
 .inp:focus{border-color:var(--ink)}
@@ -456,6 +456,17 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
   font-size:13px;padding:9px 16px;border-radius:999px;transition:transform .4s var(--ease);z-index:20;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
 .toast.on{transform:translate(-50%,0)}
 .fade{animation:fi .5s var(--ease) both}
+.todo.fresh{animation:fresh 2.4s var(--ease)}
+@keyframes fresh{0%{box-shadow:0 0 0 2px var(--accent);transform:translateY(-4px);opacity:.3}25%{opacity:1;transform:none}70%{box-shadow:0 0 0 2px var(--accent)}}
+#updated.err{color:var(--red,#e5484d)}
+#updated.busy::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent);margin-left:5px;vertical-align:middle;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+.pend i.bad{background:var(--red,#e5484d)}
+.pend .plink{border:0;background:none;color:var(--accent);font:inherit;padding:0;text-decoration:underline}
+/* 左边缘右滑返回：被拖动的这一层跟手平移，背后露出上一层 */
+.under{display:block!important;position:fixed!important;left:0;right:0;top:0;height:100vh;overflow:hidden!important;z-index:0;pointer-events:none;animation:none!important}
+#edgeShade{position:fixed;inset:0;background:#000;opacity:0;z-index:1;pointer-events:none;display:none}
+.dragging{position:relative;z-index:2;background:var(--bg);min-height:100vh;box-shadow:-10px 0 28px rgba(0,0,0,.35);will-change:transform}
 @keyframes fi{from{opacity:0;transform:translateY(8px)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .lk{display:block;padding:10px 0;border-bottom:1px solid var(--line,rgba(128,128,128,.25));text-decoration:none;color:inherit}
@@ -531,7 +542,7 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
   <div class="gd">iPhone 在 App Store 装 Bark，把它给的地址粘到上面。</div>
   <div class="gl">自动整理</div>
   <div class="group">
-    <div class="row"><span class="rl">有新消息时自动整理<small>@我 或重要群的新消息最快 5 分钟就整理</small></span><select id="s-auto"></select></div>
+    <div class="row"><span class="rl">有新消息自动整理<small>@我、@全体和重点群的通知 10 秒内上首页；其他群安静 20 秒后整理，刷屏也最迟 1 分半</small></span><label class="sw"><input type="checkbox" id="s-auto"><span></span></label></div>
   </div>
 
   <div class="gl">关于我</div>
@@ -651,7 +662,8 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
       <div class="row"><span class="rl">版本</span><span class="stat-dot" id="st-ver"><span>—</span></span></div>
       <div class="row"><span class="rl">大模型</span><span class="stat-dot" id="st-llm"><i></i><span>—</span></span></div>
       <div class="row"><span class="rl">最近一次整理<small id="st-run">—</small></span></div>
-      <div class="row"><span class="rl">累计大模型调用<small>每个有新消息的群一次 + 头条一次；没变化的群不调用</small></span><span class="stat-dot" id="st-calls"><span>—</span></span></div>
+      <div class="row"><span class="rl">最近 1 小时模型调用<small id="st-hour-d">每个有新消息的群整理一次；头条只在有新的要紧事时重写</small></span><span class="stat-dot" id="st-hour"><span>—</span></span></div>
+      <div class="row"><span class="rl">累计大模型调用</span><span class="stat-dot" id="st-calls"><span>—</span></span></div>
       <div class="row"><span class="rl">更新记录</span><a class="btn ghost" href="https://github.com/Henrykeep/qunbao/blob/main/CHANGELOG.md" target="_blank" rel="noopener">查看</a></div>
     </div>
     <div class="gl">高级</div>
@@ -766,12 +778,30 @@ async function api(path,body){
   return r.json();
 }
 
+/* ---------- 返回栈：群聊 / 弹层 / 设置子页 / 待办详情 都进浏览器历史 ----------
+   系统返回、Safari 右滑、PWA 里的自绘边缘右滑、左上角「返回」走同一条路：关最上面一层。 */
+const NAV=[];let POPWAIT=0,NAVQ=[];
+const SRC2H={"QQ":"qq","微信":"wx"},H2SRC={qq:"QQ",wx:"微信"};
+const chatHash=(src,chat)=>`#chat/${SRC2H[src]||encodeURIComponent(src||"")}/${encodeURIComponent(chat)}`;
+function navPush(l,hash){const f=()=>{NAV.push(l);history.pushState({qb:NAV.length},"",hash||location.pathname+location.search+location.hash)};POPWAIT?NAVQ.push(f):f()}
+function navTop(t){for(let i=NAV.length-1;i>=0;i--)if(NAV[i].t===t)return NAV[i];return null}
+/* 界面上点「返回/关闭」：立刻关掉这一层（以及它上面的），历史记录随后退回去 */
+function navClose(l){const i=NAV.indexOf(l);if(i<0)return false;const n=NAV.length-i;NAV.splice(i).reverse().forEach(x=>x.close());POPWAIT++;history.go(-n);return true}
+function navCloseAll(){if(NAV.length)navClose(NAV[0])}
+window.addEventListener("popstate",e=>{
+  if(POPWAIT){POPWAIT--;if(!POPWAIT){const q=NAVQ;NAVQ=[];q.forEach(f=>f())}return}
+  const d=(e.state&&e.state.qb)||0;while(NAV.length>d)NAV.pop().close();
+});
+history.replaceState({qb:0},"",location.pathname+location.search+location.hash);
+
 /* ---------- 标签页 ---------- */
 let curView="home";
 function go(v){
   if(v===curView&&v==="msgs"&&!$("#msgs-chat").hidden){closeChat();return}
   if(v===curView&&v==="set"&&SUB){closeSub();return}
-  if(SUB)closeSub();
+  navCloseAll();showView(v);
+}
+function showView(v){
   if(v!=="msgs"){$("#dock").classList.remove("chat");$("#tolatestmsg").hidden=true}else if(!$("#msgs-chat").hidden)$("#dock").classList.add("chat");
   curView=v;$$(".view").forEach(e=>e.classList.toggle("on",e.id==="v-"+v));
   $$(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
@@ -782,8 +812,10 @@ function go(v){
 $$(".tabs button").forEach(b=>b.onclick=()=>{tick();go(b.dataset.v)});
 
 /* ---------- 面板（问答 / 往期） ---------- */
-function sheetOn(el){el.classList.add("on");document.body.style.overflow="hidden"}
-function sheetOff(el){el.classList.remove("on");document.body.style.overflow=""}
+function sheetOn(el){if(el.classList.contains("on"))return;el.classList.add("on");document.body.style.overflow="hidden";
+  navPush({t:"sheet",el,close:()=>sheetOffUI(el)},"#"+el.id.replace("Sheet",""))}
+function sheetOffUI(el){el.classList.remove("on");const p=el.querySelector(".panel");if(p){p.style.transform="";p.style.transition=""}if(!$(".sheet.on"))document.body.style.overflow=""}
+function sheetOff(el){const l=NAV.find(x=>x.el===el);if(!l||!navClose(l))sheetOffUI(el)}
 $$(".sheet").forEach(sh=>{
   sh.querySelector(".scrim").onclick=()=>sheetOff(sh);
   sh.querySelector("[data-close]").onclick=()=>sheetOff(sh);
@@ -826,12 +858,12 @@ const normT=x=>String(x||"").toLowerCase().replace(/[\s\W_]+/g,"").replace(/请|
 const dupText=(a,b)=>{const x=normT(a).replace(/\d+/g,""),y=normT(b).replace(/\d+/g,"");if(!x||!y)return false;if(x.includes(y)||y.includes(x))return true;
   const g=[...Array(Math.max(0,x.length-1)).keys()].map(i=>x.slice(i,i+2));return g.length>0&&g.filter(t=>y.includes(t)).length/g.length>=0.6};  // 详情只是把标题换个说法：不重复显示
 const MODE={focus:["重点盯","总结加权，要紧消息即时推送"],normal:["正常","正常整理，@你、关键词会推送"],atonly:["只看@我","不整理，只有 @你 / @全体 才提醒"],off:["不看","不整理不推送，原文照样能翻、能问助手"]};
-function render(st){
+function render(st,live){
   ST=st;renderStatus(st);renderPend(st);const d=st.digest;setDate();
   if(d)setSeg(st.hours||hours,!!st.is_latest);
   updLabel();
   if(!d){
-    $("#main").innerHTML=`<div class="greet fade">${greet()}</div><div class="headline fade">${st.today?`过去一天收到 ${st.today} 条群消息。<br>${st.auto_interval?"有新消息会自动整理，也可以点「整理」马上看。":"点「整理」，看看哪些和你有关。"}`:"群报还没开张。<br>消息进来后，这里会是你的每日头条。"}</div>${tipCard(st)}`;
+    $("#main").innerHTML=`<div class="greet fade">${greet()}</div><div class="headline fade">${st.today?`过去一天收到 ${st.today} 条群消息。<br>${st.auto_on?"有新消息会自动整理，几秒到一分半就出现在这里。":"点「整理」，看看哪些和你有关。"}`:"群报还没开张。<br>消息进来后，这里会是你的每日头条。"}</div>${tipCard(st)}`;
     bindTip();return;
   }
   const done=new Set(st.done||[]);const pins=new Set(st.pins||[]);
@@ -848,7 +880,7 @@ function render(st){
   <div class="stat ${soon?"hot":""}"><div class="n">${soon}</div><div class="l">48 小时内截止</div></div>
   <div class="stat ${ats.length?"hot":""}"><div class="n">${allAts.length}</div><div class="l">条 @我</div></div></div>`;
 
-  h+=`<section><h2>要你做的 <span class="c">${open.length||""}</span></h2>${st.diff&&st.diff.new.length?`<div class="diffline">较上一期新增 <b>${st.diff.new.length}</b> 件</div>`:""}<div class="todos" id="todos">`;
+  h+=`<section data-sec="todo"><h2>要你做的 <span class="c">${open.length||""}</span></h2>${st.diff&&st.diff.new.length?`<div class="diffline">较上一期新增 <b>${st.diff.new.length}</b> 件</div>`:""}<div class="todos" id="todos">`;
   h+=todos.length?todos.map((t,i)=>{const det=t.detail&&!dupText(t.title,t.detail)?t.detail:"",src=t.source||(st.chat_src||{})[t.chat];
     return `<div class="todo ${esc(t.urgency||"mid")} ${isDone(t)?"done":""} ${isPin(t)?"pinned":""} fade" style="animation-delay:${i*30}ms" data-i="${i}" data-k="${esc(doneKey(t))}" data-chat="${esc(t.chat)}" data-src="${esc(src||"")}" data-mid="${esc(String(t.msg_ids||"").split(" ")[0]||"")}" data-q="${esc(t.quote||"")}">
     <button class="check" aria-label="完成"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i></button>
@@ -864,39 +896,39 @@ function render(st){
     const row=a=>`<div class="at" data-chat="${esc(a.chat)}" data-src="${esc(a.source)}" data-id="${a.id}"><div class="av" style="background:${avc(a.sender)}">${first(a.sender)}</div>
       <div style="flex:1;min-width:0"><div class="top"><span><b>${esc(a.sender)}</b> · ${esc(a.chat)}${srcTag(a.source)}</span><span class="tm">${ago(a.ts)}</span></div>
       <div class="msg">${hlAt(a.text)}</div></div></div>`;
-    h+=`<section><h2>@ 我的 <span class="c">${ats.length||""}</span></h2><div id="ats">${ats.slice(0,4).map(row).join("")}</div>
+    h+=`<section data-sec="at"><h2>@ 我的 <span class="c">${ats.length||""}</span></h2><div id="ats">${ats.slice(0,4).map(row).join("")}</div>
       ${ats.length>4?`<button class="more-btn" id="moreat">展开另外 ${ats.length-4} 条</button>`:""}
       ${covered?`<div class="atmore">${ats.length?"另有":"这段时间"} ${covered} 条 @你 的已经整理进上面的待办${ats.length?"":"了"}</div>`:""}</section>`;
     window._atAll=()=>{$("#ats").innerHTML=ats.map(row).join("");$("#moreat").remove();bindAts()};
   }
   h+=tipCard(st);
   if(notices.length){
-    h+=`<section><h2>值得知道 <span class="c">${notices.length}</span></h2>`+notices.map((n,i)=>`<div class="notice"><div class="num">${pad(i+1)}</div>
+    h+=`<section data-sec="notice"><h2>值得知道 <span class="c">${notices.length}</span></h2>`+notices.map((n,i)=>`<div class="notice"><div class="num">${pad(i+1)}</div>
       <div><div class="t">${esc(n.title)}</div>${n.detail&&!dupText(n.title,n.detail)?`<div class="d">${esc(n.detail)}</div>`:""}<div class="src">${esc(n.chat)}</div></div></div>`).join("")+`</section>`;
   }
   if(groups.length){
     const SHOW=4;
-    h+=`<section><h2>各群在聊 <span class="c">${groups.length}</span></h2><div class="groups ${groups.length>SHOW?"fold":""}" id="groups">`+groups.map((g,i)=>`<div class="g ${g.focus?"foc":""} ${i>=SHOW?"extra":""}" role="button" tabindex="0" data-chat="${esc(g.chat)}" data-src="${esc(g.source||"")}"><div class="gh"><span class="gn">${esc(g.chat)}</span>${srcTag(g.source)}</div>
+    h+=`<section data-sec="groups"><h2>各群在聊 <span class="c">${groups.length}</span></h2><div class="groups ${groups.length>SHOW?"fold":""}" id="groups">`+groups.map((g,i)=>`<div class="g ${g.focus?"foc":""} ${i>=SHOW?"extra":""}" role="button" tabindex="0" data-chat="${esc(g.chat)}" data-src="${esc(g.source||"")}"><div class="gh"><span class="gn">${esc(g.chat)}</span>${srcTag(g.source)}</div>
       <div class="gg">${esc(g.gist)}</div><div class="gf"><span>${g.open?`<span class="gopen">${g.open} 件待办</span> · `:""}${g.n} 条</span><button class="gm" aria-label="怎么盯这个群">⋯</button></div></div>`).join("")+`</div>
       ${groups.length>SHOW?`<button class="more-btn" id="moregroups">展开其余 ${groups.length-SHOW} 个群</button>`:""}</section>`;
   }
   const links=st.links||[];
   if(links.length){
     const host=u=>{try{return new URL(u).hostname.replace(/^www\./,"")}catch(e){return u}};
-    h+=`<section><h2>相关链接 <span class="c">${links.length}</span></h2><div class="links" id="links">`+links.slice(0,10).map((l,i)=>`<a class="lk ${i>=3?"extra":""}" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><b>${esc(host(l.url))}</b><span class="lu">${esc(l.url.length>60?l.url.slice(0,60)+"…":l.url)}</span><span class="ls">${esc(l.sender||"")} · ${esc(l.chat)}</span></a>`).join("")+`</div>${links.length>3?`<button class="more-btn" id="morelinks">展开另外 ${Math.min(links.length,10)-3} 条</button>`:""}</section>`;
+    h+=`<section data-sec="links"><h2>相关链接 <span class="c">${links.length}</span></h2><div class="links" id="links">`+links.slice(0,10).map((l,i)=>`<a class="lk ${i>=3?"extra":""}" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><b>${esc(host(l.url))}</b><span class="lu">${esc(l.url.length>60?l.url.slice(0,60)+"…":l.url)}</span><span class="ls">${esc(l.sender||"")} · ${esc(l.chat)}</span></a>`).join("")+`</div>${links.length>3?`<button class="more-btn" id="morelinks">展开另外 ${Math.min(links.length,10)-3} 条</button>`:""}</section>`;
   }
-  $("#main").innerHTML=h;
+  if(live&&$("#main").querySelector("[data-sec]"))morph($("#main"),h);else $("#main").innerHTML=h;
   bindTip();
-  $("#moreat")?.addEventListener("click",()=>window._atAll());
-  $("#moregroups")?.addEventListener("click",e=>{$("#groups").classList.remove("fold");e.currentTarget.remove()});
-  $("#morelinks")?.addEventListener("click",e=>{$("#links").classList.add("all");e.currentTarget.remove()});
+  once($("#moreat"),e=>e.addEventListener("click",()=>window._atAll()));
+  once($("#moregroups"),b=>b.addEventListener("click",e=>{$("#groups").classList.remove("fold");e.currentTarget.remove()}));
+  once($("#morelinks"),b=>b.addEventListener("click",e=>{$("#links").classList.add("all");e.currentTarget.remove()}));
   bindAts();
-  $$(".g").forEach(b=>{
+  $$(".g").forEach(b=>{if(b._b)return;b._b=1;
     b.onclick=e=>{if(e.target.closest(".gm")){e.stopPropagation();modeSheet(b.dataset.src,b.dataset.chat);return}tick();openChat(b.dataset.chat,null,b.dataset.src)};
     longPress(b,()=>modeSheet(b.dataset.src,b.dataset.chat));
   });
   sortTodos(false);updateProg();
-  $$(".todo").forEach(el=>{
+  $$(".todo").forEach(el=>{if(el._b)return;el._b=1;
     const T=todos[+el.dataset.i]||{},who={key:el.dataset.k,title:T.title||"",chat:T.chat||"",due:T.due||""};
     el.querySelector(".check").onclick=async()=>{
       const on=!el.classList.contains("done");el.classList.toggle("done",on);el.classList.remove("open");el.querySelector(".snzmenu")?.remove();
@@ -904,7 +936,9 @@ function render(st){
       setTimeout(()=>sortTodos(true),on?420:0);
       api("/api/todo",{...who,done:on}).catch(()=>toast("没保存上，网络不太好"));
     };
-    el.querySelector(".tbody").addEventListener("click",e=>{if(e.target.closest(".acts2,.snzmenu"))return;el.classList.toggle("open")});
+    el.querySelector(".tbody").addEventListener("click",e=>{if(e.target.closest(".acts2,.snzmenu"))return;
+      const on=!el.classList.contains("open");el.classList.toggle("open",on);
+      if(on)navPush({t:"todo",el,close:()=>el.classList.remove("open")});else{const l=NAV.find(x=>x.el===el);if(l)navClose(l)}});
     el.querySelector(".snz")?.addEventListener("click",e=>{
       e.stopPropagation();const old=el.querySelector(".snzmenu");if(old){old.remove();return}
       const m=document.createElement("div");m.className="snzmenu acts2";m.style.display="flex";
@@ -928,8 +962,40 @@ function tipCard(st){
   return `<div class="tipcard fade" id="tipcard"><div style="flex:1;min-width:0"><b>${st.nchats} 个群在发消息，给群分个档？</b>不重要的设成「只看@我」，这里更清爽</div><button class="btn" id="tipgo">去分档</button><button class="x0" id="tipx" aria-label="不再提示">×</button></div>`;
 }
 function bindTip(){
-  $("#tipgo")?.addEventListener("click",()=>{tick();go("set");openSub("groups")});
-  $("#tipx")?.addEventListener("click",()=>{localStorage.qb_tip_off=1;$("#tipcard")?.remove();api("/api/settings",{modes_tip_done:true}).catch(()=>{})});
+  once($("#tipgo"),b=>b.addEventListener("click",()=>{tick();go("set");openSub("groups")}));
+  once($("#tipx"),b=>b.addEventListener("click",()=>{localStorage.qb_tip_off=1;$("#tipcard")?.remove();api("/api/settings",{modes_tip_done:true}).catch(()=>{})}));
+}
+function once(el,fn){if(el&&!el._b){el._b=1;fn(el)}}
+/* 局部更新：只替换变了的区块；待办按 key 对齐，没变的卡片原样保留（展开状态、动画都不动），新出现的轻轻高亮 */
+const normH=n=>n.outerHTML.replace(/ style="animation-delay:\d+ms"/g,"").replace(/ data-i="\d+"/g,"")
+  .replace(/class="([^"]*)"/g,(m,c)=>'class="'+c.split(/\s+/).filter(x=>x&&!["open","fresh","fade"].includes(x)).join(" ")+'"');
+const secKey=e=>e.dataset.sec||e.className.split(" ")[0]||e.tagName;
+function unfade(n){n.classList.remove("fade");n.style.animationDelay="";n.querySelectorAll(".fade").forEach(x=>{x.classList.remove("fade");x.style.animationDelay=""})}
+function placeAll(box,list){list.forEach((n,i)=>{if(box.children[i]!==n)box.insertBefore(n,box.children[i]||null)});while(box.children.length>list.length)box.lastElementChild.remove()}
+function morph(box,html){
+  const t=document.createElement("div");t.innerHTML=html;
+  const old=new Map([...box.children].map(e=>[secKey(e),e]));
+  const out=[...t.children].map(n=>{
+    const k=secKey(n),o=old.get(k);
+    if(o&&normH(o)===normH(n)){unfade(o);return o}
+    if(o&&k==="todo"){patchTodos(o,n);return o}
+    unfade(n);
+    if(o&&k==="groups"&&o.querySelector("#groups")&&!o.querySelector("#groups.fold")){n.querySelector("#groups")?.classList.remove("fold");n.querySelector("#moregroups")?.remove()}
+    if(o&&k==="links"&&o.querySelector("#links.all")){n.querySelector("#links")?.classList.add("all");n.querySelector("#morelinks")?.remove()}
+    return n});
+  placeAll(box,out);
+}
+function patchTodos(o,n){
+  unfade(o);
+  const oh=o.querySelector("h2"),nh=n.querySelector("h2");if(oh&&nh&&oh.outerHTML!==nh.outerHTML)oh.replaceWith(nh);
+  o.querySelector(".diffline")?.remove();const nd=n.querySelector(".diffline");if(nd)o.querySelector("h2").after(nd);
+  const ob=o.querySelector("#todos"),nb=n.querySelector("#todos");
+  const om=new Map([...ob.children].filter(e=>e.dataset.k).map(e=>[e.dataset.k,e]));
+  const list=[...nb.children].map(x=>{const y=x.dataset.k&&om.get(x.dataset.k);
+    if(y&&normH(y)===normH(x)){y.dataset.i=x.dataset.i;return y}
+    unfade(x);if(y){if(y.classList.contains("open"))x.classList.add("open")}else if(x.classList.contains("todo"))x.classList.add("fresh");
+    return x});
+  placeAll(ob,list);
 }
 function longPress(el,fn){let t=null,x0=0,y0=0;
   el.addEventListener("touchstart",e=>{x0=e.touches[0].clientX;y0=e.touches[0].clientY;t=setTimeout(()=>{t=null;el._lp=1;tick();fn()},520)},{passive:true});
@@ -968,31 +1034,55 @@ $("#regen").onclick=()=>{tick();regen()};
 /* 自动更新：首页可见时每 60 秒看一眼，后台整理出新一期就无闪烁换上 */
 const runInfo=(x,mode)=>`${mode==="full"?"完整重新整理":mode==="weekly"?"周报":"增量整理"}：新消息 ${x.new} 条，送模型 ${x.sent} 条 · ${x.chats} 个群${x.skipped?` · 跳过 ${x.skipped} 个群（只看@我/不看）`:""} · 调用 ${x.calls} 次 · 用时 ${(+x.secs||0).toFixed(1)} 秒${x.errors?` · ${x.errors} 个群失败，下次重试`:""}`;
 function renderPend(st){
-  const p=st&&st.pending,e=$("#pend"),show=!!(p&&p.msgs>=20&&st.is_latest&&!viewId);e.hidden=!show;
-  if(show)e.innerHTML=`<i></i>新消息 ${p.msgs} 条 · 涉及 ${p.chats} 个群${st.auto_interval?" · 稍后自动整理":""}`;
+  const p=(st&&st.pending)||{},a=(st&&st.auto)||{},e=$("#pend");let h="";
+  if(st&&st.is_latest!==false&&!viewId){
+    if(a.state==="failed")h=`<i class="bad"></i>${a.fatal?"自动整理已暂停":"自动整理失败，稍后自动重试"}：${esc(a.reason||"")}${a.fatal?` · <button class="plink" id="pendset">去设置</button>`:""}`;
+    else if(p.msgs)h=`<i></i>新消息 ${p.msgs} 条 · ${p.chats} 个群 · ${a.state==="running"?"正在整理":a.state==="off"?"点「整理」看看":"马上整理"}`;
+  }
+  e.hidden=!h;if(e._h===h)return;e._h=h;e.innerHTML=h;
+  $("#pendset")?.addEventListener("click",()=>{tick();go("set");openSub("about")});
 }
+/* 顶部状态：正在整理 N 个群… / 整理失败：原因 / 刚刚更新 / x 分钟前更新 */
 function updLabel(){
-  const ts=ST&&ST.digest_ts&&Math.max(ST.digest_ts,ST.checked_ts||0),el=$("#updated");if($("#regen").classList.contains("spin"))return;
-  if(!ts){el.textContent="整理";return}
+  const el=$("#updated");if($("#regen").classList.contains("spin"))return;
+  const a=(ST&&ST.auto)||{};el.classList.toggle("err",a.state==="failed");el.classList.toggle("busy",a.state==="running");
+  if(a.state==="running"){el.textContent=`正在整理 ${a.n} 个群…`;return}
+  if(a.state==="failed"){el.textContent=`整理失败：${a.reason||""}`;return}
+  const ts=ST&&(ST.updated_ts||ST.digest_ts);if(!ts){el.textContent="整理";return}
   const s=Date.now()/1000-ts,d=new Date(ts*1000);
-  el.textContent=s<60?"刚刚更新":s<3600?`${s/60|0} 分钟前更新`:sameDay(d,new Date())?`${hm(d)} 更新`:`${ago(ts)}`;
+  el.textContent=s<60?"刚刚更新":s<3600?`${s/60|0} 分钟前更新`:sameDay(d,new Date())?`${hm(d)} 更新`:`${ago(ts)}更新`;
 }
 let polling=false;
 async function refreshQuiet(){
   if(document.hidden||curView!=="home"||viewId||polling||$("#regen").classList.contains("spin"))return;
-  if($(".snzmenu")||$("#askSheet.on,#histSheet.on")){updLabel();return}
+  if($(".snzmenu")||$(".sheet.on")){updLabel();return}
   polling=true;
   try{const st=await api("/api/state");
-    const changed=!!ST&&!!st.digest_ts&&st.digest_ts!==ST.digest_ts;
-    if(changed||!ST||(!ST.digest&&st.digest)){
-      const y=window.scrollY,m=$("#main"),fold=$("#todos")?.classList.contains("fold");
-      m.classList.add("quiet");render(st);if(fold===false){$("#todos")?.classList.remove("fold");updateProg()}
-      window.scrollTo(0,y);setTimeout(()=>m.classList.remove("quiet"),50);
-      if(changed)toast("已自动更新");
-    }else{ST.status=st.status;ST.is_latest=st.is_latest;ST.auto_interval=st.auto_interval;ST.pending=st.pending;ST.checked_ts=st.checked_ts;renderStatus(ST);renderPend(ST);setDate();updLabel()}
+    if(!ST||st.rev!==ST.rev||(!ST.digest&&st.digest)){
+      const y=window.scrollY,fold=$("#todos")?.classList.contains("fold");
+      render(st,true);if(fold===false){$("#todos")?.classList.remove("fold");updateProg()}
+      if(Math.abs(window.scrollY-y)>2)window.scrollTo(0,y);
+    }else{Object.assign(ST,{status:st.status,is_latest:st.is_latest,auto:st.auto,auto_on:st.auto_on,pending:st.pending,checked_ts:st.checked_ts,updated_ts:st.updated_ts});renderStatus(ST);renderPend(ST);setDate();updLabel()}
   }catch(e){}finally{polling=false}
 }
-setInterval(refreshQuiet,60000);
+/* 每 8 秒拉一次极轻的 /api/rev：版本号变了才拉整页数据并局部更新；状态文案随时刷新 */
+let revBusy=false,MREV=0;
+async function pollRev(){
+  if(document.hidden||revBusy||!navigator.onLine)return;revBusy=true;await null;
+  try{const r=await api("/api/rev");
+    if(ST){Object.assign(ST,{auto:r.auto,pending:r.pending,updated_ts:r.updated_ts});if(curView==="home"){renderPend(ST);updLabel()}}
+    if(curView==="home"&&ST&&r.rev!==ST.rev)await refreshQuiet();
+    if(MREV&&r.mrev!==MREV){
+      if(curView==="msgs"&&!$("#msgs-chat").hidden)pollChat();
+      else if(curView==="msgs"&&!$("#sq").value.trim())loadChats();
+    }
+    MREV=r.mrev;
+  }catch(e){}finally{revBusy=false}
+}
+/* 平时 8 秒一次；有待整理的新消息或正在整理时 2.5 秒一次（整理完马上看到），后台不轮询 */
+(function loop(){const busy=ST&&((ST.pending&&ST.pending.msgs)||(ST.auto&&ST.auto.state==="running"));
+  pollRev().finally(()=>setTimeout(loop,busy?2500:8000))})();
+setInterval(()=>{if(curView==="home")updLabel()},20000);
 
 /* 往期 */
 $("#histbtn").onclick=async()=>{
@@ -1047,8 +1137,9 @@ $("#caskf").onsubmit=e=>{e.preventDefault();chatAsk($("#cq").value)};
 $$("#sug button").forEach(b=>b.onclick=()=>{tick();ask(b.textContent,{chat:"",source:""})});
 $$("#csug button").forEach(b=>b.onclick=()=>{tick();chatAsk(b.textContent,!!b.dataset.unread)});
 /* 键盘弹起时，底栏跟着可视区域上移，不被键盘挡住 */
-if(window.visualViewport){const vv=visualViewport,fix=()=>{const off=Math.max(0,window.innerHeight-vv.height-vv.offsetTop);$("#dock").style.transform=off>40?`translateY(${-off}px)`:"";$$(".sheet .panel").forEach(p=>p.style.marginBottom=off>40?off+"px":"")};
-  vv.addEventListener("resize",fix);vv.addEventListener("scroll",fix)}
+if(window.visualViewport){const vv=visualViewport,fix=()=>{const a=document.activeElement,kb=a&&/^(INPUT|TEXTAREA)$/.test(a.tagName);  // 只在键盘弹出时挪；滚动时 Safari 工具栏伸缩不算键盘
+    const off=kb?Math.max(0,window.innerHeight-vv.height-vv.offsetTop):0;const d=$("#dock"),t=off>40?`translateY(${-off}px)`:"translateZ(0)";if(d.style.transform!==t)d.style.transform=t;$$(".sheet .panel").forEach(p=>p.style.marginBottom=off>40?off+"px":"")};
+  vv.addEventListener("resize",fix);document.addEventListener("focusin",fix);document.addEventListener("focusout",()=>setTimeout(fix,60))}
 
 /* ---------- 群档位菜单（今日「各群在聊」⋯/长按、群聊标题栏、原文列表左滑/长按） ---------- */
 function modeSheet(src,chat){
@@ -1139,6 +1230,9 @@ function showChatView(){
 }
 /* 点开一个群：最上面是助手的「这个群最近聊了啥」，下面是原文（从上次看到的位置起有分隔线）。msgId：直接跳到那条消息 */
 async function openChat(chat,focus,src,msgId){
+  const prev=curView,top=NAV[NAV.length-1],h0=chatHash(src||"",chat);
+  if(top&&top.t==="chat")history.replaceState({qb:NAV.length},"",h0);  // 群里跳到另一个群：替换，不叠
+  else{const pv=$("#msgs-chat").hidden?prev:"msgs";navPush({t:"chat",prev:pv,close:()=>closeChatUI(pv)},h0)}
   showChatView();
   chatName=chat;oldest=0;SENDERF="";$("#cfq").value="";$("#cfn").hidden=true;$("#msgs-list").hidden=true;$("#msgs-chat").hidden=false;
   if(!CHATS.length){try{CHATS=await api("/api/chats")}catch(e){}}
@@ -1264,7 +1358,9 @@ $("#cmsgs").addEventListener("click",e=>{const t=e.target.closest(".av.sm,.who")
 document.body.insertAdjacentHTML("beforeend",'<div id="imgbox" hidden><img alt=""></div>');
 $("#imgbox").onclick=()=>{$("#imgbox").hidden=true};
 $("#cmsgs").addEventListener("click",e=>{const t=e.target;if(t.tagName==="IMG"&&t.closest(".thumbs")){$("#imgbox img").src=t.src;$("#imgbox").hidden=false}});
-function closeChat(){chatSeq++;$("#msgs-chat").hidden=true;$("#msgs-list").hidden=false;$("#brief").hidden=true;$("#dock").classList.remove("chat");$("#tolatestmsg").hidden=true;window.scrollTo(0,0);loadChats()}
+function closeChatUI(prev){chatSeq++;chatName=null;$("#msgs-chat").hidden=true;$("#msgs-list").hidden=false;$("#brief").hidden=true;$("#dock").classList.remove("chat");$("#tolatestmsg").hidden=true;
+  if(prev&&prev!=="msgs"&&curView==="msgs"){showView(prev);return}window.scrollTo(0,0);loadChats()}
+function closeChat(){const l=navTop("chat");if(!l||!navClose(l))closeChatUI()}
 $("#cback").onclick=()=>{tick();closeChat()};
 
 /* ================= 设置 ================= */
@@ -1307,17 +1403,17 @@ function drawGroups(){
 }
 $("#g-q").addEventListener("input",debounce(drawGroups,150));
 /* 二级页：点一行进入，左上角返回（也支持浏览器返回手势） */
-function openSub(n,push=true){
+function openSub(n){
+  if(SUB){const l=navTop("sub");if(l)navClose(l);else closeSubUI()}
   SUB=n;$("#set-main").hidden=true;$$("#v-set .sub").forEach(e=>e.hidden=e.id!=="sub-"+n);window.scrollTo(0,0);
-  if(push)window.history.pushState({sub:n},"");
+  navPush({t:"sub",close:closeSubUI},"#set/"+n);
   if(n==="groups")loadGroups();
 }
-function closeSub(fromPop){
+function closeSubUI(){
   if(!SUB)return;const was=SUB;SUB=null;$$("#v-set .sub").forEach(e=>e.hidden=true);$("#set-main").hidden=false;setSummary();
   const row=$(`.row.nav[data-sub="${was}"]`);window.scrollTo(0,row&&curView==="set"?Math.max(0,row.getBoundingClientRect().top+window.scrollY-200):0);
-  if(!fromPop&&window.history.state&&window.history.state.sub)window.history.back();
 }
-window.addEventListener("popstate",()=>{if(SUB)closeSub(true)});
+function closeSub(){const l=navTop("sub");if(!l||!navClose(l))closeSubUI()}
 $$(".row.nav").forEach(b=>b.onclick=()=>{tick();openSub(b.dataset.sub)});
 $$("#v-set [data-back]").forEach(b=>b.onclick=()=>{tick();closeSub()});
 function setSummary(){
@@ -1356,7 +1452,7 @@ async function loadSettings(){
 const hs=[...Array(24).keys()].map(h=>[h,String(h).padStart(2,"0")+":00"]);
 const fill=(id,arr,cur)=>{$(id).innerHTML=arr.map(([v,l])=>`<option value="${v}" ${v==cur?"selected":""}>${l}</option>`).join("")};
 fill("#s-hour2",[[-1,"关闭"],...hs],s.digest_hour2??-1);fill("#s-qs",[[-1,"关闭"],...hs],s.quiet_start??-1);fill("#s-qe",hs,s.quiet_end??7);
-    fill("#s-auto",[[0,"关闭"],[15,"每 15 分钟"],[30,"每 30 分钟"],[60,"每 1 小时"],[120,"每 2 小时"]],s.auto_interval??30);
+    $("#s-auto").checked=s.auto_on!==false;
     $("#s-bark").value=s.bark_url||"";$("#s-site").value=s.site_url||location.origin;
     if(!s.site_url){SET.site_url=location.origin;SILENT=true;saveSet()}  // 以前只显示不保存，点通知打不开群报
     $("#s-pushat").checked=!!s.push_at;$("#s-pushdg").checked=!!s.push_digest;$("#s-wk").checked=!!s.weekly_digest;$("#s-keep").value=String(s.keep_days||30);
@@ -1368,6 +1464,8 @@ fill("#s-hour2",[[-1,"关闭"],...hs],s.digest_hour2??-1);fill("#s-qs",[[-1,"关
     api("/api/ingest").then(r=>{$("#wx-url").textContent=r.ready?`${location.origin}/ingest?token=${r.token}`:"服务器 .env 里还没设置 INGEST_TOKEN";$("#wx-copy").disabled=!r.ready}).catch(()=>{});
     $("#st-last span").textContent=S.last_msg?ago(S.last_msg):"还没有";
     $("#st-calls span").textContent=`${st.llm_calls||0} 次`;
+    const lh=st.llm_hour||{};$("#st-hour span").textContent=`${lh.total||0} 次`;
+    $("#st-hour-d").textContent=lh.total?`整理群 ${lh.chat||0} · 头条 ${lh.head||0} · 问答/群简报 ${(lh.ask||0)+(lh.brief||0)}`:"每个有新消息的群整理一次；头条只在有新的要紧事时重写";
     const ds=st.digest&&st.digest.stats;$("#st-run").textContent=ds?`${ago(st.digest_ts)} · `+runInfo(ds,st.digest.mode):"还没有整理过";
     const l=$("#st-llm");l.className="stat-dot "+(S.llm?(S.llm_err?"bad":"ok"):"bad");l.querySelector("span").textContent=S.llm?(S.llm_err?"最近一次调用失败":"已配置"):"未配置";
     setSummary();
@@ -1379,7 +1477,7 @@ $("#s-hour").onchange=e=>{SET.digest_hour=+e.target.value;saveSet()};
 $("#s-full").onclick=async e=>{if(!confirm("完整重新整理最近 24 小时的消息？已完成和置顶的事项会保留。"))return;tick();const b=e.currentTarget;b.disabled=true;b.textContent="整理中…";
   try{const r=await api("/api/digest",{hours:24,full:true});const x=r.stats||{};toast(`完成：送模型 ${x.sent||0} 条 · 调用 ${x.calls||0} 次 · ${(+x.secs||0).toFixed(1)} 秒`);ST=null;$("#st-calls span").textContent=`${(await api("/api/state")).llm_calls||0} 次`}
   catch(err){toast("失败："+err.message)}finally{b.disabled=false;b.textContent="重新整理"}};
-$("#s-auto").onchange=e=>{tick();SET.auto_interval=+e.target.value;saveSet()};
+$("#s-auto").onchange=e=>{tick();SET.auto_on=e.target.checked;saveSet();setTimeout(()=>pollRev(),600)};
 $("#s-hour2").onchange=e=>{SET.digest_hour2=+e.target.value;saveSet()};
 $("#s-qs").onchange=e=>{SET.quiet_start=+e.target.value;saveSet()};
 $("#s-qe").onchange=e=>{SET.quiet_end=+e.target.value;saveSet()};
@@ -1395,18 +1493,57 @@ $("#wx-copy").onclick=async()=>{tick();const t=$("#wx-url").textContent;
 $("#s-test").onclick=async()=>{tick();try{SET=await api("/api/settings",SET);await api("/api/push/test",{});toast("已发送，看看手机")}catch(e){toast(e.message)}};
 
 /* 往下滑时收起快捷问题，给内容腾地方 */
-let lastY=0;window.addEventListener("scroll",()=>{const y=window.scrollY;$("#dock").classList.toggle("compact",curView==="home"&&y>120&&y>lastY-4);lastY=y},{passive:true});
 
 /* 底栏实际高度：问答栏只在今日页出现，其他页只留标签栏的高度 */
 const dockH=()=>{const d=$("#dock");if(d.classList.contains("compact"))return;document.documentElement.style.setProperty("--dockh",d.getBoundingClientRect().height+"px")};
 if(window.ResizeObserver)new ResizeObserver(dockH).observe($("#dock"));dockH();
 /* ---------- 启动 ---------- */
 setSeg(hours);load();
-document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshQuiet()});
+/* 刷新或从推送链接进入：按 hash 恢复到对应的群 / 设置页（返回回到首页） */
+(function(){const h=location.hash;if(!h)return;history.replaceState({qb:0},"",location.pathname+location.search);
+  const m=h.match(/^#chat\/([^/]*)\/(.+)$/);
+  if(m){const src=H2SRC[m[1]]||decodeURIComponent(m[1]);openChat(decodeURIComponent(m[2]),null,src);return}
+  const m2=h.match(/^#set\/(\w+)$/);if(m2&&$("#sub-"+m2[1])){showView("set");openSub(m2[1])}})();
+/* 左边缘右滑返回（PWA 没有系统手势）：从左边 24px 内起手往右拖，页面跟手、露出上一层；过 1/3 宽或甩得够快就返回，否则回弹。
+   iPhone Safari 浏览器里交给系统右滑（历史栈已经对上了），避免一次手势退两层。 */
+(function(){
+  const std=navigator.standalone||matchMedia("(display-mode: standalone)").matches;
+  if(/iP(hone|ad|od)/.test(navigator.userAgent)&&!std)return;
+  const shade=document.createElement("div");shade.id="edgeShade";document.body.appendChild(shade);
+  let g=null;
+  const els=l=>l.t==="chat"?{mv:$("#msgs-chat"),un:l.prev&&l.prev!=="msgs"?$("#v-"+l.prev):$("#msgs-list")}
+    :l.t==="sub"?{mv:SUB&&$("#sub-"+SUB),un:$("#set-main")}:l.t==="sheet"?{mv:l.el.querySelector(".panel"),un:null,sheet:1}:{mv:null,un:null};
+  const set=(x,anim)=>{const w=innerWidth,p=Math.min(1,x/w),tr=anim?"transform .24s cubic-bezier(.2,.9,.25,1)":"none";
+    if(g.mv){g.mv.style.transition=tr;g.mv.style.transform=`translateX(${x}px)`}
+    if(g.un){g.un.style.transition=tr;g.un.style.transform=`translateX(${-0.28*w*(1-p)}px)`}
+    shade.style.transition=anim?"opacity .24s":"none";shade.style.opacity=g.un?String(.28*(1-p)):"0"};
+  const clean=()=>{if(g.mv){g.mv.classList.remove("dragging");g.mv.style.transform=g.mv.style.transition=""}
+    if(g.un){g.un.classList.remove("under");g.un.style.transform=g.un.style.transition=""}shade.style.display="none";shade.style.opacity="0"};
+  document.addEventListener("touchstart",e=>{
+    if(e.touches.length!==1||!NAV.length){g=null;return}const t=e.touches[0];if(t.clientX>24){g=null;return}
+    const l=NAV[NAV.length-1];g={l,...els(l),x0:t.clientX,y0:t.clientY,on:false,lx:t.clientX,lt:e.timeStamp,vx:0,dx:0};
+  },{passive:true,capture:true});
+  document.addEventListener("touchmove",e=>{
+    if(!g)return;const t=e.touches[0],dx=t.clientX-g.x0,dy=t.clientY-g.y0;
+    if(!g.on){if(Math.abs(dy)>10&&Math.abs(dy)>dx){g=null;return}if(dx<8)return;
+      g.on=true;if(g.mv&&!g.sheet)g.mv.classList.add("dragging");if(g.un){g.un.classList.add("under");shade.style.display="block"}}
+    e.preventDefault();e.stopPropagation();
+    const dt=e.timeStamp-g.lt;if(dt>0){g.vx=(t.clientX-g.lx)/dt;g.lx=t.clientX;g.lt=e.timeStamp}
+    g.dx=Math.max(0,dx);set(g.dx,false);
+  },{passive:false,capture:true});
+  const end=e=>{
+    if(!g)return;const G=g;if(!G.on){g=null;return}e.stopPropagation();
+    const go=G.dx>innerWidth/3||(G.vx>0.5&&G.dx>40);
+    set(go?innerWidth:0,true);
+    setTimeout(()=>{g=G;if(go)navClose(G.l);clean();g=null},240);
+  };
+  document.addEventListener("touchend",end,{capture:true});document.addEventListener("touchcancel",end,{capture:true});
+})();
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){pollRev();refreshQuiet()}});
 $("#s-logout").onclick=async()=>{if(!confirm("退出登录？这台设备下次打开要重新输入密码。"))return;
   await fetch("/api/logout",{method:"POST"}).catch(()=>{});location.replace("/login")};
 function netUI(){$("#offbar").hidden=navigator.onLine}
-window.addEventListener("online",()=>{netUI();refreshQuiet()});
+window.addEventListener("online",()=>{netUI();pollRev()});
 window.addEventListener("offline",netUI);netUI();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});
 </script>
