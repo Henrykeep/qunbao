@@ -956,7 +956,9 @@ function render(st,live){
       const on=!el.classList.contains("done");el.classList.toggle("done",on);el.classList.remove("open");el.querySelector(".snzmenu")?.remove();
       T.done=on;tick();updateProg();
       setTimeout(()=>sortTodos(true),on?420:0);
-      api("/api/todo",{...who,done:on}).then(()=>refreshQuiet()).catch(()=>toast("没保存上，网络不太好"));
+      if(on)swapHead(T,todos.filter(x=>x!==T&&!isDone(x)));
+      api("/api/todo",{...who,done:on}).then(r=>{if(r&&r.headline){const hd=$("#main .headline");if(hd)hd.textContent=r.headline;if(ST&&ST.digest)ST.digest.headline=r.headline}
+        forceQuiet()}).catch(()=>toast("没保存上，网络不太好"));
     };
     el.querySelector(".tbody").addEventListener("click",e=>{if(e.target.closest(".acts2,.snzmenu"))return;
       const on=!el.classList.contains("open");el.classList.toggle("open",on);
@@ -1086,12 +1088,26 @@ function renderPend(st){
     else{  // 新鲜度一行：一眼看出是不是最新、几分钟前整理的
       const ts=st.updated_ts||st.digest_ts;
       if(ts){const sec=Date.now()/1000-ts,d=new Date(ts*1000),rel=sec<60?"刚刚":sec<3600?`${sec/60|0} 分钟前`:sameDay(d,new Date())?`今天 ${hm(d)} `:ago(ts);
-        h=p.msgs?`<i class="wait"></i>下面是${rel}整理的 · 还有 ${p.msgs} 条新消息没整理进来，正在自动整理`:`<i class="ok"></i>已是最新 · 所有消息都已整理（${rel.trim()}）`}
+        h=p.msgs?`<i class="wait"></i>下面是${rel}整理的 · `+pendText(p):`<i class="ok"></i>已是最新 · 所有消息都已整理（${rel.trim()}）`}
     }
   }
   const es=$("#emptysub");if(es)es.textContent=emptySub(st);
   e.hidden=!h;if(e._h===h)return;e._h=h;e.innerHTML=h;
   $("#pendset")?.addEventListener("click",()=>{tick();go("set");openSub("about")});
+  $("#pendgo")?.addEventListener("click",()=>{tick();$("#regen").click()});
+}
+/* 待整理那句话说实情：在整理 / 失败等重试 / 等太久了，不再永远「正在自动整理」。
+   后端兜底保证 60 秒内开始整理；数字超过 75 秒没变（后端旧版本或网络问题）也不再说「正在」 */
+let PEND_N=-1,PEND_T=0;
+const dur=s=>s<60?`${s|0} 秒`:`${s/60|0} 分钟`;
+function pendText(p){
+  const n=p.msgs,now=Date.now()/1000;
+  if(n!==PEND_N){PEND_N=n;PEND_T=now}
+  const age=Math.max(p.oldest||0,now-PEND_T);
+  if(p.running)return `正在整理 ${n} 条新消息…`;
+  if(p.failing)return `${n} 条新消息这次没整理成（${esc(p.reason||"大模型出错")}），${p.retry_in?`${p.retry_in} 秒后`:"马上"}自动重试 · <button class="plink" id="pendgo">立刻整理</button>`;
+  if(age<75)return `还有 ${n} 条新消息没整理进来，正在自动整理`;
+  return `还有 ${n} 条新消息等着整理（已等 ${dur(age)}） · <button class="plink" id="pendgo">立刻整理</button>`;
 }
 /* 顶部状态：只显示「刚刚更新 / x 分钟前更新」，持续失败才显示原因；后台整理过程不打扰用户 */
 function updLabel(){
@@ -1100,6 +1116,19 @@ function updLabel(){
   if(a.state==="failed"){el.textContent=`整理失败：${a.reason||""}`;return}
   el.textContent="整理";if(ST)renderPend(ST);  // 新鲜度在按钮下面那一行，按钮只留手动「整理」
 }
+/* 勾完成的那件正是头条说的事：立刻换成下一件还没做的（和后端同一套规则：标题的 2 字片段一半以上出现在头条里），不等服务器 */
+const nrm=x=>String(x||"").toLowerCase().replace(/[\s\p{P}\p{S}_]+/gu,"");
+const grams=x=>{const g=new Set();for(let i=0;i<x.length-1;i++)g.add(x.slice(i,i+2));if(!g.size&&x)g.add(x);return g};
+function headCover(head,title){const h=nrm(head),t=nrm(title);if(!h||!t)return 0;if(h.includes(t)||t.includes(h))return 1;
+  const g=grams(t),hg=grams(h);let n=0;g.forEach(x=>{if(hg.has(x))n++});return n/g.size}
+function swapHead(T,rest){
+  const hd=$("#main .headline");if(!hd||headCover(hd.textContent,T.title)<0.5)return;
+  const now=Date.now()/1000,cand=rest.slice().sort((a,b)=>((a.due_ts&&a.due_ts<now)?1:0)-((b.due_ts&&b.due_ts<now)?1:0)||(b.at_me?1:0)-(a.at_me?1:0)||(a.due_ts||9e12)-(b.due_ts||9e12));
+  const n=cand[0];hd.textContent=n?n.title+(n.due?"，"+n.due:""):"群里没什么要你管的";
+  if(ST&&ST.digest)ST.digest.headline=hd.textContent;
+}
+/* 刚勾完：一定要拉一次最新数据（正在轮询就排在它后面），不能因为撞上轮询被跳过 */
+function forceQuiet(){if(polling){setTimeout(forceQuiet,400);return}refreshQuiet()}
 let polling=false;
 async function refreshQuiet(){
   if(document.hidden||curView!=="home"||viewId||polling||$("#regen").classList.contains("spin"))return;
