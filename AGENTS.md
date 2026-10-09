@@ -21,6 +21,23 @@
 7. 验证：`docker logs qunbao` 里能看到 `POST /onebot 200`；浏览器打开 `http://服务器IP:8000` 会跳到登录页，用 WEB_USER / WEB_PASS 能登录（Cookie 会话保持 30 天）。
 8. 部署完成后建议关闭 6099 的公网访问。
 
+## 配 HTTPS（iPhone 网页通知必需）
+iPhone 只在 HTTPS 网址下给「添加到主屏幕」的网页发通知（Web Push）。没有 HTTPS 时群报照常能用，只是「开启通知」会提示需要 HTTPS。
+1. 向用户要一个域名（或子域名），DNS 加 A 记录指向服务器公网 IP。没有域名可以先用 `服务器IP用横线连起来.sslip.io`（如 `1-2-3-4.sslip.io`）。
+   注意：服务器在中国大陆时，域名走 80/443 需要 ICP 备案；没备案就用境外服务器，或用 Cloudflare Tunnel（`cloudflared`，不用开端口，自带 HTTPS）把 `http://127.0.0.1:8000` 映射出去。
+2. 安装 Caddy（Debian/Ubuntu：按 https://caddyserver.com/docs/install 加官方源后 `apt install caddy`），`/etc/caddy/Caddyfile` 写：
+   ```
+   qunbao.example.com {
+       reverse_proxy 127.0.0.1:8000
+   }
+   ```
+   `systemctl reload caddy`。Caddy 会自动申请并续期 Let's Encrypt 证书（会自动带上 X-Forwarded-Proto，登录 Cookie 自动变 Secure）。
+3. 防火墙/安全组放行 TCP 80 和 443（80 用于申请证书）。配好后 8000 可只对本机开放。
+4. 验证：`curl -sI https://qunbao.example.com/healthz` 返回 200；手机 Safari 打开 `https://域名` 能登录。
+5. 告诉用户：用 https 地址重新「添加到主屏幕」（旧的 http 图标删掉），从桌面打开 →「开启通知」；网页「设置 → 定时、提醒与免打扰 → 点通知打开」改成 https 地址（Bark 点开用）。
+- 网页通知的 VAPID 密钥第一次启动自动生成，存在 data/qunbao.db 里，不用配置；**不要删 data 目录**，否则已开启的设备要重新开一次。
+- 服务器需要能访问外网的推送服务（苹果是 `web.push.apple.com`）。
+
 ## 更新（升级到最新版）
 在部署目录执行：
 ```
@@ -35,5 +52,5 @@ git pull && docker compose up -d --build qunbao
 用户在网页「设置 → 接入微信」复制接收地址，填进安卓手机上的通知转发 App 即可。
 
 ## 自检
-`pip install fastapi httpx pytest && python -m pytest tests -q`
+`pip install -r digest/requirements.txt pytest && python -m pytest tests -q`
 `curl http://127.0.0.1:8000/healthz` 返回版本号。
