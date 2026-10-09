@@ -2024,3 +2024,15 @@ def test_db_wal_and_busy_timeout():
         c = app_mod2.db()
     assert c.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal"
     assert c.execute("PRAGMA busy_timeout").fetchone()[0] >= 30000
+
+
+def test_prune_db():
+    with app_mod.db() as c:
+        c.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (1000, 24, "{}"))
+        c.execute("INSERT INTO sessions(h,ts,exp,pw,ua) VALUES('old',1,2,'','')")
+        c.execute("INSERT OR REPLACE INTO reminded(k,ts) VALUES('x',1000)")
+    app_mod.prune_db()
+    with app_mod.db() as c:
+        assert c.execute("SELECT COUNT(*) FROM digests WHERE ts=1000").fetchone()[0] == 0
+        assert c.execute("SELECT COUNT(*) FROM sessions WHERE h='old'").fetchone()[0] == 0
+        assert c.execute("SELECT COUNT(*) FROM reminded WHERE k='x'").fetchone()[0] == 0
