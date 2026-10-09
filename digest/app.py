@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.32.5"
+VERSION = "0.32.6"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -420,6 +420,52 @@ async def group_name(gid: int) -> str:
     except Exception:
         pass
     return name
+
+
+# ---------------- 旧图片换新链接（不存图） ----------------
+# QQ 新版图片链接 multimedia.nt.qq.com.cn/download?appid=..&fileid=..&rkey=.. 里的 rkey 几小时就过期，
+# 图片本身还在 QQ 服务器上。向 NapCat 要一个当前有效的 rkey 换进去就能再看，服务器一张图都不用存。
+_RKEY = {"ts": 0.0, "group": "", "private": ""}
+
+
+async def fresh_rkeys(force=False):
+    if not force and time.time() - _RKEY["ts"] < 1800 and (_RKEY["group"] or _RKEY["private"]):
+        return _RKEY
+    h = {"Authorization": f"Bearer {NAPCAT_TOKEN}"} if NAPCAT_TOKEN else {}
+    async with httpx.AsyncClient(timeout=6) as cl:
+        for api in ("nc_get_rkey", "get_rkey"):
+            try:
+                r = await cl.post(f"{NAPCAT_HTTP}/{api}", json={}, headers=h)
+                data = r.json().get("data") or []
+            except Exception:
+                continue
+            got = {}
+            for x in data if isinstance(data, list) else []:
+                k = str(x.get("rkey") or "").replace("&rkey=", "").lstrip("&")
+                if k and x.get("type") in ("group", "private"):
+                    got[x["type"]] = k
+            if got:
+                _RKEY.update(ts=time.time(), **got)
+                return _RKEY
+    return _RKEY
+
+
+def swap_rkey(url: str, keys: dict) -> str:
+    m = re.match(r"^https://multimedia\.nt\.qq\.com\.cn/download\?([^#\s]+)$", url or "")
+    if not m:
+        return ""
+    q = parse_qs(m.group(1))
+    key = keys.get("private" if (q.get("appid") or [""])[0] == "1406" else "group") or keys.get("group") or keys.get("private")
+    if not key or not q.get("fileid"):
+        return ""
+    return re.sub(r"([?&])rkey=[^&]*", lambda mm: mm.group(1) + "rkey=" + key, url) if "rkey=" in url else url + "&rkey=" + key
+
+
+@app.get("/api/img_fresh", dependencies=[Depends(auth)])
+async def img_fresh(u: str, retry: int = 0):
+    """图片链接过期时前端来要新链接；只换 QQ 官方图片域名的 rkey，换不了返回空（前端显示「图片已失效」）。"""
+    keys = await fresh_rkeys(force=bool(retry))
+    return {"url": swap_rkey(u, keys)}
 
 
 @app.post("/onebot")
@@ -1017,6 +1063,20 @@ def _line(r, cls) -> str:
             f"{' (@我)' if r['at_me'] else ''}{' ★' if cls == 'key' else ''}: {(r['text'] or '')[:800]}")
 
 
+BACKLOG_KEEP = int(os.getenv("BACKLOG_KEEP", "240"))   # 单群一次最多整理最近这么多条；更早的直接略过（刚升级/断了很久才会遇到）
+BACKLOG_OLD_KEEP = 30                                  # 略过的旧消息里，@我 / 重点消息最多再保留这么多条
+
+
+def cap_backlog(pairs):
+    """大积压保护：一个群一次攒了几百条（服务器刚升级、断线很久），只整理最近 BACKLOG_KEEP 条，
+    更早的只留 @我 / 重点消息，其余直接推进水位。这样几分钟内能消化完，不会连发十几次模型调用引发限流。返回 (保留的, 略过条数)。"""
+    if len(pairs) <= BACKLOG_KEEP:
+        return pairs, 0
+    old, recent = pairs[:-BACKLOG_KEEP], pairs[-BACKLOG_KEEP:]
+    keep = [(r, c) for r, c in old if r["at_me"] or c == "key"][-BACKLOG_OLD_KEEP:]
+    return keep + recent, len(old) - len(keep)
+
+
 def chunked(pairs):
     out, cur, n = [], [], 0
     for r, cls in pairs:
@@ -1152,7 +1212,11 @@ async def _update_chat(source, chat, rows, s, stats) -> bool:
     with db() as c:
         st = c.execute("SELECT * FROM chat_state WHERE source=? AND chat=?", (source, chat)).fetchone()
     old_summary = summary = st["summary"] if st else ""
+    rows = sorted(rows, key=lambda r: r["id"])
     pairs = [(r, cls) for r in rows if (cls := classify(r, s)) != "drop"]
+    pairs, cut = cap_backlog(pairs)
+    stats["backlog_skipped"] = stats.get("backlog_skipped", 0) + cut
+    stats["skipped"] += cut
     changed = False
     queue = chunked(pairs)
     while queue:
@@ -1191,6 +1255,11 @@ async def _update_chat(source, chat, rows, s, stats) -> bool:
         if isinstance(d.get("summary"), str) and d["summary"].strip():
             summary = d["summary"].strip()[:80]
         changed |= apply_changes(source, chat, d, {x[0]["id"] for x in part if x[0]["at_me"]})
+        if queue:  # 检查点：每块处理完就推进水位，后面的块失败（限流/超时）也不用从头重来
+            with db() as c:
+                c.execute("INSERT INTO chat_state(source,chat,last_msg_id,summary,updated_ts) VALUES(?,?,?,?,?) "
+                          "ON CONFLICT(source,chat) DO UPDATE SET last_msg_id=MAX(last_msg_id, excluded.last_msg_id), summary=excluded.summary, updated_ts=excluded.updated_ts",
+                          (source, chat, max(x[0]["id"] for x in part), summary, int(time.time())))
     with db() as c:
         c.execute("INSERT OR REPLACE INTO chat_state(source,chat,last_msg_id,summary,updated_ts) VALUES(?,?,?,?,?)",
                   (source, chat, max(r["id"] for r in rows), summary,
