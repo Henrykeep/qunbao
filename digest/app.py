@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.32.0"
+VERSION = "0.32.1"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -573,6 +573,15 @@ def is_censored(code: int, text: str) -> bool:
 LLM_FATAL_CODES = (401, 402, 403, 404)  # 余额不足 / 密钥错误 / 地址或模型名错误：自动整理不重试，等设置变更或手动整理
 
 
+def llm_err_shown() -> str:
+    """首页黄条：要用户动手的错误（余额/密钥/地址）立刻显示；限流、超时这类偶发错误后台自己重试，连续 5 分钟都失败才显示。"""
+    if LLM_STATE.get("ok", True) or not LLM_STATE.get("err"):
+        return ""
+    if LLM_STATE.get("code") in LLM_FATAL_CODES or time.time() - (LLM_STATE.get("fail_since") or time.time()) >= 300:
+        return LLM_STATE["err"]
+    return ""
+
+
 def llm_short(code: int, err: str) -> str:
     """顶部状态用的短原因。"""
     e = err or ""
@@ -632,7 +641,7 @@ async def llm(messages, as_json=False):
                                   headers={"Authorization": f"Bearer {LLM_KEY}"})
                 r.raise_for_status()
                 out = r.json()["choices"][0]["message"]["content"]
-                LLM_STATE.update(ok=True, err="", ts=int(time.time()), code=0)
+                LLM_STATE.update(ok=True, err="", ts=int(time.time()), code=0, fail_since=0)
                 kv_add("llm_calls", 1)
                 llm_log(kind)
                 return out
@@ -659,7 +668,7 @@ async def llm(messages, as_json=False):
         elif code != 429:
             break
     if code != 451:  # 审核拦截由调用方拆块跳过，不算「大模型坏了」，不挂红色报错
-        LLM_STATE.update(ok=False, err=err, ts=int(time.time()), code=code)
+        LLM_STATE.update(ok=False, err=err, ts=int(time.time()), code=code, fail_since=LLM_STATE.get("fail_since") or time.time())
     raise HTTPException(502, err, headers={"x-llm-code": str(code)})
 
 
@@ -1386,6 +1395,7 @@ AUTO_MIN_GAP = 45             # 同一个群两次整理至少隔 45 秒
 AUTO_URGENT_GAP = 10          # 要紧消息只要求隔 10 秒（否则 @我 可能要等 45 秒）
 AUTO_PARALLEL = 4             # 全局最多同时整理 4 个群
 AUTO_BACKOFF0, AUTO_BACKOFF_MAX = 30, 600   # 失败退避 30s → 60s → … 最多 10 分钟
+AUTO_FAIL_SHOW = 300          # 连续失败 5 分钟才在页面提示
 HEAD_GAP = 600                # 头条最多 10 分钟用模型重写一次；其间出现新的要紧事项用规则拼
 AUTO = {"running": {}, "last_run": {}, "fail": {}, "fatal": None, "ok_ts": 0.0, "done_ts": 0}
 AUTO_TASKS: set = set()
@@ -1509,8 +1519,9 @@ async def auto_run_chat(k, rows, s, now: float | None = None):
     except Exception as ex:
         code = _llm_code(ex)
         err = str(getattr(ex, "detail", "") or ex)[:300]
-        n = AUTO["fail"].get(k, {}).get("n", 0) + 1
-        AUTO["fail"][k] = {"n": n, "until": now + min(AUTO_BACKOFF_MAX, AUTO_BACKOFF0 * 2 ** (n - 1)), "err": err,
+        prev = AUTO["fail"].get(k, {})
+        n = prev.get("n", 0) + 1
+        AUTO["fail"][k] = {"n": n, "since": prev.get("since", time.time()), "until": now + min(AUTO_BACKOFF_MAX, AUTO_BACKOFF0 * 2 ** (n - 1)), "err": err,
                            "code": code, "ts": time.time()}
         if code in LLM_FATAL_CODES or code == -1:
             AUTO["fatal"] = {"err": err, "short": llm_short(code, err), "hash": _shash(s), "ts": time.time()}
@@ -1625,7 +1636,9 @@ def auto_status(s: dict | None = None) -> dict:
     fails = list(AUTO["fail"].values())
     if fails:
         last = max(fails, key=lambda v: v["ts"])
-        if last["ts"] > AUTO["ok_ts"]:
+        # 偶发失败（限流、超时）后台自己退避重试，用户无感；连续失败超过 5 分钟、期间没有任何群整理成功才提示
+        since = min(v.get("since", v["ts"]) for v in fails)
+        if last["ts"] > AUTO["ok_ts"] and time.time() - since >= AUTO_FAIL_SHOW:
             return {"state": "failed", "reason": llm_short(last["code"], last["err"]), "err": last["err"], "fatal": False,
                     "retry_in": max(0, int(min(v["until"] for v in fails) - time.time())), "n": len(fails)}
     return {"state": "idle"}
@@ -1952,7 +1965,7 @@ def state(id: int | None = None):
         "status": {"last_msg": last, "heartbeat": hb_ts, "online": qq_on or wx_on,
                    "qq": {"online": qq_on, "seen": hb_ts or last_qq, "last": last_qq},
                    "wx": {"online": wx_on, "seen": wx_ts, "last": last_wx, "ready": bool(INGEST_TOKEN)},
-                   "llm": bool(LLM_KEY), "llm_err": (LLM_STATE["err"] if not LLM_STATE["ok"] else ""),
+                   "llm": bool(LLM_KEY), "llm_err": llm_err_shown(),
                    "llm_err_ts": LLM_STATE["ts"], "version": VERSION},
     }
 
