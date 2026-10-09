@@ -7,10 +7,10 @@ from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.8"
+VERSION = "0.33.9"
 TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")   # 时间解析/免打扰/每日整理都按这个时区
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -2687,6 +2687,24 @@ def view_headline(hours, body):
         return c["h"]
     opens = [t for t in body.get("todos", []) if not t.get("done")] + body.get("notices", [])
     return rule_headline(opens) or "这段时间群里没什么要你管的"
+
+
+@app.get("/api/digest.md", dependencies=[Depends(auth)])
+def digest_md(hours: int = 24):
+    """把当前群报导出成 Markdown 文字（待办 / 通知 / 各群要点），方便分享或存进备忘录。只含已整理的事项，不含原文。"""
+    b = build_body(hours if hours in (24, 72, 168) else 24, settings())
+    out = [f"# 群报 {time.strftime('%Y-%m-%d')}", ""]
+    opens = [t for t in b["todos"] if not t["done"]]
+    dones = [t for t in b["todos"] if t["done"]]
+    out.append(f"## 待办（{len(opens)}）")
+    out += [f"- [ ] {t['title']}（{t['chat']}{'，' + t['due'] if t['due'] else ''}）" for t in opens] or ["- 暂无"]
+    if dones:
+        out += ["", f"## 已完成（{len(dones)}）"] + [f"- [x] {t['title']}（{t['chat']}）" for t in dones]
+    if b["notices"]:
+        out += ["", "## 通知"] + [f"- {n['title']}（{n['chat']}）" for n in b["notices"]]
+    if b["groups"]:
+        out += ["", "## 各群要点"] + [f"- {g['chat']}：{g['gist']}" for g in b["groups"]]
+    return PlainTextResponse("\n".join(out) + "\n", media_type="text/markdown; charset=utf-8")
 
 
 @app.get("/api/state", dependencies=[Depends(auth)])
