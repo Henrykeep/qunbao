@@ -1197,3 +1197,72 @@ def test_range_switch_is_pure_view():
     assert int(app_mod.kv_get("llm_calls", 0) or 0) == calls                 # 不调模型
     assert n == 1
     _fresh()
+
+
+def test_backlog_cap_and_checkpoint():
+    """大积压：一个群一次 700 条 → 只整理最近 240 条 + 少量旧的 @我，调用不超过 3 次，水位一次到位；
+    中途某块失败时，前面已处理的块水位保留，重试不从头再来。"""
+    import asyncio
+    from fastapi import HTTPException
+    _fresh(); _auto_reset()
+    s = dict(app_mod.settings(), auto_on=True)
+    for i in range(700):
+        _ingest("积压群", f"第{i}条消息内容比较长一点点用来不被噪音过滤{i}")
+    with app_mod.db() as x:
+        top = x.execute("SELECT MAX(id) i FROM msgs").fetchone()["i"]
+        x.execute("UPDATE msgs SET at_me=1 WHERE chat='积压群' AND text LIKE '第5条%' OR text LIKE '第6条%'")
+    sent = []
+
+    async def ok(msgs, as_json=False):
+        if msgs[0]["content"].startswith("【群更新】"):
+            sent.append(msgs[1]["content"])
+        return json.dumps({"summary": "积压", "new": []})
+    old = app_mod.llm; app_mod.llm = ok
+    try:
+        async def go():
+            await app_mod.auto_tick(s, time.time() + 999)
+            while app_mod.AUTO_TASKS:
+                await asyncio.gather(*list(app_mod.AUTO_TASKS))
+        asyncio.run(go())
+        assert 1 <= len(sent) <= 3, len(sent)
+        body = "\n".join(sent)
+        assert f"第699条" in body and "第5条" in body and "第300条" not in body
+        with app_mod.db() as x:
+            wm = x.execute("SELECT last_msg_id FROM chat_state WHERE chat='积压群'").fetchone()["last_msg_id"]
+        assert wm == top
+        assert app_mod.cap_backlog([({"at_me": 0, "id": i}, "n") for i in range(10)])[1] == 0
+        # 检查点：第二块失败，第一块的水位保留
+        _fresh(); _auto_reset()
+        for i in range(300):
+            _ingest("检查点群", f"检查点消息{i}号需要处理一下不要被过滤掉")
+        n = [0]
+
+        async def flaky(msgs, as_json=False):
+            if not msgs[0]["content"].startswith("【群更新】"):
+                return "头条"
+            n[0] += 1
+            if n[0] == 2:
+                raise HTTPException(502, "boom")
+            return json.dumps({"summary": "x", "new": []})
+        app_mod.llm = flaky
+        rows = [dict(r) for r in app_mod.pending_info(s)[0] if r["chat"] == "检查点群"]
+        stats = {"new": 0, "sent": 0, "calls": 0, "chats": 1, "changed": 0, "secs": 0.0, "errors": 0, "skipped": 0}
+        try:
+            asyncio.run(app_mod.update_chat("QQ", "检查点群", rows, s, stats))
+        except HTTPException:
+            pass
+        with app_mod.db() as x:
+            st = x.execute("SELECT last_msg_id FROM chat_state WHERE chat='检查点群'").fetchone()
+        assert st and st["last_msg_id"] > 0 and st["last_msg_id"] < max(r["id"] for r in rows)
+    finally:
+        app_mod.llm = old
+        _fresh()
+
+
+def test_img_rkey_swap():
+    k = {"group": "NEWG", "private": "NEWP"}
+    u = "https://multimedia.nt.qq.com.cn/download?appid=1407&fileid=ABC&spec=0&rkey=OLD"
+    assert app_mod.swap_rkey(u, k) == "https://multimedia.nt.qq.com.cn/download?appid=1407&fileid=ABC&spec=0&rkey=NEWG"
+    assert app_mod.swap_rkey(u.replace("1407", "1406"), k).endswith("rkey=NEWP")
+    assert app_mod.swap_rkey("https://evil.com/download?fileid=1&rkey=x", k) == ""
+    assert app_mod.swap_rkey("https://gchat.qpic.cn/gchatpic_new/1/2-3/0", k) == ""
