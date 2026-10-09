@@ -2036,3 +2036,13 @@ def test_prune_db():
         assert c.execute("SELECT COUNT(*) FROM digests WHERE ts=1000").fetchone()[0] == 0
         assert c.execute("SELECT COUNT(*) FROM sessions WHERE h='old'").fetchone()[0] == 0
         assert c.execute("SELECT COUNT(*) FROM reminded WHERE k='x'").fetchone()[0] == 0
+
+
+def test_onebot_token(monkeypatch):
+    from fastapi.testclient import TestClient
+    A = app_mod
+    monkeypatch.setattr(A, "ONEBOT_TOKEN", "t0k")
+    c = TestClient(A.app)
+    assert c.post("/onebot", json={}).status_code == 401
+    assert c.post("/onebot?token=t0k", json={}).status_code == 200
+    assert c.post("/onebot", json={}, headers={"Authorization": "Bearer t0k"}).status_code == 200
