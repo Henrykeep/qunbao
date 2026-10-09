@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.3"
+VERSION = "0.33.4"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -2677,7 +2677,7 @@ def _q_terms(q: str) -> list:
     return list(dict.fromkeys(t.lower() for t in terms))[:12]
 
 
-def ask_context(q: str, s: dict, chat: str = "", source: str = "", since_id: int = 0, hours: int = 72):
+def ask_context(q: str, s: dict, chat: str = "", source: str = "", since_id: int = 0, hours: int = 72, prior: str = ""):
     """问答检索：限定群（任何档位都能问）或全局（排除「不看」的群）；先去噪，消息太多时按关键词 + 重点 + 最新挑一部分。"""
     since = int(time.time()) - hours * 3600
     sql, args = "SELECT * FROM msgs WHERE ts>=?", [since]
@@ -2694,7 +2694,9 @@ def ask_context(q: str, s: dict, chat: str = "", source: str = "", since_id: int
         rows = [r for r in rows if chat_mode(r["source"], r["chat"], s) != "off"]
     cls = {r["id"]: classify(r, s2) for r in rows}
     rows = [r for r in rows if cls[r["id"]] != "drop" or r["at_me"]]
+    # 追问（「那后来定了吗」）自己没几个检索词，把上一个问题的词也带上，消息多时才不会漏掉话题
     terms = _q_terms(q)
+    terms += [t for t in _q_terms(prior) if t not in terms][:8]
     line = lambda r: (f"#{r['id']} [{datetime.fromtimestamp(r['ts'], TZ):%m-%d %H:%M}]"
                       f"{'' if chat else '[' + r['source'] + '·' + r['chat'] + ']'} {r['sender']}"
                       f"{' (@我)' if r['at_me'] else ''}: {(r['text'] or '')[:300]}")
@@ -2751,7 +2753,8 @@ async def ask(req: Request):
     hist = [{"role": m["role"], "content": str(m["content"])[:2000]} for m in body.get("history", [])[-6:]
             if isinstance(m, dict) and m.get("role") in ("user", "assistant")]
     s = settings()
-    rows, lines = ask_context(q, s, chat, source, since_id, hours=168 if since_id else 72)
+    prior = " ".join(m["content"] for m in hist if m["role"] == "user")[-200:]
+    rows, lines = ask_context(q, s, chat, source, since_id, hours=168 if since_id else 72, prior=prior)
     now = datetime.now(TZ)
     scope = f"「{chat}」这个群（{source or '群聊'}）" if chat else "用户所有的群"
     extra = ""
@@ -2764,7 +2767,7 @@ async def ask(req: Request):
     a = await llm([
         {"role": "system", "content": f"【问答】你是用户的群消息秘书。现在是 {now:%Y-%m-%d %H:%M}。{about_me(s)}\n"
                                       f"只根据下面{scope}的聊天记录回答。像朋友帮忙转述一样说人话、口语、简短，不要报告腔，不要「综上所述」「以下是」：先一句话直接回答，需要时再用「- 」列 2–4 个要点，每点不超过 30 字。"
-                                      "用户追问（如「那后来定了吗」）时接着上文回答。"
+                                      "用户追问（如「那后来定了吗」）时接着上文回答：只答新问的那部分，上文已经说过的不要再讲一遍，没有新信息就一句话说「没有新的进展」。"
                                       "每个要点末尾用 [#消息编号] 标出依据，编号只能用记录里出现过的 #数字，没有依据就不要编。"
                                       "记录里没有就直说没有。可以用 **加粗** 标重点，不要标题和表格。"},
         {"role": "user", "content": f"聊天记录（#数字 是消息编号）：\n" + "\n".join(lines) + extra},
