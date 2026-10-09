@@ -4,6 +4,7 @@ import importlib, os, sys, tempfile, base64, json, time
 os.environ.update(DB_PATH=os.path.join(tempfile.mkdtemp(), "t.db"), WEB_PASS="pw", INGEST_TOKEN="tok", LLM_API_KEY="")
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "digest"))
 app_mod = importlib.import_module("app")
+REAL_LLM = app_mod.llm
 from fastapi.testclient import TestClient
 
 c = TestClient(app_mod.app)
@@ -117,10 +118,8 @@ def test_quiet_hours(monkeypatch):
         return R()
     monkeypatch.setattr(app_mod.httpx.AsyncClient, "post", fake_post)
     app_mod.kv_set("held", "[]")
-    app_mod.save_settings({"bark_url": "http://x/k", "quiet_start": 0, "quiet_end": 23})
-    now_h = datetime.now(app_mod.TZ).hour
-    if now_h == 23:
-        app_mod.save_settings({"quiet_start": 1, "quiet_end": 23})
+    now_h = datetime.now(app_mod.TZ).hour  # 免打扰设成「当前这个小时」，不受跑测试的时刻影响
+    app_mod.save_settings({"bark_url": "http://x/k", "quiet_start": now_h, "quiet_end": (now_h + 1) % 24})
     assert asyncio.run(app_mod.push("a", "b")) is False and not sent and len(app_mod._held_get()) == 1
     app_mod.save_settings({"quiet_start": -1})
     assert asyncio.run(app_mod.flush_held()) == 1 and "1 条" in sent[0]["title"]
@@ -562,74 +561,214 @@ def test_pin_fuzzy():
     assert not app_mod.annotate_todos({"todos": [{"title": "交体测表", "chat": "体育群"}]})["todos"][0]["pinned"]
 
 
-def test_auto_digest_conditions():
-    _fresh()
-    with app_mod.db() as db_:
-        db_.execute("DELETE FROM digests")
-        db_.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (int(time.time()) - 600, 24, json.dumps({"todos": []})))
-    s = dict(app_mod.settings(), auto_interval=30, modes={"微信|吵闹群": "off", "微信|重要群": "focus"})
-    chk = app_mod.auto_check
-    later = lambda m: time.time() + m * 60
-    assert chk(s) is None                                   # 没有新消息
-    _ingest("吵闹群", "今天下午 3 点开会")
-    _ingest("普通群", "哈哈哈")
-    assert chk(s, now=later(60)) is None                    # 屏蔽群 / 噪音不算
+def _auto_reset():
+    A = app_mod.AUTO
+    A["running"].clear(); A["last_run"].clear(); A["fail"].clear(); A["fatal"] = None
+    app_mod.ARRIVE.clear()
+
+
+def _arrive(chat, offset):
+    """把某群所有待整理消息的「收到时间」设成 now+offset。"""
+    with app_mod.db() as x:
+        for r in x.execute("SELECT id FROM msgs WHERE chat=?", (chat,)):
+            app_mod.ARRIVE[r["id"]] = time.time() + offset
+
+
+def test_auto_trigger_rules():
+    _fresh(); _auto_reset()
+    s = dict(app_mod.settings(), auto_on=True, modes={"微信|吵闹群": "off", "微信|只看群": "atonly", "微信|重要群": "focus"})
+    plan = lambda now=None: {k[1]: why for k, _, why in app_mod.auto_plan(s, now)[0]}
+    T = time.time()
+    assert plan() == {}                                          # 没有新消息
+    _ingest("吵闹群", "今天下午 3 点开会"); _ingest("只看群", "明天交表"); _ingest("普通群", "哈哈哈")
+    assert plan(T + 999) == {}                                   # 不看 / 只看@我 / 噪音都不触发
     _ingest("普通群", "周末一起去爬山吗大家")
-    assert chk(s) is None                                   # 才过 10 分钟 < 30
-    assert chk(s, now=time.time() + 60) is None             # 间隔没到
-    assert chk(s, now=later(25)) == ("interval", 24)        # 间隔到了且已安静 2 分钟
-    assert chk(dict(s, auto_interval=0), now=later(999)) is None
-    with app_mod.db() as db_:                               # 防抖：消息还在刷（刚刚还有）就先等
-        db_.execute("UPDATE msgs SET ts=? WHERE chat='普通群'", (int(later(25)) - 30,))
-    assert chk(s, now=later(25)) is None
-    for i in range(50):
-        _ingest("普通群", f"刷屏消息第{i}条内容比较长")
-    with app_mod.db() as db_:
-        db_.execute("UPDATE msgs SET ts=? WHERE chat='普通群'", (int(later(25)) - 30,))
-    assert chk(s, now=later(25)) == ("interval", 24)        # 累计 ≥50 条不等安静
-    _fresh()
-    with app_mod.db() as db_:
-        db_.execute("UPDATE digests SET ts=?", (int(time.time()) - 600,))
+    assert "普通群" not in plan(T + 5)                            # 才 5 秒，还在等安静
+    assert plan(T + 21)["普通群"] == "quiet"                      # 安静 20 秒
+    assert app_mod.auto_plan(dict(s, auto_on=False), T + 999)[0] == []  # 开关关了不整理
+    # 持续刷屏：每条都把安静计时往后推，但最迟 90 秒
+    _arrive("普通群", -85)
+    _ingest("普通群", "有人带水吗我带两瓶")
+    with app_mod.db() as x:
+        mid = x.execute("SELECT MAX(id) i FROM msgs WHERE chat='普通群'").fetchone()["i"]
+    app_mod.ARRIVE[mid] = T  # 最后一条刚到
+    assert "普通群" not in plan(T + 3)
+    assert plan(T + 6)["普通群"] == "maxwait"                     # 第一条已等 91 秒
+    # 攒满 20 条：不等安静
+    for i in range(20):
+        _ingest("刷屏群", f"刷屏消息第{i}条内容比较长")
+    assert plan(time.time() + 1)["刷屏群"] == "burst"
+    # 要紧：@我 / @全体 / 重点群带时间
     _ingest("重要群", "这个周末大家随便聊聊")
-    assert chk(s) is None                                   # 0.31：重点群的闲聊不触发提前整理
+    assert "重要群" not in plan(time.time() + 3)                  # 重点群的闲聊不算要紧
     _ingest("重要群", "周六 9:00 东门集合，别迟到")
-    assert chk(s) == ("urgent", 24)                         # 重点群里有时间安排：过了 5 分钟就提前
-    with app_mod.db() as db_:
-        db_.execute("UPDATE digests SET ts=?", (int(time.time()) - 120,))
-    assert chk(s) is None                                   # 至少间隔 5 分钟
-    with app_mod.db() as db_:
-        db_.execute("UPDATE digests SET ts=?, hours=72", (int(time.time()) - 3600,))
-    app_mod.kv_set("auto_try", int(time.time()))
-    assert chk(s) is None                                   # 刚试过（可能失败），不每分钟重试
-    with app_mod.db() as db_:
-        db_.execute("DELETE FROM kv WHERE k='auto_try'")
-    assert chk(s)[1] == 72                                  # 时间窗口跟上一次一致
-    # 自动整理：免打扰时段只更新不推送；标记 auto
+    assert plan(time.time() + 6)["重要群"] == "urgent"            # ≤10 秒
+    _ingest("普通群2", "@全体成员 明早交材料")
+    assert plan(time.time() + 6)["普通群2"] == "urgent"
+    # 同群最小间隔：普通 45 秒，要紧 10 秒
+    k = ("微信", "普通群")
+    app_mod.AUTO["last_run"][k] = time.time()
+    assert "普通群" not in plan(time.time() + 30) and "普通群" in plan(time.time() + 46)
+    app_mod.AUTO["last_run"][("微信", "重要群")] = time.time()
+    assert "重要群" not in plan(time.time() + 5) and plan(time.time() + 11)["重要群"] == "urgent"
+    # 正在整理的群不重复启动
+    app_mod.AUTO["running"][k] = time.time()
+    assert "普通群" not in plan(time.time() + 99)
+    _auto_reset(); _fresh()
+
+
+def test_auto_parallel_backoff_and_fatal():
     import asyncio
-    sent = []
-    async def fake_push(*a, **k):
-        sent.append(a); return True
-    ol, op = app_mod.llm, app_mod.push
-    app_mod.llm, app_mod.push = FakeLLM({"重要群": {"new": [{"kind": "todo", "title": "看周末安排"}]}}), fake_push
+    _fresh(); _auto_reset()
+    s = dict(app_mod.settings(), auto_on=True)
+    for i in range(7):
+        _ingest(f"并发群{i}", f"周五 18:00 前交第{i}份材料")
+    active, peak = [0], [0]
+
+    async def slow_llm(msgs, as_json=False):
+        if not msgs[0]["content"].startswith("【群更新】"):
+            return "测试头条"
+        active[0] += 1; peak[0] = max(peak[0], active[0])
+        await asyncio.sleep(0.2)
+        active[0] -= 1
+        chat = msgs[0]["content"].split("「", 1)[1].split("」", 1)[0]
+        return json.dumps({"summary": "材料", "new": [{"kind": "todo", "title": f"交{chat}材料", "due": "周五 18:00", "urgency": "high"}]})
+    old = app_mod.llm; app_mod.llm = slow_llm
     try:
-        h = __import__("datetime").datetime.now(app_mod.TZ).hour
-        q = dict(s, bark_url="http://x", push_digest=True, quiet_start=h, quiet_end=(h + 1) % 24)
-        d = asyncio.run(app_mod.auto_digest(q))
-        assert d and d["auto"] and not sent
-        assert app_mod.auto_check(q) is None  # 整理完就没有待整理的消息了
-        assert c.get("/api/digests", headers=AUTH).json()[0]["auto"]
+        async def go():
+            far = time.time() + 999
+            await app_mod.auto_tick(s, far)
+            assert len(app_mod.AUTO["running"]) == app_mod.AUTO_PARALLEL == 4      # 全局最多 4 个群
+            await app_mod.auto_tick(s, far)
+            assert len(app_mod.AUTO["running"]) == 4                              # 不超额、不重复
+            while app_mod.AUTO_TASKS:
+                await asyncio.gather(*list(app_mod.AUTO_TASKS))
+            await app_mod.auto_tick(s, far)
+            while app_mod.AUTO_TASKS:
+                await asyncio.gather(*list(app_mod.AUTO_TASKS))
+        t0 = time.time()
+        asyncio.run(go())
+        assert peak[0] == 4 and time.time() - t0 < 1.5                            # 并发，不是 7×0.2 串行
+        st = c.get("/api/state", headers=AUTH).json()
+        titles = [t["title"] for t in st["digest"]["todos"]]
+        assert all(f"交并发群{i}材料" in titles for i in range(7))                 # 局部更新进首页
+        assert st["digest"]["live"] and st["auto"]["state"] == "idle" and st["pending"]["msgs"] == 0
     finally:
-        app_mod.llm, app_mod.push = ol, op
+        app_mod.llm = old
+    # 失败指数退避：30 → 60 → … ≤ 600
+    _fresh(); _auto_reset()
+    _ingest("坏群", "周五 18:00 交表")
+
+    async def bad(msgs, as_json=False):
+        raise app_mod.HTTPException(502, "大模型服务商出故障（503）：稍后会自动重试", headers={"x-llm-code": "503"})
+    app_mod.llm = bad
+    try:
+        rows = [r for r in app_mod.pending_info(s)[0] if r["chat"] == "坏群"]
+        k = ("微信", "坏群")
+        waits = []
+        for n in range(7):
+            now = time.time()
+            asyncio.run(app_mod.auto_run_chat(k, rows, s, now))
+            waits.append(round(app_mod.AUTO["fail"][k]["until"] - now))
+        assert waits == [30, 60, 120, 240, 480, 600, 600]
+        assert "坏群" not in {x[1] for x, _, _ in app_mod.auto_plan(s, time.time() + 500)[0]}
+        assert app_mod.auto_status(s)["state"] == "failed" and app_mod.auto_status(s)["reason"] == "服务商故障"
+        # 余额不足：不重试，直到设置变更
+        app_mod.AUTO["fail"].clear()
+
+        async def broke(msgs, as_json=False):
+            raise app_mod.HTTPException(502, app_mod.llm_err_text(402, "Insufficient Balance"), headers={"x-llm-code": "402"})
+        app_mod.llm = broke
+        asyncio.run(app_mod.auto_run_chat(k, rows, s, time.time()))
+        st = app_mod.auto_status(s)
+        assert st["state"] == "failed" and st["reason"] == "余额不足" and st["fatal"]
+        assert app_mod.auto_plan(s, time.time() + 99999)[0] == []                 # 一天后也不重试
+        s2 = dict(s, profile="我充值了")                                           # 设置变了：解除
+        assert app_mod.auto_plan(s2, time.time() + 46)[0] and app_mod.AUTO["fatal"] is None
+    finally:
+        app_mod.llm = old
+        _auto_reset(); _fresh()
+
+
+def test_headline_only_rewritten_for_new_urgent():
+    import asyncio
+    _fresh(); _auto_reset()
+    s = dict(app_mod.settings(), auto_on=True)
+    nm = lambda u: u.split("新消息（", 1)[1]
+    fake = FakeLLM({"头条群": lambda u: {"new": [{"kind": "todo", "title": "交报告A", "due": "明天 12:00", "urgency": "high"}]} if "报告A" in nm(u)
+                    else {"new": [{"kind": "notice", "title": "图书馆换了开放时间", "urgency": "low"}]} if "图书馆" in nm(u)
+                    else {"new": [{"kind": "todo", "title": "交班费", "due": "明天 18:00", "urgency": "high"}]}})
+    old = app_mod.llm; app_mod.llm = fake
+    app_mod.kv_set("head_ts", 0)
+    try:
+        def run(text):
+            _ingest("头条群", text)
+            rows = [r for r in app_mod.pending_info(s)[0] if r["chat"] == "头条群"]
+            async def go():
+                await app_mod.auto_run_chat(("微信", "头条群"), rows, s, time.time())
+                while app_mod.AUTO_TASKS:
+                    await asyncio.gather(*list(app_mod.AUTO_TASKS))
+            asyncio.run(go())
+            return c.get("/api/state", headers=AUTH).json()
+        st = run("明天 12:00 前交报告A")
+        heads = [x for x in fake.calls if x[0] == "head"]
+        assert len(heads) == 1 and st["digest"]["headline"] == "测试头条"         # 新的要紧事：模型写一次头条
+        r1 = st["rev"]
+        st = run("图书馆通知：开放时间改了")
+        assert len([x for x in fake.calls if x[0] == "head"]) == 1 and st["digest"]["headline"] == "测试头条"  # 不要紧：头条不动
+        assert st["rev"] != r1                                                     # 事项变了 rev 就变
+        st = run("明天 18:00 前交班费 50 元")                                           # 10 分钟内又来要紧事：规则拼，不调模型
+        assert len([x for x in fake.calls if x[0] == "head"]) == 1 and "交班费" in st["digest"]["headline"]
+        assert c.get("/api/rev", headers=AUTH).json()["rev"] == st["rev"]          # 没变化 rev 不变
+        ids = {d["id"] for d in c.get("/api/digests", headers=AUTH).json()[:3]}
+        assert len(ids) >= 1 and st["digest"]["id"] == max(ids)                    # 原地更新同一期
+        n = len(c.get("/api/digests", headers=AUTH).json())
+        run("明天 12:00 前交报告A 补充：要打印")
+        assert len(c.get("/api/digests", headers=AUTH).json()) == n                 # 不会每次整理都新建一期
+    finally:
+        app_mod.llm = old
+        _auto_reset(); _fresh()
+
+
+def test_rev_changes_on_done_and_pin():
+    _fresh()
+    with app_mod.db() as x:
+        x.execute("INSERT INTO items(source,chat,kind,title,status,first_ts,updated_ts) VALUES('QQ','rev群','todo','交表','open',1,1)")
+        iid = x.execute("SELECT MAX(id) i FROM items").fetchone()["i"]
+    r0 = c.get("/api/rev", headers=AUTH).json()
+    assert set(r0) >= {"rev", "auto", "pending", "updated_ts", "mrev"}
+    c.post("/api/todo", headers=AUTH, json={"key": f"item:{iid}", "pin": True})
+    r1 = c.get("/api/rev", headers=AUTH).json()["rev"]
+    c.post("/api/todo", headers=AUTH, json={"key": f"item:{iid}", "done": True})
+    r2 = c.get("/api/rev", headers=AUTH).json()["rev"]
+    assert len({r0["rev"], r1, r2}) == 3
+    _ingest("rev群", "随便聊聊天气不错")
+    assert c.get("/api/rev", headers=AUTH).json()["mrev"] > r0["mrev"]
+    _fresh()
+
+
+def test_auto_interval_migrates_to_switch():
+    import json as _j
+    keep = app_mod.kv_get("settings")
+    try:
+        for iv, on in ((30, True), (15, True), (120, True), (0, False)):
+            st = _j.loads(keep); st.pop("auto_on", None); st["auto_interval"] = iv
+            app_mod.kv_set("settings", _j.dumps(st))
+            s = app_mod.settings()
+            assert s["auto_on"] is on and "auto_interval" not in s
+        assert app_mod.save_settings({"auto_interval": 60})["auto_on"] is True   # 旧客户端
+        assert app_mod.save_settings({"auto_on": False})["auto_on"] is False
+    finally:
+        app_mod.kv_set("settings", keep)
 
 
 def test_settings_groups_keep_fields():
     st = c.get("/api/settings", headers=AUTH).json()
-    assert set(app_mod.DEFAULTS) <= set(st) and st["auto_interval"] in app_mod.AUTO_CHOICES
+    assert set(app_mod.DEFAULTS) <= set(st) and st["auto_on"] is True and "auto_interval" not in st
     before = dict(st)
-    r = c.post("/api/settings", headers=AUTH, json={"auto_interval": 15}).json()
-    assert r["auto_interval"] == 15 and all(r[k] == before[k] for k in before if k != "auto_interval")
-    assert c.post("/api/settings", headers=AUTH, json={"auto_interval": 7}).json()["auto_interval"] == 30  # 非法值回默认
-    c.post("/api/settings", headers=AUTH, json={"auto_interval": before["auto_interval"]})
+    r = c.post("/api/settings", headers=AUTH, json={"auto_on": False}).json()
+    assert r["auto_on"] is False and all(r[k] == before[k] for k in before if k != "auto_on")
+    c.post("/api/settings", headers=AUTH, json={"auto_on": True})
     html = c.get("/", headers=AUTH).text
     # 每个设置项都还在页面上有入口（重组后不丢字段）
     for k in app_mod.DEFAULTS:
@@ -638,7 +777,8 @@ def test_settings_groups_keep_fields():
         assert f"SET.{k}" in html or f'data-k="{k}"' in html, k
     for sub in ("me", "groups", "kw", "remind", "conn", "data", "acct", "about"):
         assert f'id="sub-{sub}"' in html and f'data-sub="{sub}"' in html
-    assert "refreshQuiet" in html and "已自动更新" in html and "visibilitychange" in html
+    assert "refreshQuiet" in html and "/api/rev" in html and "visibilitychange" in html and "morph(" in html
+    assert "稍后自动整理" not in html and 'id="s-auto"' in html and "<select id=\"s-auto\"" not in html   # 0.32：间隔下拉换成开关
 
 
 def test_tidy_headline_never_cuts_mid_word():
@@ -813,10 +953,9 @@ def test_llm_error_text():
 def test_held_push_survives_restart(monkeypatch):
     import asyncio
     app_mod.kv_set("held", "[]")
-    app_mod.save_settings({"bark_url": "http://x/k", "quiet_start": 0, "quiet_end": 23})
     from datetime import datetime
-    if datetime.now(app_mod.TZ).hour == 23:
-        app_mod.save_settings({"quiet_start": 1, "quiet_end": 23})
+    h = datetime.now(app_mod.TZ).hour
+    app_mod.save_settings({"bark_url": "http://x/k", "quiet_start": h, "quiet_end": (h + 1) % 24})
     try:
         assert asyncio.run(app_mod.push("a", "b")) is False
         assert json.loads(app_mod.kv_get("held")) == [["a", "b"]]   # 存在数据库里，重启不丢
@@ -937,3 +1076,86 @@ def test_tidy_bullets_cuts_at_punctuation():
     first = out.splitlines()[0]
     assert first.endswith("[#12]") and "23:00 前必须" in first and "确认" not in first
     assert out.splitlines()[1] == "- 短句 [#3]"
+
+
+def test_nav_stack_and_edge_back_ui():
+    html = c.get("/", headers=AUTH).text
+    # 群聊 / 弹层 / 设置子页 / 待办详情 都进历史栈，popstate 关最上面一层；按 hash 恢复群；左边缘右滑返回
+    for k in ("function navPush", "function navClose", '"popstate"', "#chat/", "chatHash(", 't:"chat"', 't:"sheet"', 't:"sub"', 't:"todo"',
+              "H2SRC", "clientX>24", "innerWidth/3", "edgeShade"):
+        assert k in html, k
+    assert "pushState({sub:n}" not in html
+
+
+def test_push_link_opens_chat(monkeypatch):
+    import asyncio
+    sent = []
+
+    async def fake_post(self, url, json=None):
+        sent.append(json)
+        class R: status_code = 200
+        return R()
+    monkeypatch.setattr(app_mod.httpx.AsyncClient, "post", fake_post)
+    app_mod.save_settings({"bark_url": "http://x/k", "site_url": "https://qb.example.com", "quiet_start": -1})
+    try:
+        assert asyncio.run(app_mod.push("@你 · 计科2201", "x", key="QQ|计科 2201/班"))
+        assert sent[-1]["url"] == "https://qb.example.com/#chat/qq/%E8%AE%A1%E7%A7%91%202201%2F%E7%8F%AD"
+    finally:
+        app_mod.save_settings({"bark_url": "", "site_url": ""})
+
+
+def test_censored_messages_skipped_not_stuck():
+    """服务商内容审核（451 censorship_blocked）拦下某几条：拆块重试，只跳过被拦的那条，其余照常整理，水位前进。"""
+    import asyncio
+    from fastapi import HTTPException
+    _fresh(); _auto_reset()
+    s = dict(app_mod.settings(), auto_on=True)
+    for i in range(6):
+        _ingest("审核群", f"第{i}条：周五 18:00 前交材料{i}" if i != 3 else "敏感词BAD")
+    calls = [0]
+
+    async def fake(msgs, as_json=False):
+        if not msgs[0]["content"].startswith("【群更新】"):
+            return "头条"
+        calls[0] += 1
+        if "BAD" in msgs[1]["content"]:
+            raise HTTPException(502, "blocked", headers={"x-llm-code": "451"})
+        return json.dumps({"summary": "交材料", "new": [{"kind": "todo", "title": "交材料", "due": "周五 18:00", "urgency": "high"}]})
+    old = app_mod.llm; app_mod.llm = fake
+    try:
+        async def go():
+            await app_mod.auto_tick(s, time.time() + 999)
+            while app_mod.AUTO_TASKS:
+                await asyncio.gather(*list(app_mod.AUTO_TASKS))
+        asyncio.run(go())
+        st = c.get("/api/state", headers=AUTH).json()
+        assert any(t["title"] == "交材料" for t in st["digest"]["todos"])
+        assert st["pending"]["msgs"] == 0 and calls[0] <= 6
+        assert not app_mod.AUTO["fail"]
+    finally:
+        app_mod.llm = old
+
+
+def test_429_global_cooldown_and_censor_detect():
+    assert app_mod.is_censored(451, "") and app_mod.is_censored(400, '{"type":"censorship_blocked"}')
+    assert not app_mod.is_censored(400, "bad request")
+    import asyncio, httpx
+    hits = []
+
+    def handler(req):
+        hits.append(time.time())
+        if len(hits) < 3:
+            return httpx.Response(429, headers={"retry-after": "0"}, text="rate limit")
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+    real = httpx.AsyncClient
+    old_key, old_waits = app_mod.LLM_KEY, app_mod.LLM_429_WAITS
+    app_mod.LLM_KEY = "k"; app_mod.LLM_429_WAITS = (0, 0, 0, 0); app_mod.LLM_RETRY_WAIT_OLD = app_mod.LLM_RETRY_WAIT
+    app_mod.LLM_RETRY_WAIT = 0
+    httpx.AsyncClient = lambda **kw: real(transport=httpx.MockTransport(handler), **kw)
+    try:
+        assert asyncio.run(REAL_LLM([{"role": "system", "content": "x"}])) == "ok"   # 两次 429 后成功，不报错
+        assert len(hits) == 3
+    finally:
+        httpx.AsyncClient = real
+        app_mod.LLM_KEY, app_mod.LLM_429_WAITS = old_key, old_waits
+        app_mod.LLM_RETRY_WAIT = app_mod.LLM_RETRY_WAIT_OLD
