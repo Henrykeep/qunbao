@@ -1437,3 +1437,26 @@ def test_norm_ts_garbage_and_order():
     ids = [m["id"] for m in ms]
     assert c.get(f"/api/messages?chat={chat}&after={max(ids)}", headers=AUTH).json() == []
     assert len(c.get(f"/api/messages?chat={chat}&before={max(ids)}", headers=AUTH).json()) == 4
+
+
+def test_followup_ask_keeps_topic_terms_and_no_repeat_prompt(monkeypatch):
+    """追问「那后来定了吗」自己没有检索词：消息多、被截取时，要带上上一个问题的词，话题消息才不会漏。"""
+    monkeypatch.setattr(app_mod, "ASK_LINES", 6)
+    texts = ["团建地点改到莲花山公园", "团建经费每人五十"] + [f"闲聊第{i}条今天吃什么好呢大家" for i in range(30)]
+    ids = _seed_chat("追问群", texts)
+    seen = {}
+
+    def reply(m):
+        seen["sys"] = m[0]["content"]; seen["ctx"] = m[1]["content"]
+        return "好的"
+    calls, fake = _llm_spy(reply)
+    monkeypatch.setattr(app_mod, "llm", fake)
+    hist = [{"role": "user", "content": "团建在哪里"}, {"role": "assistant", "content": "在公园"}]
+    c.post("/api/ask", headers=AUTH, json={"q": "那后来定了吗", "chat": "追问群", "source": "QQ", "history": hist})
+    assert "莲花山公园" in seen["ctx"]
+    assert "不要再讲一遍" in seen["sys"]
+
+
+def test_home_empty_todo_line_follows_pending():
+    h = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
+    assert "emptySub(st)" in h and 'id="emptysub"' in h and "还有 ${n} 条新消息没整理进来" in h
