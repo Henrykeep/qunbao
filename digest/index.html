@@ -846,7 +846,7 @@ function renderStatus(st){
   lv("#lv-qq",s.qq);lv("#lv-wx",s.wx);l.classList.toggle("ok",!!s.online);
   let n="";
   if(!s.llm)n+=`<div class="warn fade">${ICON.warn}<div><b>还没配置大模型</b><span>在服务器 .env 里填上 LLM_API_KEY，重启 qunbao 容器。</span></div></div>`;
-  else if(s.llm_err)n+=`<div class="warn fade">${ICON.warn}<div><b>大模型调用失败（已自动重试 1 次）</b><span>${esc(s.llm_err)}</span></div></div>`;
+  else if(s.llm_err)n+=`<div class="warn fade">${ICON.warn}<div><b>大模型一直调用失败</b><span>${esc(s.llm_err)}</span></div></div>`;
   else if(!s.last_msg)n+=`<div class="warn fade">${ICON.warn}<div><b>还没收到任何消息</b><span>QQ：登录 NapCat 并把上报地址指向群报；微信：去「设置 → 接入微信」。</span></div></div>`;
   if(!st.is_latest&&st.digest)n+=`<div class="banner fade"><span>正在看 ${ago(st.digest_ts)} 的群报</span><button id="tolatest">回到最新</button></div>`;
   const box=$("#notes");if(box._h===n)return;box._h=n;box.innerHTML=n;
@@ -1037,16 +1037,15 @@ function renderPend(st){
   const p=(st&&st.pending)||{},a=(st&&st.auto)||{},e=$("#pend");let h="";
   if(st&&st.is_latest!==false&&!viewId){
     if(a.state==="failed")h=`<i class="bad"></i>${a.fatal?"自动整理已暂停":"自动整理失败，稍后自动重试"}：${esc(a.reason||"")}${a.fatal?` · <button class="plink" id="pendset">去设置</button>`:""}`;
-    else if(p.msgs)h=`<i></i>新消息 ${p.msgs} 条 · ${p.chats} 个群 · ${a.state==="running"?"正在整理":a.state==="off"?"点「整理」看看":"马上整理"}`;
+    else if(p.msgs&&a.state==="off")h=`<i></i>新消息 ${p.msgs} 条 · 自动整理已关闭，点「整理」看看`;  // 自动整理开着时不打扰：后台几十秒内自己整理好
   }
   e.hidden=!h;if(e._h===h)return;e._h=h;e.innerHTML=h;
   $("#pendset")?.addEventListener("click",()=>{tick();go("set");openSub("about")});
 }
-/* 顶部状态：正在整理 N 个群… / 整理失败：原因 / 刚刚更新 / x 分钟前更新 */
+/* 顶部状态：只显示「刚刚更新 / x 分钟前更新」，持续失败才显示原因；后台整理过程不打扰用户 */
 function updLabel(){
   const el=$("#updated");if($("#regen").classList.contains("spin"))return;
-  const a=(ST&&ST.auto)||{};el.classList.toggle("err",a.state==="failed");el.classList.toggle("busy",a.state==="running");
-  if(a.state==="running"){el.textContent=`正在整理 ${a.n} 个群…`;return}
+  const a=(ST&&ST.auto)||{};el.classList.toggle("err",a.state==="failed");
   if(a.state==="failed"){el.textContent=`整理失败：${a.reason||""}`;return}
   const ts=ST&&(ST.updated_ts||ST.digest_ts);if(!ts){el.textContent="整理";return}
   const s=Date.now()/1000-ts,d=new Date(ts*1000);
