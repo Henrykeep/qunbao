@@ -10,8 +10,8 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.4"
-TZ = ZoneInfo("Asia/Shanghai")
+VERSION = "0.33.5"
+TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")   # 时间解析/免打扰/每日整理都按这个时区
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
 LLM_KEY = os.getenv("LLM_API_KEY", "")
@@ -1121,21 +1121,34 @@ def annotate_todos(body: dict) -> dict:
     return body
 
 
+def snooze_until(h, now: datetime) -> datetime:
+    """稍后提醒的时间点。「明早 9 点」：凌晨 5 点前说「明天」，指的是睡醒后的今早 9 点，不是 30 多小时以后。"""
+    if h == "tomorrow":
+        t = now.replace(hour=9, minute=0, second=0, microsecond=0)
+        return t if now.hour < 5 else t + timedelta(days=1)
+    return now + timedelta(hours=float(h or 1))
+
+
 @app.post("/api/todo/snooze", dependencies=[Depends(auth)])
 async def todo_snooze(req: Request):
     d = await req.json()
     h = d.get("hours")
-    if h == "tomorrow":
-        t = datetime.now(TZ).replace(hour=9, minute=0, second=0, microsecond=0) + timedelta(days=1)
-        until = int(t.timestamp())
-    else:
-        until = int(time.time() + float(h or 1) * 3600)
+    now = datetime.now(TZ)
+    at = snooze_until(h, now)
+    until = int(at.timestamp())
     t0, ch0 = split_key(d["key"])
+    it = _item_from_key(d["key"])
+    due_txt = (it["due"] if it is not None else d.get("due")) or ""
     with db() as c:
         c.execute("INSERT OR REPLACE INTO snooze(k,title,until,chat,due) VALUES(?,?,?,?,?)",
-                  (d["key"], d.get("title") or t0, until, d.get("chat") or ch0, d.get("due") or ""))
+                  (d["key"], d.get("title") or t0, until, d.get("chat") or ch0, due_txt))
+    when = ("今天" if at.date() == now.date() else "明天") + f" {at:%H:%M}" if h == "tomorrow" else f"{at:%H:%M}"
+    msg = f"{when} 提醒你" if h == "tomorrow" else f"{int(float(h or 1))} 小时后（{when}）提醒你"
+    due = parse_due(due_txt, now) if due_txt else None
+    if due and due <= at:  # 提醒晚于截止：提醒就没意义了，说清楚
+        msg = f"提醒设在 {when}，但那时已过截止（{due_txt}）"
     warn = "" if has_push() else "还没开启通知（设置 → 通知），到点发不出提醒"
-    return {"ok": True, "until": until, "warn": warn}
+    return {"ok": True, "until": until, "warn": warn, "msg": msg, "late": bool(due and due <= at)}
 
 
 # ================= 整理引擎（0.30.0）：按群增量 + 事项稳定 ID + 噪音预过滤 =================
