@@ -2,7 +2,7 @@
 import asyncio, contextlib, hashlib, json, os, re, secrets, sqlite3, time
 from difflib import SequenceMatcher
 from datetime import datetime, timedelta
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, quote
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.31.2"
+VERSION = "0.32.0"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -48,12 +48,10 @@ DEFAULTS = {
     "remind_hours": 3,         # 待办截止前几小时推送提醒；0 = 关闭
     "quiet_start": -1,         # 免打扰开始（小时 0-23）；-1 = 关闭
     "quiet_end": 7,            # 免打扰结束（小时）
-    "auto_interval": 30,       # 有新消息时自动整理的间隔（分钟）；0 = 关闭
+    "auto_on": True,           # 有新消息自动整理（0.32 起按群近实时触发；旧的 auto_interval>0 迁移为开，0 为关）
 }
-AUTO_CHOICES = (0, 15, 30, 60, 120)
 MODES = ("focus", "normal", "atonly", "off")
 MODE_NAME = {"focus": "重点盯", "normal": "正常", "atonly": "只看@我", "off": "不看"}
-AUTO_URGENT_GAP = 300          # 重要群 / @我 的新消息最少隔 5 分钟就可以提前整理
 
 @contextlib.asynccontextmanager
 async def lifespan(_app):
@@ -65,6 +63,13 @@ async def lifespan(_app):
 
 
 app = FastAPI(docs_url=None, redoc_url=None, lifespan=lifespan)
+ARRIVE: dict[int, float] = {}   # 消息 id → 收到的时间（自动整理防抖用；重启后丢失则退回消息 ts）
+_WAKE: list = []                # 调度器的 asyncio.Event（收到消息 / 改设置时唤醒）
+
+
+def wake_auto():
+    for ev in _WAKE:
+        ev.set()
 _group_names: dict[int, str] = {}
 _group_miss: dict[int, float] = {}
 _last_push: dict[str, float] = {}
@@ -98,6 +103,8 @@ with db() as c:
         status TEXT DEFAULT 'open', first_ts INTEGER, updated_ts INTEGER, msg_ids TEXT DEFAULT '',
         pinned INTEGER DEFAULT 0, reminded INTEGER DEFAULT 0, at_me INTEGER DEFAULT 0);
     CREATE INDEX IF NOT EXISTS i_items ON items(source, chat, status);
+    CREATE TABLE IF NOT EXISTS llm_log(ts INTEGER, kind TEXT);
+    CREATE INDEX IF NOT EXISTS i_llm_log ON llm_log(ts);
     CREATE TABLE IF NOT EXISTS chat_brief(source TEXT, chat TEXT, since_id INTEGER, upto_id INTEGER, body TEXT, ts INTEGER,
         PRIMARY KEY(source, chat));
     """)
@@ -115,26 +122,29 @@ def settings() -> dict:
         r = c.execute("SELECT v FROM kv WHERE k='settings'").fetchone()
     s = dict(DEFAULTS)
     if r:
-        s.update(json.loads(r["v"]))
+        old = json.loads(r["v"])
+        if "auto_interval" in old and "auto_on" not in old:  # 0.31 及以前：自动整理间隔 → 开关
+            old["auto_on"] = _int(old.get("auto_interval")) != 0
+        old.pop("auto_interval", None)
+        s.update(old)
     return s
 
 
 def save_settings(new: dict):
     s = settings()
+    new = dict(new)
+    if "auto_interval" in new and "auto_on" not in new:  # 旧客户端
+        new["auto_on"] = _int(new.pop("auto_interval")) != 0
     for k, v in new.items():
         if k in DEFAULTS:
             s[k] = v
-    try:
-        s["auto_interval"] = int(s.get("auto_interval") or 0)
-    except (TypeError, ValueError):
-        s["auto_interval"] = DEFAULTS["auto_interval"]
-    if s["auto_interval"] not in AUTO_CHOICES:
-        s["auto_interval"] = DEFAULTS["auto_interval"]
+    s["auto_on"] = bool(s.get("auto_on"))
     if s.get("default_mode") not in MODES:
         s["default_mode"] = "normal"
     s["modes"] = {k: v for k, v in (s.get("modes") or {}).items() if v in MODES and "|" in k}
     with db() as c:
         c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('settings',?)", (json.dumps(s, ensure_ascii=False),))
+    wake_auto()  # 设置变了：解除「余额不足 / 密钥错误」的暂停，马上看一眼
     return s
 
 
@@ -301,6 +311,10 @@ async def push(title: str, body: str, key: str = "", force=False, test=False, le
         payload["level"] = level
     if s.get("site_url"):
         payload["url"] = s["site_url"]
+        if "|" in key:  # 某个群的推送：点开直接进这个群（#chat/来源/群名）
+            src, ch = key.split("|", 1)
+            payload["url"] = (s["site_url"].rstrip("/") + "/#chat/" + {"QQ": "qq", "微信": "wx"}.get(src, quote(src, safe=""))
+                              + "/" + quote(ch, safe=""))
         payload["icon"] = s["site_url"].rstrip("/") + "/icon.png"
     try:
         async with httpx.AsyncClient(timeout=8) as cl:
@@ -344,8 +358,10 @@ async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
     if ckey(source, chat) not in (s.get("modes") or {}):  # 新出现的群：记下默认档位
         s = set_modes([(source, chat)], chat_mode(source, chat, s))
     with db() as c:
-        c.execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me,img) VALUES(?,?,?,?,?,?,?)",
-                  (int(ts or time.time()), source, chat, sender, text[:4000], int(at_me), imgs[:2000]))
+        cur = c.execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me,img) VALUES(?,?,?,?,?,?,?)",
+                        (int(ts or time.time()), source, chat, sender, text[:4000], int(at_me), imgs[:2000]))
+    ARRIVE[cur.lastrowid] = time.time()  # 防抖按「收到的时间」算（消息自带的 ts 可能是对方手机时间）
+    wake_auto()
     hit = hit_reason(chat, sender, text, at_me, s, source)
     if hit and s.get("push_at"):
         why, level = hit
@@ -505,7 +521,7 @@ def ingest_info():
 
 
 # ---------------- 大模型 ----------------
-LLM_STATE = {"ok": True, "err": "", "ts": 0}
+LLM_STATE = {"ok": True, "err": "", "ts": 0, "code": 0}
 
 
 def kv_get(k, default=None):
@@ -543,35 +559,108 @@ def llm_err_text(code: int, text: str) -> str:
     return f"大模型接口报错 {code}：{t[:160]}"
 
 
+LLM_TRIES = 5                 # 429 最多等 4 轮（3/8/20/45 秒，或按服务商的 Retry-After）
+LLM_429_WAITS = (3, 8, 20, 45)
+LLM_COOL = [0.0]              # 全局冷却到这个时间点：被限流时所有调用一起等，而不是各自继续撞
+
+
+def is_censored(code: int, text: str) -> bool:
+    low = (text or "").lower()
+    return code == 451 or "censorship" in low or "content_filter" in low or "data_inspection_failed" in low \
+        or "content you provided" in low or "敏感" in (text or "")
+
+
+LLM_FATAL_CODES = (401, 402, 403, 404)  # 余额不足 / 密钥错误 / 地址或模型名错误：自动整理不重试，等设置变更或手动整理
+
+
+def llm_short(code: int, err: str) -> str:
+    """顶部状态用的短原因。"""
+    e = err or ""
+    if code == 402 or "余额" in e:
+        return "余额不足"
+    if code in (401, 403) or "Key" in e:
+        return "API Key 不对"
+    if code == 404:
+        return "接口地址或模型名不对"
+    if code == 429:
+        return "被限流"
+    if code == -1:
+        return "没配置大模型"
+    if "超时" in e:
+        return "接口超时"
+    if "连不上" in e:
+        return "连不上大模型"
+    if code >= 500:
+        return "服务商故障"
+    return "大模型报错"
+
+
+def llm_log(kind: str):
+    now = int(time.time())
+    with db() as c:
+        c.execute("INSERT INTO llm_log(ts,kind) VALUES(?,?)", (now, kind))
+        if now % 50 == 0:
+            c.execute("DELETE FROM llm_log WHERE ts<?", (now - 3 * 86400,))
+
+
+def llm_calls_since(sec: int = 3600) -> dict:
+    with db() as c:
+        rows = c.execute("SELECT kind, COUNT(*) n FROM llm_log WHERE ts>=? GROUP BY kind", (int(time.time()) - sec,)).fetchall()
+    d = {r["kind"]: r["n"] for r in rows}
+    return {"total": sum(d.values()), **d}
+
+
 async def llm(messages, as_json=False):
     if not LLM_KEY:
-        raise HTTPException(500, "请先在 .env 里设置 LLM_API_KEY")
+        LLM_STATE.update(ok=False, err="还没配置大模型：在 .env 里设置 LLM_API_KEY", ts=int(time.time()), code=-1)
+        raise HTTPException(500, "请先在 .env 里设置 LLM_API_KEY", headers={"x-llm-code": "-1"})
+    sysm = str((messages or [{}])[0].get("content") or "")
+    kind = next((v for k, v in (("【群更新】", "chat"), ("【头条】", "head"), ("【问答】", "ask"), ("【群简报】", "brief"))
+                 if sysm.startswith(k)), "other")
+    code = 0
     body = {"model": LLM_MODEL, "messages": messages, "temperature": 0.2}
     if as_json:
         body["response_format"] = {"type": "json_object"}
     err = None
-    for attempt in range(2):  # 失败自动重试 1 次
+    for attempt in range(LLM_TRIES):  # 429/5xx/超时 自动重试；429 时全局冷却，所有请求一起排队等，不再一窝蜂撞限流
+        wait = LLM_COOL[0] - time.time()
+        if wait > 0:
+            await asyncio.sleep(min(wait, 120))
         try:
             async with httpx.AsyncClient(timeout=180) as cl:
                 r = await cl.post(f"{LLM_BASE}/chat/completions", json=body,
                                   headers={"Authorization": f"Bearer {LLM_KEY}"})
                 r.raise_for_status()
                 out = r.json()["choices"][0]["message"]["content"]
-                LLM_STATE.update(ok=True, err="", ts=int(time.time()))
+                LLM_STATE.update(ok=True, err="", ts=int(time.time()), code=0)
                 kv_add("llm_calls", 1)
+                llm_log(kind)
                 return out
         except httpx.HTTPStatusError as ex:
-            err = llm_err_text(ex.response.status_code, ex.response.text)
-            if ex.response.status_code < 500 and ex.response.status_code != 429:
+            code = ex.response.status_code
+            if is_censored(code, ex.response.text):
+                code = 451  # 内容审核拦截：重试同样内容没用，交给调用方拆小块/跳过
+                err = "大模型的内容审核拦下了部分消息：已自动跳过这几条，其余照常整理"
+                break
+            err = llm_err_text(code, ex.response.text)
+            if code == 429:
+                ra = _int(ex.response.headers.get("retry-after")) or LLM_429_WAITS[min(attempt, len(LLM_429_WAITS) - 1)]
+                LLM_COOL[0] = max(LLM_COOL[0], time.time() + min(ra, 120))
+                continue
+            if code < 500:
                 break
         except httpx.TimeoutException:
+            code = 0
             err = "大模型接口超时：服务商可能拥堵，稍后会自动重试"
         except httpx.HTTPError as ex:
             err = f"连不上大模型接口（{LLM_BASE}）：检查服务器网络或 LLM_BASE_URL。{str(ex)[:80]}"
-        if attempt == 0:
+        if attempt < 1:
             await asyncio.sleep(LLM_RETRY_WAIT)
-    LLM_STATE.update(ok=False, err=err, ts=int(time.time()))
-    raise HTTPException(502, err)
+        elif code != 429:
+            break
+    if code != 451:  # 审核拦截由调用方拆块跳过，不算「大模型坏了」，不挂红色报错
+        LLM_STATE.update(ok=False, err=err, ts=int(time.time()), code=code)
+    raise HTTPException(502, err, headers={"x-llm-code": str(code)})
 
 
 def transcript(hours: int):
@@ -804,11 +893,9 @@ async def todo_snooze(req: Request):
 # 每个群一份状态（chat_state），每件事一条记录（items）。整理时只处理有新消息的群，
 # 只把「该群旧要点 + 未完成事项（带 id）+ 新消息」交给模型，模型用 update/new/close 回答。
 # 用户勾完成 = items.status='done'，任何重新整理都不会复活。
-CHUNK_MSGS = int(os.getenv("CHUNK_MSGS", "300"))       # 单群新消息太多时，每块最多这么多条
-CHUNK_CHARS = int(os.getenv("CHUNK_CHARS", "12000"))   # 每块最多这么多字（约 token 上限的保守估计）
-LLM_PARALLEL = 3
-DEBOUNCE_QUIET = 120          # 新消息安静 2 分钟后再整理
-DEBOUNCE_BURST = 50           # 或者累计 50 条
+CHUNK_MSGS = int(os.getenv("CHUNK_MSGS", "120"))       # 单群新消息太多时，每块最多这么多条
+CHUNK_CHARS = int(os.getenv("CHUNK_CHARS", "6000"))   # 每块最多这么多字（约 token 上限的保守估计）
+LLM_PARALLEL = 4             # 手动/定时整理时同时整理的群数
 NOISE_WORDS = {"收到", "好的", "好", "好滴", "好哒", "嗯", "嗯嗯", "ok", "okk", "okay", "谢谢", "谢谢老师", "多谢", "感谢",
                "哈", "哈哈", "哈哈哈", "哈哈哈哈", "哈哈哈哈哈", "1", "11", "111", "6", "66", "666", "6666", "牛", "牛啊",
                "赞", "对", "对的", "是的", "可以", "行", "知道了", "明白", "了解", "晚安", "早", "早安", "在", "在吗", "嘿嘿",
@@ -1035,14 +1122,32 @@ def apply_changes(source, chat, d: dict, at_ids=frozenset(), now=None) -> bool:
     return changed
 
 
+_chat_locks: dict = {}
+
+
 async def update_chat(source, chat, rows, s, stats) -> bool:
+    """同一个群同一时间只整理一次（自动整理和手动「整理」可能撞上）：拿到锁后再按水位去掉已处理的消息。"""
+    lk = _chat_locks.setdefault((source, chat), asyncio.Lock())
+    async with lk:
+        with db() as c:
+            st = c.execute("SELECT last_msg_id FROM chat_state WHERE source=? AND chat=?", (source, chat)).fetchone()
+        done_id = (st["last_msg_id"] or 0) if st else 0
+        rows = [r for r in rows if r["id"] > done_id]
+        if not rows:
+            return False
+        return await _update_chat(source, chat, rows, s, stats)
+
+
+async def _update_chat(source, chat, rows, s, stats) -> bool:
     """处理一个群的新消息：噪音不送模型；分块逐块更新。返回这个群的事项或要点有没有变化。"""
     with db() as c:
         st = c.execute("SELECT * FROM chat_state WHERE source=? AND chat=?", (source, chat)).fetchone()
     old_summary = summary = st["summary"] if st else ""
     pairs = [(r, cls) for r in rows if (cls := classify(r, s)) != "drop"]
     changed = False
-    for part in chunked(pairs):
+    queue = chunked(pairs)
+    while queue:
+        part = queue.pop(0)
         with db() as c:
             opens = [dict(r) for r in c.execute("SELECT id,kind,title,detail,due,urgency FROM items WHERE source=? AND chat=? AND status='open' ORDER BY id",
                                                 (source, chat))]
@@ -1051,7 +1156,20 @@ async def update_chat(source, chat, rows, s, stats) -> bool:
         state = json.dumps({"summary": summary, "open_items": opens, "done_recent": done}, ensure_ascii=False)
         msgs = [{"role": "system", "content": chat_prompt(s, source, chat)},
                 {"role": "user", "content": f"旧状态：{state}\n新消息（{len(part)} 条）：\n" + "\n".join(x[2] for x in part)}]
-        out = await llm(msgs, as_json=True)
+        try:
+            out = await llm(msgs, as_json=True)
+        except HTTPException as ex:
+            if _llm_code(ex) != 451:
+                raise
+            # 内容审核拦截：拆成两半各自重来；拆到 2 条以内还被拦就跳过这几条，水位照常前进，整个群不再卡死
+            stats["calls"] += 1
+            if len(part) > 2:
+                h = len(part) // 2
+                queue[:0] = [part[:h], part[h:]]
+            else:
+                stats["skipped"] += len(part)
+                stats["blocked"] = stats.get("blocked", 0) + len(part)
+            continue
         stats["calls"] += 1
         stats["sent"] += len(part)
         try:
@@ -1255,54 +1373,300 @@ async def _make_digest(hours=24, auto=False, full=False):
     return body
 
 
-def auto_check(s: dict, now: float | None = None):
-    """该不该自动整理：返回 (原因, 时间窗口小时数) 或 None。
-    有待整理的新消息（已排除屏蔽群和噪音），并且
-    - 距上次整理 ≥ 间隔，且新消息已安静 2 分钟或累计 ≥ 50 条（防抖）；或
-    - 新消息里有 @我 / 重要群，且距上次 ≥ 5 分钟。"""
-    iv = int(s.get("auto_interval") or 0)
-    if iv <= 0:
+# ================= 近实时自动整理（0.32）：按群触发，整理完局部更新首页 =================
+# 每 5 秒（或收到消息时立刻）做一次便宜的 SQL 判断：哪个群的待整理新消息（已排除噪音、只看@我、不看）满足
+# 「安静 20 秒 / 攒满 20 条 / 要紧消息 / 最迟 90 秒」，就只整理这个群；同群至少隔 45 秒，全局最多 4 个群并发。
+AUTO_TICK = 5                 # 后台检查周期（秒）
+AUTO_QUIET = 20               # 群里安静 20 秒就整理
+AUTO_BURST = 20               # 或攒满 20 条
+AUTO_MAX_WAIT = 90            # 持续刷屏也最迟 90 秒整理一次（防抖不能被无限推迟）
+AUTO_URGENT_QUIET = 2         # 要紧消息（@我/@全体/重点群里带时间金额通知）：安静 2 秒（连发的几句凑一批）
+AUTO_URGENT_WAIT = 5          # 最多等 5 秒；加上模型耗时，10 秒内上首页
+AUTO_MIN_GAP = 45             # 同一个群两次整理至少隔 45 秒
+AUTO_URGENT_GAP = 10          # 要紧消息只要求隔 10 秒（否则 @我 可能要等 45 秒）
+AUTO_PARALLEL = 4             # 全局最多同时整理 4 个群
+AUTO_BACKOFF0, AUTO_BACKOFF_MAX = 30, 600   # 失败退避 30s → 60s → … 最多 10 分钟
+HEAD_GAP = 600                # 头条最多 10 分钟用模型重写一次；其间出现新的要紧事项用规则拼
+AUTO = {"running": {}, "last_run": {}, "fail": {}, "fatal": None, "ok_ts": 0.0, "done_ts": 0}
+AUTO_TASKS: set = set()
+_BUMP = [0]
+
+
+def bump():
+    _BUMP[0] += 1
+
+
+def _shash(s: dict) -> str:
+    return hashlib.md5(json.dumps(s, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def is_urgent(r, s) -> bool:
+    t = r["text"] or ""
+    if r["at_me"] or "@全体" in t or "@所有人" in t:
+        return True
+    return chat_mode(r["source"], r["chat"], s) == "focus" and classify(r, s) == "key" and bool(KEY_RE.search(t))
+
+
+def auto_blocked(s: dict):
+    """余额不足 / 密钥错误这类错误：不重试，直到设置变更（或手动整理成功）。返回挡着的错误或 None。"""
+    f = AUTO["fatal"]
+    if not f:
         return None
+    if f["hash"] != _shash(s) or (LLM_STATE["ok"] and LLM_STATE["ts"] > f["ts"]):
+        AUTO["fatal"] = None
+        AUTO["fail"].clear()
+        return None
+    return f
+
+
+def auto_plan(s: dict, now: float | None = None):
+    """返回 (ready, next_due)。ready = [(群, 待整理消息, 原因)]，要紧的排前面；next_due = 最近一个还没到点的群的到期时间。"""
     now = now or time.time()
-    tried = kv_get("auto_try")
-    if tried and now - int(tried) < AUTO_URGENT_GAP:  # 刚试过（可能失败了），别每分钟都打大模型
-        return None
+    if not s.get("auto_on") or auto_blocked(s):
+        return [], None
     rows, _ = pending_info(s)
-    if not rows:
-        return None
+    by = {}
+    for r in rows:
+        by.setdefault((r["source"], r["chat"]), []).append(r)
+    ready, nxt = [], None
+    for k, rs in by.items():
+        if k in AUTO["running"]:
+            continue
+        arr = sorted(min(ARRIVE.get(r["id"], r["ts"]), now) for r in rs)
+        first, last = arr[0], arr[-1]
+        cands = [(last + AUTO_QUIET, "quiet"), (first + AUTO_MAX_WAIT, "maxwait")]
+        if len(arr) >= AUTO_BURST:
+            cands.append((arr[AUTO_BURST - 1], "burst"))
+        urg = [min(ARRIVE.get(r["id"], r["ts"]), now) for r in rs if is_urgent(r, s)]
+        if urg:
+            cands.append((min(last + AUTO_URGENT_QUIET, min(urg) + AUTO_URGENT_WAIT), "urgent"))
+        due, why = min(cands)
+        due = max(due, AUTO["last_run"].get(k, 0) + (AUTO_URGENT_GAP if urg else AUTO_MIN_GAP))
+        f = AUTO["fail"].get(k)
+        if f:
+            due = max(due, f["until"])
+        if due <= now:
+            ready.append((not urg, due, k, rs, why))
+        else:
+            nxt = due if nxt is None else min(nxt, due)
+    ready.sort(key=lambda x: (x[0], x[1]))
+    return [(k, rs, why) for _, _, k, rs, why in ready], nxt
+
+
+def auto_sweep(s: dict):
+    """便宜的收尾：只有噪音/不看/只看@我 消息的群直接推进水位（零调用）；全局水位停在最早一条待整理消息前。"""
     with db() as c:
-        last = c.execute("SELECT ts, hours FROM digests ORDER BY id DESC LIMIT 1").fetchone()
-    last_ts = last["ts"] if last else 0
-    last_h = last["hours"] if last else 24
-    if last_h >= 168 and now - last_ts < 3600:  # 刚出周报，先让用户看一会儿
+        top = c.execute("SELECT MAX(id) i FROM msgs").fetchone()["i"] or 0
+    allrows = [r for r in _scan_rows() if r["id"] <= top]
+    pend, _ = pending_info(s)
+    pkeys = {(r["source"], r["chat"]) for r in pend} | set(AUTO["running"])
+    adv = {}
+    for r in allrows:
+        k = (r["source"], r["chat"])
+        if k not in pkeys:
+            adv[k] = max(adv.get(k, 0), r["id"])
+    if adv:
+        with db() as c:
+            c.executemany("INSERT INTO chat_state(source,chat,last_msg_id,updated_ts) VALUES(?,?,?,?) "
+                          "ON CONFLICT(source,chat) DO UPDATE SET last_msg_id=MAX(last_msg_id, excluded.last_msg_id)",
+                          [(k[0], k[1], i, int(time.time())) for k, i in adv.items()])
+        for r in allrows:
+            if (r["source"], r["chat"]) in adv:
+                ARRIVE.pop(r["id"], None)
+    pids = [r["id"] for r in pend if r["id"] <= top]
+    kv_set("scan_id", (min(pids) - 1) if pids else max(top, int(kv_get("scan_id", 0) or 0)))
+    if len(ARRIVE) > 20000:  # 兜底：别无限长
+        for i in sorted(ARRIVE)[:10000]:
+            ARRIVE.pop(i, None)
+
+
+def _llm_code(ex) -> int:
+    h = getattr(ex, "headers", None) or {}
+    return _int(h.get("x-llm-code")) or 0
+
+
+async def auto_run_chat(k, rows, s, now: float | None = None):
+    """只整理一个群；成功后局部刷新首页那一期（不整篇重写）。"""
+    now = now or time.time()
+    AUTO["running"][k] = now
+    AUTO["last_run"][k] = now
+    bump()
+    stats = {"new": len(rows), "sent": 0, "calls": 0, "chats": 1, "changed": 0, "secs": 0.0, "errors": 0, "skipped": 0}
+    t0 = time.time()
+    try:
+        changed = await update_chat(k[0], k[1], rows, s, stats)
+        AUTO["fail"].pop(k, None)
+        AUTO["ok_ts"] = time.time()
+        for r in rows:
+            ARRIVE.pop(r["id"], None)
+        stats["changed"] = int(bool(changed))
+        stats["secs"] = round(time.time() - t0, 2)
+        if changed:
+            await refresh_live(s, stats, now, bg_head=True)
+        AUTO["done_ts"] = int(time.time())
+        kv_set("checked_ts", AUTO["done_ts"])
+        return changed
+    except Exception as ex:
+        code = _llm_code(ex)
+        err = str(getattr(ex, "detail", "") or ex)[:300]
+        n = AUTO["fail"].get(k, {}).get("n", 0) + 1
+        AUTO["fail"][k] = {"n": n, "until": now + min(AUTO_BACKOFF_MAX, AUTO_BACKOFF0 * 2 ** (n - 1)), "err": err,
+                           "code": code, "ts": time.time()}
+        if code in LLM_FATAL_CODES or code == -1:
+            AUTO["fatal"] = {"err": err, "short": llm_short(code, err), "hash": _shash(s), "ts": time.time()}
+        print(f"自动整理失败 {k[1]}（第 {n} 次）:", err)
         return None
-    hours = last_h if last_h in (24, 72) else 24
-    gap = now - last_ts
-    quiet = now - max(r["ts"] for r in rows)
-    if gap >= iv * 60 and (quiet >= DEBOUNCE_QUIET or len(rows) >= DEBOUNCE_BURST):
-        return "interval", hours
-    # 提前整理只为真正要紧的：@我，或重点群里带时间/金额/通知的消息（重点群水群不会每 5 分钟触发一次）
-    if gap >= AUTO_URGENT_GAP and any(r["at_me"] or (chat_mode(r["source"], r["chat"], s) == "focus" and classify(r, s) == "key"
-                                                     and KEY_RE.search(r["text"] or "")) for r in rows):
-        return "urgent", hours
-    return None
+    finally:
+        AUTO["running"].pop(k, None)
+        bump()
 
 
-async def auto_digest(s: dict | None = None):
+_live_lock = asyncio.Lock()
+QUIET_HEADS = ("", "群里没什么要你管的", "这段时间群里很安静")
+
+
+def rule_headline(items) -> str:
+    """不调模型的头条：挑最要紧的一件（@我 > 截止最早 > 高优先级），标题 + 截止。"""
+    if not items:
+        return ""
+    now = datetime.now(TZ)
+    far = datetime(2100, 1, 1, tzinfo=TZ)
+    t = sorted(items, key=lambda t: (not t.get("at_me"), parse_due(t.get("due", ""), now) or far, t.get("urgency") != "high"))[0]
+    return tidy_headline(t["title"] + (f"，{t['due']}" if t.get("due") else ""))
+
+
+async def refresh_live(s: dict | None = None, stats: dict | None = None, now: float | None = None, model_head: bool = True,
+                       bg_head: bool = False):
+    """某个群整理完：把首页那一期按事项表重新拼一遍（不调模型），原地更新；
+    只有出现新的要紧事项（48 小时内截止 / @我）时才重写头条：先用规则拼一句马上写进去（不让头条拖慢事项上首页），
+    模型头条每 10 分钟最多一次，写好后再换上。"""
     s = s or settings()
-    chk = auto_check(s)
-    if not chk:
-        return None
-    kv_set("auto_try", int(time.time()))
+    now = now or time.time()
+    async with _live_lock:
+        with db() as c:
+            latest = c.execute("SELECT * FROM digests ORDER BY id DESC LIMIT 1").fetchone()
+        prev = json.loads(latest["body"]) if latest else {}
+        hours = latest["hours"] if latest and latest["hours"] in (24, 72) else 24
+        body = build_body(hours, s)
+        old_ids = {(t.get("id"), t.get("title")) for t in (prev.get("todos") or []) + (prev.get("notices") or [])}
+        new = [t for t in body["todos"] + body["notices"] if (t.get("id"), t.get("title")) not in old_ids and not t.get("done")]
+        hot = [t for t in new if t.get("urgency") == "high" or t.get("at_me")]
+        head = prev.get("headline") or ""
+        opens = [t for t in body["todos"] if not t["done"]] + body["notices"]
+        rewrite = bool(hot or (head in QUIET_HEADS and opens) or not latest)
+        want_model = rewrite and model_head and now - float(kv_get("head_ts", 0) or 0) >= HEAD_GAP
+        if rewrite:
+            head = rule_headline(hot or opens) or head
+            if want_model:
+                kv_set("head_ts", int(now))
+        body["headline"] = head or "群里没什么要你管的"
+        today = datetime.fromtimestamp(now, TZ).strftime("%Y-%m-%d")
+        body.update(stats=stats or {}, mode="live", auto=True, live=True, live_day=today, upto_id=int(kv_get("scan_id", 0) or 0))
+        with db() as c:
+            if latest and prev.get("live") and latest["hours"] == hours and prev.get("live_day") == today:
+                c.execute("UPDATE digests SET ts=?, body=? WHERE id=?", (int(time.time()), json.dumps(body, ensure_ascii=False), latest["id"]))
+                body["id"] = latest["id"]
+            else:  # 定时群报 / 手动整理之后、或跨天：开新的一期，之后原地更新
+                body["id"] = c.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)",
+                                       (int(time.time()), hours, json.dumps(body, ensure_ascii=False))).lastrowid
+    newtodo = [t for t in new if t in body["todos"]]
+    if newtodo and s.get("push_digest") and s.get("bark_url") and not in_quiet(s):
+        await push(f"群报 · 新增 {len(newtodo)} 件待办", "；".join(t.get("title", "") for t in newtodo[:3]), key="auto")
+    if want_model and bg_head:  # 自动整理：模型头条放后台，不占这个群的「正在整理」时间
+        t = asyncio.create_task(_model_head(body, s, stats))
+        AUTO_TASKS.add(t)
+        t.add_done_callback(AUTO_TASKS.discard)
+    elif want_model:
+        await _model_head(body, s, stats)
+    return body
+
+
+async def _model_head(body, s, stats):
+    if True:
+        try:
+            mh = await make_headline(body, s, stats=stats)
+            async with _live_lock:
+                with db() as c:
+                    r = c.execute("SELECT body FROM digests WHERE id=?", (body["id"],)).fetchone()
+                    if r:
+                        cur = json.loads(r["body"])
+                        cur["headline"] = mh
+                        c.execute("UPDATE digests SET ts=?, body=? WHERE id=?", (int(time.time()), json.dumps(cur, ensure_ascii=False), body["id"]))
+                        body["headline"] = mh
+        except Exception as ex:
+            print("模型头条失败，保留规则头条:", ex)
+
+
+async def auto_tick(s: dict | None = None, now: float | None = None) -> float | None:
+    """一次调度：收尾水位 + 启动到点的群（不超过并发上限）。返回下一次该醒的时间。"""
+    s = s or settings()
+    auto_sweep(s)
+    ready, nxt = auto_plan(s, now)
+    room = AUTO_PARALLEL - len(AUTO["running"])
+    for k, rs, why in ready[:max(0, room)]:
+        AUTO["running"][k] = now or time.time()  # 先占位，避免下一轮重复启动
+        t = asyncio.create_task(auto_run_chat(k, rs, s, now))
+        AUTO_TASKS.add(t)
+        t.add_done_callback(AUTO_TASKS.discard)
+    if len(ready) > room:
+        nxt = time.time() + 1
+    return nxt
+
+
+def auto_status(s: dict | None = None) -> dict:
+    s = s or settings()
+    if not s.get("auto_on"):
+        return {"state": "off"}
+    f = auto_blocked(s)
+    if f:
+        return {"state": "failed", "reason": f["short"], "err": f["err"], "fatal": True}
+    if AUTO["running"]:
+        return {"state": "running", "n": len(AUTO["running"]), "chats": [k[1] for k in AUTO["running"]][:6]}
+    fails = list(AUTO["fail"].values())
+    if fails:
+        last = max(fails, key=lambda v: v["ts"])
+        if last["ts"] > AUTO["ok_ts"]:
+            return {"state": "failed", "reason": llm_short(last["code"], last["err"]), "err": last["err"], "fatal": False,
+                    "retry_in": max(0, int(min(v["until"] for v in fails) - time.time())), "n": len(fails)}
+    return {"state": "idle"}
+
+
+def data_rev(s: dict | None = None) -> str:
+    """首页/群页数据的轻量版本号：事项、群要点、群报、@我、完成/置顶、设置任一变化就变。"""
+    s = s or settings()
     with db() as c:
-        before = {r["id"] for r in c.execute("SELECT id FROM items")}
-    d = await make_digest(chk[1], auto=True)
-    # 只在有「新」待办时推一条；免打扰时段只更新不推送
-    if s.get("push_digest") and s.get("bark_url") and not in_quiet(s) and not d.get("unchanged"):
-        new = [t for t in d.get("todos", []) if t.get("id") and t["id"] not in before and not t.get("done")]
-        if new:
-            await push(f"群报更新 · 新增 {len(new)} 件待办", "；".join(t.get("title", "") for t in new[:3]), key="auto")
-    return d
+        a = tuple(c.execute("SELECT COUNT(*), COALESCE(MAX(updated_ts),0), COALESCE(SUM(pinned),0), "
+                            "COALESCE(SUM((CASE status WHEN 'open' THEN 1 WHEN 'done' THEN 2 ELSE 3 END) * (id % 9973)),0) FROM items").fetchone())
+        b = tuple(c.execute("SELECT COALESCE(MAX(updated_ts),0), COUNT(*) FROM chat_state").fetchone())
+        d = c.execute("SELECT id, ts FROM digests ORDER BY id DESC LIMIT 1").fetchone()
+        m = c.execute("SELECT COALESCE(MAX(id),0) FROM msgs WHERE at_me=1").fetchone()[0]
+        x = (c.execute("SELECT COUNT(*) FROM todo_done").fetchone()[0], c.execute("SELECT COUNT(*) FROM pins").fetchone()[0])
+    raw = repr((a, b, tuple(d) if d else None, m, x, _shash(s)))
+    return hashlib.md5(raw.encode()).hexdigest()[:12]
+
+
+def updated_ts():
+    with db() as c:
+        d = c.execute("SELECT ts FROM digests ORDER BY id DESC LIMIT 1").fetchone()
+    return max(d["ts"] if d else 0, int(kv_get("checked_ts", 0) or 0)) or None
+
+
+async def auto_loop():
+    ev = asyncio.Event()
+    _WAKE.append(ev)
+    while True:
+        nxt = None
+        try:
+            nxt = await auto_tick()
+        except Exception as ex:
+            print("自动整理调度出错:", ex)
+        wait = AUTO_TICK if nxt is None else min(AUTO_TICK, max(0.3, nxt - time.time() + 0.05))
+        try:
+            await asyncio.wait_for(ev.wait(), wait)
+            await asyncio.sleep(0.3)  # 收到消息被唤醒：稍等一下，让同一批消息一起落库
+        except asyncio.TimeoutError:
+            pass
+        ev.clear()
 
 
 def _item_from_key(k: str):
@@ -1446,11 +1810,12 @@ async def scheduler():
                         await push(weekly_title(d), f"{d.get('count', 0)} 条消息 · {d.get('chats', 0)} 个群。" + d.get("headline", ""), force=True)
                 except Exception as ex:
                     print("周报失败:", ex)
-            if not ran:
-                try:
-                    await auto_digest(s)
+            if not ran and s.get("auto_on"):
+                try:  # 截止过了 / 通知过期：代码规则关闭（不调模型），首页跟着更新
+                    if expire_items():
+                        await refresh_live(s)
                 except Exception as ex:
-                    print("自动整理失败:", ex)
+                    print("过期事项整理失败:", ex)
             try:
                 await flush_held()
                 await check_reminders()
@@ -1461,7 +1826,7 @@ async def scheduler():
                 with db() as c:
                     c.execute("DELETE FROM msgs WHERE ts<?", (int(time.time()) - max(1, int(settings().get("keep_days") or KEEP_DAYS)) * 86400,))
             await asyncio.sleep(60)
-    return asyncio.create_task(loop())
+    return asyncio.gather(loop(), auto_loop())
 
 
 # ---------------- 网页接口 ----------------
@@ -1561,10 +1926,14 @@ def state(id: int | None = None):
     nchats = len({(r["source"], r["chat"]) for r in per})
     return {
         "digest": body,
-        "auto_interval": int(s.get("auto_interval") or 0),
+        "auto_on": bool(s.get("auto_on")),
+        "auto": auto_status(s),
+        "rev": data_rev(s),
+        "updated_ts": updated_ts(),
         "pending": pend,
         "checked_ts": int(kv_get("checked_ts", 0) or 0) or None,
         "llm_calls": int(kv_get("llm_calls", 0) or 0),
+        "llm_hour": llm_calls_since(3600),
         "diff": todo_diff(digest_row(d), json.loads(pv["body"])) if d and pv else None,
         "digest_ts": d["ts"] if d else None,
         "hours": d["hours"] if d else 24,
@@ -1586,6 +1955,16 @@ def state(id: int | None = None):
                    "llm": bool(LLM_KEY), "llm_err": (LLM_STATE["err"] if not LLM_STATE["ok"] else ""),
                    "llm_err_ts": LLM_STATE["ts"], "version": VERSION},
     }
+
+
+@app.get("/api/rev", dependencies=[Depends(auth)])
+def rev():
+    """前端每 8 秒轮询的极轻接口：数据版本号 + 自动整理状态 + 待整理条数 + 最新消息 id（群页追加新消息用）。"""
+    s = settings()
+    _, pend = pending_info(s)
+    with db() as c:
+        mrev = c.execute("SELECT COALESCE(MAX(id),0) FROM msgs").fetchone()[0]
+    return {"rev": data_rev(s), "auto": auto_status(s), "pending": pend, "updated_ts": updated_ts(), "mrev": mrev}
 
 
 @app.post("/api/digest", dependencies=[Depends(auth)])
