@@ -968,7 +968,7 @@ function render(st,live){
       el.querySelector(".acts2").after(m);
       m.onclick=ev=>{const b=ev.target.closest("button");if(!b)return;ev.stopPropagation();m.remove();if(!b.dataset.h)return;tick();
         const h=b.dataset.h==="tomorrow"?"tomorrow":+b.dataset.h;
-        api("/api/todo/snooze",{...who,hours:h}).then(r=>toast(r.warn||(h==="tomorrow"?"明早 9 点提醒你":`${h} 小时后提醒你`))).catch(()=>toast("没设上，网络不太好"))};
+        api("/api/todo/snooze",{...who,hours:h}).then(r=>toast(r.warn||r.msg||"已设好提醒")).catch(()=>toast("没设上，网络不太好"))};
     });
     el.querySelector(".pinb")?.addEventListener("click",e=>{
       e.stopPropagation();const on=!el.classList.contains("pinned");el.classList.toggle("pinned",on);
