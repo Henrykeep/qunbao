@@ -836,7 +836,9 @@ function setSeg(h,save=true){
   $$("#seg button").forEach(x=>x.classList.toggle("on",x===b));
   const i=$("#seg i");i.style.left=b.offsetLeft+"px";i.style.width=b.offsetWidth+"px";
 }
-$$("#seg button").forEach(b=>b.onclick=()=>{if(+b.dataset.h===hours&&!viewId)return;setSeg(+b.dataset.h);tick();regen()});
+$$("#seg button").forEach(b=>b.onclick=()=>{if(+b.dataset.h===hours&&!viewId)return;setSeg(+b.dataset.h);tick();viewId=null;showRange()});
+// 切时间范围只是换个范围看已经整理好的东西：直接取，不重新整理
+async function showRange(){const m=$("#main");try{const st=await api("/api/state?hours="+hours);m.classList.add("quiet");render(st);setTimeout(()=>m.classList.remove("quiet"),50)}catch(e){toast("没取到："+e.message)}}
 
 function skeleton(){
   $("#main").innerHTML=`<div class="sk" style="height:14px;width:34%;margin:28px 0 12px"></div><div class="sk" style="height:30px;margin-bottom:10px"></div>
@@ -1021,14 +1023,14 @@ function sortTodos(animate){
   if(!animate)return;
   items.forEach(e=>{const dy=f.get(e)-e.getBoundingClientRect().top;if(dy)e.animate([{transform:`translateY(${dy}px)`},{transform:"none"}],{duration:420,easing:"cubic-bezier(.2,.9,.25,1)"})});
 }
-async function load(){skeleton();try{render(await api("/api/state"+(viewId?`?id=${viewId}`:"")))}
+async function load(){skeleton();try{render(await api("/api/state"+(viewId?`?id=${viewId}`:`?hours=${hours}`)))}
   catch(e){$("#main").innerHTML=`<div class="empty"><div class="big">${navigator.onLine?"连不上群报服务器":"没有网络"}</div>${navigator.onLine?"服务器可能在重启或宕机了，检查 docker 容器 qunbao 是否在运行。":"连上网络后会自动刷新。"}<br><small>${esc(e.message)}</small><br><button class="more-btn" id="retry">重试</button></div>`;
     $("#retry").onclick=()=>{tick();load()}}}
 async function regen(){
   const b=$("#regen");if(b.classList.contains("spin"))return;b.classList.add("spin");
   const p=ST&&ST.pending;$("#updated").textContent=p&&p.msgs?`正在整理 ${p.msgs} 条…`:"正在整理…";
   const wasView=viewId;viewId=null;if(wasView||!ST||!ST.digest)skeleton();
-  try{const r=await api("/api/digest",{hours});const m=$("#main");m.classList.add("quiet");render(await api("/api/state"));setTimeout(()=>m.classList.remove("quiet"),50);
+  try{const r=await api("/api/digest",{hours:24});const m=$("#main");m.classList.add("quiet");render(await api("/api/state?hours="+hours));setTimeout(()=>m.classList.remove("quiet"),50);
     const x=r.stats||{};toast(r.unchanged?(x.new?`看了新消息 ${x.new} 条，没有要更新的事`:"没有新消息，已是最新"):`处理新消息 ${x.new||0} 条 · 涉及 ${x.chats||0} 个群 · ${(+x.secs||0).toFixed(1)} 秒`)}
   catch(e){toast("整理失败："+e.message);load()}finally{b.classList.remove("spin");updLabel()}
 }
@@ -1062,7 +1064,7 @@ async function refreshQuiet(){
   if(document.hidden||curView!=="home"||viewId||polling||$("#regen").classList.contains("spin"))return;
   if($(".snzmenu")||$(".sheet.on")){updLabel();return}
   polling=true;
-  try{const st=await api("/api/state");
+  try{const st=await api("/api/state?hours="+hours);
     if(!ST||st.rev!==ST.rev||(!ST.digest&&st.digest)){
       const y=window.scrollY,fold=$("#todos")?.classList.contains("fold");
       render(st,true);if(fold===false){$("#todos")?.classList.remove("fold");updateProg()}
