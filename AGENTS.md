@@ -21,8 +21,14 @@
 7. 验证：`docker logs qunbao` 里能看到 `POST /onebot 200`；浏览器打开 `http://服务器IP:8000` 会跳到登录页，用 WEB_USER / WEB_PASS 能登录（Cookie 会话保持 30 天）。
 8. 部署完成后建议关闭 6099 的公网访问。
 
-## 更新
-`git pull && docker compose up -d --build qunbao`
+## 更新（升级到最新版）
+在部署目录执行：
+```
+git pull && docker compose up -d --build qunbao
+```
+- 不要删除数据卷、data 目录或 .env：消息、待办和设置都保留，旧设置会自动迁移（0.32 起「自动整理间隔」变成默认开启的开关）。
+- 验证：`curl -s http://127.0.0.1:8000/healthz` 返回的 version 与仓库 VERSION 文件一致；`docker logs --tail 50 qunbao` 无报错。
+- 手机上把群报从后台划掉再打开一次，确保拿到新页面。
 
 ## 接微信（可选）
 不需要在服务器上额外部署。确认 .env 里 INGEST_TOKEN 已设置、8000 端口可从公网访问；
