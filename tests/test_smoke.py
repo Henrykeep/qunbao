@@ -1475,3 +1475,75 @@ def test_followup_ask_keeps_topic_terms_and_no_repeat_prompt(monkeypatch):
 def test_home_empty_todo_line_follows_pending():
     h = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
     assert "emptySub(st)" in h and 'id="emptysub"' in h and "还有 ${n} 条新消息没整理进来" in h
+
+
+def _fake_group_info(monkeypatch, names):
+    class R:
+        def __init__(s, n): s.n = n
+        def json(s): return {"data": {"group_name": s.n} if s.n else {}}
+
+    class Cl:
+        def __init__(s, *a, **k): pass
+        async def __aenter__(s): return s
+        async def __aexit__(s, *a): return False
+        async def post(s, url, json=None, headers=None): return R(names.get(json["group_id"]))
+    monkeypatch.setattr(app_mod.httpx, "AsyncClient", Cl)
+
+
+def test_group_rename_keeps_history_items_and_mode(monkeypatch):
+    """QQ 群改名：消息、事项、群档位、已完成记录全部跟到新名字，群不会拆成两个。"""
+    import asyncio
+    gid = 9101
+    ids = _seed_chat("旧群名", ["周五交表"])
+    with app_mod.db() as d:
+        d.execute("INSERT INTO items(source,chat,kind,title,status,first_ts,updated_ts) VALUES('QQ','旧群名','todo','交表','open',1,1)")
+        d.execute("INSERT INTO chat_state(source,chat,last_msg_id,summary,updated_ts) VALUES('QQ','旧群名',?,'旧摘要',5)", (ids[0],))
+        d.execute("INSERT OR REPLACE INTO todo_done(k,ts,title,chat) VALUES('k1',1,'交表','旧群名')")
+    app_mod.set_modes([("QQ", "旧群名")], "focus")
+    names = {gid: "旧群名"}
+    _fake_group_info(monkeypatch, names)
+    app_mod._group_names.pop(gid, None); app_mod._group_miss.pop(gid, None)
+    assert asyncio.run(app_mod.group_name(gid)) == "旧群名"   # 第一次记下 群号→名字
+    names[gid] = "新群名"
+    app_mod._group_ts[gid] = time.time() - app_mod.GROUP_NAME_TTL - 5; app_mod._group_miss.pop(gid, None)   # 缓存过期
+    assert asyncio.run(app_mod.group_name(gid)) == "新群名"
+    with app_mod.db() as d:
+        assert d.execute("SELECT COUNT(*) FROM msgs WHERE chat='旧群名'").fetchone()[0] == 0
+        assert d.execute("SELECT COUNT(*) FROM msgs WHERE chat='新群名'").fetchone()[0] == 1
+        assert d.execute("SELECT chat FROM items WHERE title='交表'").fetchone()[0] == "新群名"
+        assert d.execute("SELECT summary FROM chat_state WHERE chat='新群名'").fetchone()[0] == "旧摘要"
+        assert d.execute("SELECT chat FROM todo_done WHERE k='k1'").fetchone()[0] == "新群名"
+    assert app_mod.chat_mode("QQ", "新群名", app_mod.settings()) == "focus"
+    assert "QQ|旧群名" not in (app_mod.settings().get("modes") or {})
+
+
+def test_group_rename_from_fallback_name_and_twin_guard(monkeypatch):
+    """NapCat 一度没查到名字、消息存在「群9102」名下：查到真名后搬过去；两个群同名时不抢对方的历史。"""
+    import asyncio
+    _seed_chat("群9102", ["a", "b"])
+    _fake_group_info(monkeypatch, {9102: "补上名字的群"})
+    app_mod._group_names.pop(9102, None); app_mod._group_miss.pop(9102, None)
+    assert asyncio.run(app_mod.group_name(9102)) == "补上名字的群"
+    assert len(c.get("/api/messages?chat=补上名字的群", headers=AUTH).json()) == 2
+    # 双胞胎：9103 和 9104 都叫「撞名群」，9104 改名后不能把 9103 的历史带走
+    app_mod.kv_set("gname:9103", "撞名群"); app_mod.kv_set("gname:9104", "撞名群")
+    _seed_chat("撞名群", ["x"])
+    _fake_group_info(monkeypatch, {9104: "别的名"})
+    app_mod._group_names.pop(9104, None); app_mod._group_miss.pop(9104, None)
+    asyncio.run(app_mod.group_name(9104))
+    with app_mod.db() as d:
+        assert d.execute("SELECT COUNT(*) FROM msgs WHERE chat='撞名群'").fetchone()[0] == 1
+
+
+def test_activity_hours_follow_app_tz():
+    """活跃时段按 APP_TZ 分，不跟服务器（容器里通常是 UTC）的本地时间。"""
+    from datetime import datetime
+    now = int(time.time())
+    ts = int(datetime.now(app_mod.TZ).replace(hour=3, minute=30, second=0, microsecond=0).timestamp())
+    if ts > now:
+        ts -= 86400
+    before = app_mod.activity_stats(2, "活跃测试源", now)["hours"][3]
+    _seed_chat("活跃群", ["夜里的消息"], source="活跃测试源")
+    with app_mod.db() as d:
+        d.execute("UPDATE msgs SET ts=? WHERE chat='活跃群'", (ts,))
+    assert app_mod.activity_stats(2, "活跃测试源", now)["hours"][3] == before + 1
