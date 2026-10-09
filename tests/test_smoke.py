@@ -2009,3 +2009,9 @@ def test_pending_hard_cap_even_when_model_down():
             assert [r["title"] for r in x.execute("SELECT title FROM items WHERE chat='全挂群'")] == ["今晚班会：按时参加"]
     finally:
         app_mod.llm = old; _auto_reset(); _fresh()
+
+
+def test_digest_markdown_export():
+    r = c.get("/api/digest.md", headers=AUTH)
+    assert r.status_code == 200 and r.text.startswith("# 群报") and "## 待办" in r.text
+    assert c.get("/api/digest.md").status_code == 401
