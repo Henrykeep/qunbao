@@ -2046,3 +2046,11 @@ def test_onebot_token(monkeypatch):
     assert c.post("/onebot", json={}).status_code == 401
     assert c.post("/onebot?token=t0k", json={}).status_code == 200
     assert c.post("/onebot", json={}, headers={"Authorization": "Bearer t0k"}).status_code == 200
+
+
+def test_login_non_ascii_password_no_500():
+    from fastapi.testclient import TestClient
+    import digest.app as m
+    c = TestClient(m.app)
+    r = c.post("/api/login", json={"user": "me", "password": "密码é"})
+    assert r.status_code in (401, 403)
