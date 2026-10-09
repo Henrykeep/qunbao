@@ -1412,3 +1412,28 @@ def test_due_change_rearms_reminder_and_reopens_expired():
     app_mod.apply_changes("QQ", "改期群", {"new": [{"kind": "todo", "title": "报名比赛", "due": t1}]})
     with app_mod.db() as x:
         assert x.execute("SELECT status FROM items WHERE id=?", (k,)).fetchone()["status"] == "done"
+
+
+def test_norm_ts_garbage_and_order():
+    """0.33.3：消息时间容错（毫秒/字符串/未来/垃圾值不再 500 或把消息挤出时间窗），群聊页按发送时间排。"""
+    n = int(time.time())
+    f = app_mod.norm_ts
+    assert f(n - 60) == n - 60 and f(str(n - 60)) == n - 60
+    assert f((n - 60) * 1000) == n - 60               # 毫秒
+    assert f(None) == f("") == f("乱写") == f(0) == f(-5) == f([]) in range(n, n + 3)
+    assert f(n + 86400) in range(n, n + 3)            # 对方手机时间在未来
+    assert f(n - 90 * 86400) in range(n, n + 3)       # 早于保留期
+    iso = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(n - 3600))
+    assert abs(f(iso) - (n - 3600)) < 3600 * 9 + 5    # ISO 字符串按服务器时区解析，不抛错
+    chat = "时序群"
+    for ts, txt in ((n - 100, "第二条先到"), (n - 300, "第一条迟到"), (n - 10, "第三条")):
+        assert c.post("/ingest?token=tok", json={"chat": chat, "sender": "甲", "text": txt, "ts": ts}).status_code == 200
+    assert c.post("/ingest?token=tok", json={"chat": chat, "sender": "甲", "text": "毫秒时间", "ts": (n - 5) * 1000}).status_code == 200
+    assert c.post("/ingest?token=tok", json={"chat": chat, "sender": "甲", "text": "垃圾时间", "ts": "abc"}).status_code == 200
+    ms = c.get(f"/api/messages?chat={chat}", headers=AUTH).json()
+    assert [m["text"] for m in ms] == ["第一条迟到", "第二条先到", "第三条", "毫秒时间", "垃圾时间"]
+    assert all(abs(m["ts"] - n) < 400 for m in ms)
+    # 翻页游标仍是 id：before=最小 id 取到更早的，after=最大 id 只取更新的
+    ids = [m["id"] for m in ms]
+    assert c.get(f"/api/messages?chat={chat}&after={max(ids)}", headers=AUTH).json() == []
+    assert len(c.get(f"/api/messages?chat={chat}&before={max(ids)}", headers=AUTH).json()) == 4
