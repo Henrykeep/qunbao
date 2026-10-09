@@ -228,6 +228,11 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .tipcard{display:flex;gap:10px;align-items:center;background:var(--card);box-shadow:var(--shadow);border-radius:14px;padding:12px 14px;margin-top:14px;font-size:13.5px;color:var(--sub)}
 .tipcard b{color:var(--ink);display:block;font-size:14.5px}
 .tipcard .btn{flex:none;min-height:36px}
+.wprow .rl{flex:1;min-width:0}
+.wprow .btn{flex:none;min-height:36px}
+.wprow.on .rl{color:var(--ink)}
+.wprow .ok-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3E9B5F;margin-right:6px;vertical-align:1px}
+.wprow small .plink{font:inherit;border:0;background:none;padding:0;margin:0;color:var(--sub);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .tipcard .x0{flex:none;border:0;background:none;color:var(--faint);width:40px;height:40px;font-size:18px;margin-right:-8px}
 .g .vol{height:2px;background:var(--line);border-radius:2px;margin-top:10px;overflow:hidden}
 .g .vol div{height:100%;background:var(--faint)}
@@ -538,14 +543,19 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
   <header><div class="mast sm">设置</div><div class="date"><b>群报</b><span>改完自动保存</span></div></header>
   <div class="rule"></div>
 
-  <div class="gl">推送到 iPhone</div>
+  <div class="gl">通知</div>
+  <div class="group">
+    <div class="row wprow" id="wp-row"><span class="rl" id="wp-l">新待办直接通知到手机<small id="wp-d">正在检查这台设备…</small></span><button class="btn" id="wp-btn" hidden>开启通知</button></div>
+    <div class="row"><span class="rl">有人 @我 / 重要的人 / 重点群<small>命中就立刻通知；关键词命中只走 Bark 静默推送</small></span><label class="sw"><input type="checkbox" id="s-pushat"><span></span></label></div>
+    <div class="row"><span class="rl">出现新待办时通知<small>自动整理出新待办立刻提醒；定时群报、周报只走 Bark</small></span><label class="sw"><input type="checkbox" id="s-pushdg"><span></span></label></div>
+  </div>
+  <div class="gd">同一件事只提醒一次；「不看」的群不推；免打扰时段攒着，到点合并成一条。主屏幕图标上的数字是还没完成的待办数。</div>
+
+  <div class="gl">备用：Bark</div>
   <div class="group">
     <div class="row"><input type="url" id="s-bark" placeholder="Bark 地址 https://api.day.app/你的key" style="text-align:left"><button class="btn ghost" id="s-test">测试</button></div>
-    <div class="row"><span class="rl">@我 / 重要的人 / 关键词<small>命中就立刻推送</small></span><label class="sw"><input type="checkbox" id="s-pushat"><span></span></label></div>
-    <div class="row"><span class="rl">群报整理好时推送<small>定时群报、周报，自动整理出新待办时</small></span><label class="sw"><input type="checkbox" id="s-pushdg"><span></span></label></div>
   </div>
-
-  <div class="gd">iPhone 在 App Store 装 Bark，把它给的地址粘到上面。</div>
+  <div class="gd">一般用上面的通知就够了。想再加一路、或想要专注模式也响的提醒：iPhone 在 App Store 装 Bark，把它给的地址粘到这里。</div>
   <div class="gl">自动整理</div>
   <div class="group">
     <div class="row"><span class="rl">有新消息自动整理<small>@我、@全体和重点群的通知 10 秒内上首页；其他群安静 20 秒后整理，刷屏也最迟 1 分半</small></span><label class="sw"><input type="checkbox" id="s-auto"><span></span></label></div>
@@ -874,6 +884,7 @@ function render(st,live){
   updLabel();
   if(!d){
     $("#main").innerHTML=`<div class="greet fade">${greet()}</div><div class="headline fade">${st.today?`过去一天收到 ${st.today} 条群消息。<br>${st.auto_on?"有新消息会自动整理，几秒到一分半就出现在这里。":"点「整理」，看看哪些和你有关。"}`:"群报还没开张。<br>消息进来后，这里会是你的每日头条。"}</div>${tipCard(st)}`;
+    $("#main").insertAdjacentHTML("afterbegin",pushTip());
     bindTip();return;
   }
   const done=new Set(st.done||[]);const pins=new Set(st.pins||[]);
@@ -884,7 +895,7 @@ function render(st,live){
   const gN=g=>ps[(g.source||"QQ")+"|"+g.chat]??per[g.chat]??0;
   const groups=(d.groups||[]).map(g=>({...g,n:gN(g)})).sort((a,b)=>(b.open||0)-(a.open||0)||(b.focus?1:0)-(a.focus?1:0)||b.n-a.n);
   const maxN=Math.max(1,...groups.map(g=>g.n));
-  let h=`<div class="greet fade">${st.is_latest?greet()+" · ":""}${RANGE[st.hours]||"最近"} ${d.count??0} 条消息 · ${d.chats??0} 个群</div>
+  let h=pushTip()+`<div class="greet fade">${st.is_latest?greet()+" · ":""}${RANGE[st.hours]||"最近"} ${d.count??0} 条消息 · ${d.chats??0} 个群</div>
   <div class="headline fade">${esc(d.headline)}</div>
   <div class="stats fade"><div class="stat"><div class="n" id="prog-n">${open.length}</div><div class="l">件待办</div></div>
   <div class="stat ${soon?"hot":""}" id="st-soon"><div class="n">${soon}</div><div class="l">48 小时内截止</div></div>
@@ -972,7 +983,14 @@ function tipCard(st){
   if(!st.modes_tip||localStorage.qb_tip_off)return"";
   return `<div class="tipcard fade" id="tipcard"><div style="flex:1;min-width:0"><b>${st.nchats} 个群在发消息，给群分个档？</b>不重要的设成「只看@我」，这里更清爽</div><button class="btn" id="tipgo">去分档</button><button class="x0" id="tipx" aria-label="不再提示">×</button></div>`;
 }
+/* 首次从主屏幕打开、还没开通知：顶部一条可关的提示（iOS 必须用户点按钮才能申请通知权限） */
+function pushTip(){
+  if(!isStd()||!window.isSecureContext||!("PushManager" in window)||!("Notification" in window)||Notification.permission!=="default"||localStorage.qb_push_tip_off)return"";
+  return `<div class="tipcard fade" data-sec="pushtip" id="pushtip"><div style="flex:1;min-width:0"><b>有新待办时直接通知你？</b>不用再自己打开群报看</div><button class="btn" id="pushgo">开启</button><button class="x0" id="pushx" aria-label="不再提示">×</button></div>`;
+}
 function bindTip(){
+  once($("#pushgo"),b=>b.addEventListener("click",()=>{tick();wpEnable()}));
+  once($("#pushx"),b=>b.addEventListener("click",()=>{localStorage.qb_push_tip_off=1;$("#pushtip")?.remove()}));
   once($("#tipgo"),b=>b.addEventListener("click",()=>{tick();go("set");openSub("groups")}));
   once($("#tipx"),b=>b.addEventListener("click",()=>{localStorage.qb_tip_off=1;$("#tipcard")?.remove();api("/api/settings",{modes_tip_done:true}).catch(()=>{})}));
 }
@@ -1021,6 +1039,7 @@ function updateProg(){
   if(bx&&bar){if(!bar._b){bx.classList.add("fold");bar._b=1;bar.onclick=()=>{bx.classList.toggle("fold");updateProg()}}
     bar.classList.toggle("on",done>0);bar.textContent=bx.classList.contains("fold")?`已完成 ${done} 项 · 展开`:`收起已完成`}
   $("#prog-n").textContent=String(all-done);
+  if(ST&&ST.is_latest!==false&&!viewId)setBadge(all-done);
   // 其余数字都跟着勾选实时重算，不等下一次刷新：待办数、48 小时内截止、没处理的 @我、今天新增
   const now=Date.now()/1000,open=$$(".todo:not(.done)");
   const soon=open.filter(e=>{const d=+e.dataset.due;return d&&d>now&&d-now<48*3600}).length;
@@ -1489,6 +1508,7 @@ fill("#s-hour2",[[-1,"关闭"],...hs],s.digest_hour2??-1);fill("#s-qs",[[-1,"关
     if(!s.site_url){SET.site_url=location.origin;SILENT=true;saveSet()}  // 以前只显示不保存，点通知打不开群报
     $("#s-pushat").checked=!!s.push_at;$("#s-pushdg").checked=!!s.push_digest;$("#s-wk").checked=!!s.weekly_digest;$("#s-keep").value=String(s.keep_days||30);
     $("#s-defmode").value=s.default_mode||"normal";
+    wpRender();
     if(SUB==="groups")loadGroups();
     const S=st.status||{};
     const dot=(id,o)=>{const e=$(id);e.className="stat-dot "+(o?.online?"ok":o?.seen?"bad":"");e.querySelector("span").textContent=o?.online?"在线":o?.seen?`离线 · ${ago(o.seen)}`:"未连接"};
@@ -1522,7 +1542,76 @@ $("#s-wk").onchange=e=>{tick();SET.weekly_digest=e.target.checked;saveSet()};
 $("#s-pushdg").onchange=e=>{tick();SET.push_digest=e.target.checked;saveSet()};
 $("#wx-copy").onclick=async()=>{tick();const t=$("#wx-url").textContent;
   try{await navigator.clipboard.writeText(t);toast("已复制接收地址")}catch(e){const r=document.createRange();r.selectNodeContents($("#wx-url"));getSelection().removeAllRanges();getSelection().addRange(r);toast("已选中，长按复制")}};
-$("#s-test").onclick=async()=>{tick();try{SET=await api("/api/settings",SET);await api("/api/push/test",{});toast("已发送，看看手机")}catch(e){toast(e.message)}};
+$("#s-test").onclick=async()=>{tick();try{SET=await api("/api/settings",SET);await api("/api/push/test",{channel:"bark"});toast("已发送，看看手机")}catch(e){toast(e.message)}};
+
+/* ---------- 网页通知（Web Push）：iPhone 从主屏幕打开群报后可收原生通知 ---------- */
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+function isStd(){return !!(navigator.standalone||matchMedia("(display-mode: standalone)").matches)}
+const WP={key:null,sub:null,n:0,busy:false,ready:false};
+const u8=b=>{const s=atob((b+"=".repeat((4-b.length%4)%4)).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(s,c=>c.charCodeAt(0))};
+const swReady=()=>Promise.race([navigator.serviceWorker.ready,new Promise((_,j)=>setTimeout(()=>j(new Error("后台服务没准备好，稍后再试")),8000))]);
+function setBadge(n){if(navigator.setAppBadge)(n>0?navigator.setAppBadge(n):navigator.clearAppBadge()).catch(()=>{})}
+function wpState(){
+  if(!window.isSecureContext)return"insecure";
+  if(isIOS&&!isStd())return"iosweb";
+  if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window))return"unsupported";
+  if(Notification.permission==="denied")return"denied";
+  if(Notification.permission==="granted"&&WP.sub)return"on";
+  return"off";
+}
+const WPTXT={
+  insecure:["通知需要 HTTPS 地址","现在是 http 地址，iPhone 只在 https 网址下才能收网页通知。请给服务器配一个 HTTPS 域名（部署说明里有用 Caddy 自动配证书的方法），改用 https 地址打开、重新添加到主屏幕后再来开启。",""],
+  iosweb:["先添加到主屏幕","iPhone 要从桌面图标打开群报才能收通知：在 Safari 里点底部「分享」→「添加到主屏幕」，然后从桌面打开群报，回到这里点开启。",""],
+  unsupported:["这个浏览器收不了网页通知","iPhone 需要 iOS 16.4 以上，并从桌面图标打开群报；也可以用下面的 Bark。",""],
+  denied:["通知被关掉了","到 iPhone「设置 → 通知 → 群报」打开「允许通知」，再回来点一次。","重新开启"],
+  off:["新待办直接通知到手机","有新待办、有人 @你 时直接弹通知，不用自己打开看。","开启通知"],
+  on:["已开启","","发测试通知"],
+};
+function wpRender(){
+  const l=$("#wp-l");if(!l)return;const st=wpState(),[t,d,b]=WPTXT[st],btn=$("#wp-btn"),row=$("#wp-row");
+  row.className="row wprow "+st;
+  const desc=st==="on"?`这台设备会收到通知${WP.n>1?` · 共 ${WP.n} 台设备`:""} · <button class="plink" id="wp-off">关闭</button>`:esc(d);
+  l.innerHTML=(st==="on"?'<i class="ok-dot"></i>':"")+esc(t)+`<small id="wp-d">${desc}</small>`;
+  btn.hidden=!b;btn.textContent=WP.busy?"正在开启…":b;btn.disabled=WP.busy;btn.classList.toggle("ghost",st==="on");
+  btn.dataset.st=st;$("#wp-off")?.addEventListener("click",()=>{tick();wpOff()});
+}
+async function wpInit(){  // 启动时：拿公钥、看这台设备订阅没有；订阅还在但服务器丢了就补交一次
+  if(window.isSecureContext&&"serviceWorker" in navigator&&"PushManager" in window){
+    try{const reg=await swReady();WP.sub=await reg.pushManager.getSubscription();
+      const r=await api("/api/push/key"+(WP.sub?"?endpoint="+encodeURIComponent(WP.sub.endpoint):""));WP.key=r.key;WP.n=r.subs;
+      if(WP.sub&&!r.known&&Notification.permission==="granted"){WP.n=(await api("/api/push/sub",WP.sub.toJSON())).subs}
+    }catch(e){}
+  }
+  WP.ready=true;wpRender();
+}
+async function wpEnable(){
+  if(WP.busy)return;
+  const st=wpState();if(st==="insecure"||st==="iosweb"||st==="unsupported"){toast(WPTXT[st][0]);return}
+  WP.busy=true;wpRender();
+  try{
+    const perm=await Notification.requestPermission();  // iOS：必须在点按里第一时间调用
+    if(perm!=="granted"){toast(perm==="denied"?"通知被拒绝了：到 iPhone 设置 → 通知 → 群报 打开":"还没允许通知");return}
+    const reg=await swReady();
+    if(!WP.key)WP.key=(await api("/api/push/key")).key;
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(WP.key)});
+    WP.n=(await api("/api/push/sub",sub.toJSON())).subs;WP.sub=sub;
+    localStorage.qb_push_tip_off=1;$("#pushtip")?.remove();
+    WP.busy=false;wpRender();wpTest(true);
+  }catch(e){toast("没开成："+(e.message||e))}finally{WP.busy=false;wpRender()}
+}
+async function wpTest(first){
+  if(!WP.sub)return;
+  try{await api("/api/push/test",{channel:"web",endpoint:WP.sub.endpoint});toast(first?"通知开好了，刚发了一条测试":"测试通知已发出，看看通知栏")}
+  catch(e){toast(e.message)}
+}
+async function wpOff(){
+  if(!confirm("这台设备不再接收群报通知？"))return;
+  const sub=WP.sub;WP.sub=null;
+  try{if(sub){await fetch("/api/push/sub",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({endpoint:sub.endpoint})});await sub.unsubscribe()}}catch(e){}
+  WP.n=Math.max(0,WP.n-1);wpRender();toast("已关闭这台设备的通知")
+}
+$("#wp-btn").onclick=()=>{tick();if($("#wp-btn").dataset.st==="on")wpTest();else wpEnable()};
 
 /* 往下滑时收起快捷问题，给内容腾地方 */
 
@@ -1532,10 +1621,29 @@ if(window.ResizeObserver)new ResizeObserver(dockH).observe($("#dock"));dockH();
 /* ---------- 启动 ---------- */
 setSeg(hours);load();
 /* 刷新或从推送链接进入：按 hash 恢复到对应的群 / 设置页（返回回到首页） */
-(function(){const h=location.hash;if(!h)return;history.replaceState({qb:0},"",location.pathname+location.search);
+function routeHash(h,live){
+  if(!h)return;
+  if(live){navCloseAll();if(viewId){viewId=null;load()}}
   const m=h.match(/^#chat\/([^/]*)\/(.+)$/);
   if(m){const src=H2SRC[m[1]]||decodeURIComponent(m[1]);openChat(decodeURIComponent(m[2]),null,src);return}
-  const m2=h.match(/^#set\/(\w+)$/);if(m2&&$("#sub-"+m2[1])){showView("set");openSub(m2[1])}})();
+  const mt=h.match(/^#todo\/(\d+)$/);
+  if(mt){if(curView!=="home")showView("home");else if(live)refreshQuiet();focusTodo(mt[1]);return}
+  const m2=h.match(/^#set\/(\w+)$/);if(m2&&$("#sub-"+m2[1])){showView("set");openSub(m2[1])}
+}
+/* 推送点开「新待办」：滚到那件待办、展开、高亮一下；已经勾完成/过期就提示 */
+function focusTodo(id,tries=0){
+  const el=$(`.todo[data-ik="item:${id}"]`);
+  if(!el){if(tries<32){setTimeout(()=>focusTodo(id,tries+1),250);return}toast("这件事已经处理完或过期了");return}
+  if(el.classList.contains("done")){$("#todos")?.classList.remove("fold");updateProg()}
+  el.scrollIntoView({block:"center"});el.classList.remove("fresh");void el.offsetWidth;el.classList.add("fresh");
+  if(!el.classList.contains("open")){el.classList.add("open");navPush({t:"todo",el,close:()=>el.classList.remove("open")})}
+}
+(function(){const h=location.hash;if(!h)return;history.replaceState({qb:0},"",location.pathname+location.search);routeHash(h,false)})();
+/* 群报已经开着，又从外部链接（Bark 通知等）带着 #todo / #chat 进来 */
+window.addEventListener("hashchange",()=>{const h=location.hash;if(!/^#(todo|chat)\//.test(h))return;
+  history.replaceState({qb:0},"",location.pathname+location.search);routeHash(h,true)});
+/* 群报开着时点通知：service worker 把地址发过来，原地跳过去 */
+if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",e=>{const d=e.data||{};if(d.type==="qb-nav"){try{routeHash(new URL(d.url).hash,true)}catch(_){}}});
 /* 左边缘右滑返回（PWA 没有系统手势）：从左边 24px 内起手往右拖，页面跟手、露出上一层；过 1/3 宽或甩得够快就返回，否则回弹。
    iPhone Safari 浏览器里交给系统右滑（历史栈已经对上了），避免一次手势退两层。 */
 (function(){
@@ -1584,6 +1692,7 @@ function netUI(){$("#offbar").hidden=navigator.onLine}
 window.addEventListener("online",()=>{netUI();pollRev()});
 window.addEventListener("offline",netUI);netUI();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});
+wpInit();
 </script>
 </body>
 </html>
