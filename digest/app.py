@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.2"
+VERSION = "0.33.3"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -518,6 +518,28 @@ def mentions_me(text, s) -> bool:
     return any(n and ("@" + n) in t for n in (s.get("my_names") or []))
 
 
+def norm_ts(ts, now=None) -> int:
+    """消息时间容错：毫秒/字符串/ISO/0/负数/来自未来（手机时间不准）/早于保留期的，都收敛成合理的秒数；拿不准就用收到的时间。"""
+    now = int(now or time.time())
+    try:
+        if isinstance(ts, str):
+            t = ts.strip()
+            if re.fullmatch(r"\d+(\.\d+)?", t):
+                v = float(t)
+            else:  # 2026-10-09 20:01:02 / 2026-10-09T20:01:02+08:00
+                d = datetime.fromisoformat(t.replace("Z", "+00:00").replace("/", "-"))
+                v = (d if d.tzinfo else d.replace(tzinfo=TZ)).timestamp()
+        else:
+            v = float(ts)
+    except (TypeError, ValueError, OverflowError):
+        return now
+    if v > 1e11:  # 毫秒
+        v /= 1000
+    if v != v or v < 1e9 or v > now + 300 or v < now - 30 * 86400:
+        return now
+    return int(v)
+
+
 async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
     text = (text or "").strip()
     if not text:
@@ -528,7 +550,7 @@ async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
         s = set_modes([(source, chat)], chat_mode(source, chat, s))
     with db() as c:
         cur = c.execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me,img) VALUES(?,?,?,?,?,?,?)",
-                        (int(ts or time.time()), source, chat, sender, text[:4000], int(at_me), imgs[:2000]))
+                        (norm_ts(ts), source, chat, sender, text[:4000], int(at_me), imgs[:2000]))
     ARRIVE[cur.lastrowid] = time.time()  # 防抖按「收到的时间」算（消息自带的 ts 可能是对方手机时间）
     wake_auto()
     hit = hit_reason(chat, sender, text, at_me, s, source)
@@ -2474,7 +2496,7 @@ def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, sour
     if around and chat:  # 跳到某条消息：取它前后各一段上下文
         older = messages(chat=chat, source=source, before=around + 1, limit=min(limit, 100) // 2 + 1)
         newer = messages(chat=chat, source=source, after=around, limit=min(limit, 100) // 2)
-        return older + newer
+        return sorted(older + newer, key=lambda m: (m["ts"], m["id"]))
     sql, args = "SELECT * FROM msgs WHERE 1=1", []
     if chat:
         sql += " AND chat=?"; args.append(chat)
@@ -2495,9 +2517,14 @@ def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, sour
     sql += (" ORDER BY id ASC LIMIT ?" if after else " ORDER BY id DESC LIMIT ?"); args.append(min(limit, 200))
     with db() as c:
         rows = c.execute(sql, args).fetchall()
-    return [{"id": r["id"], "ts": r["ts"], "chat": r["chat"], "sender": r["sender"], "text": r["text"],
-             "source": r["source"], "at_me": bool(r["at_me"]),
-             "imgs": r["img"].split() if r["img"] else []} for r in (rows if after else reversed(rows))]
+    out = [{"id": r["id"], "ts": r["ts"], "chat": r["chat"], "sender": r["sender"], "text": r["text"],
+            "source": r["source"], "at_me": bool(r["at_me"]),
+            "imgs": r["img"].split() if r["img"] else []} for r in rows]
+    if not (q or sender or since or until):  # 群聊页按发送时间排（迟到的消息放回它该在的位置）；翻页游标仍按收到顺序（id）
+        out.sort(key=lambda m: (m["ts"], m["id"]))
+    elif not after:
+        out.reverse()
+    return out
 
 
 @app.post("/api/chat_mode", dependencies=[Depends(auth)])
