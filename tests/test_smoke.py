@@ -1280,3 +1280,21 @@ def test_clean_qq_cache(tmp_path):
     n, freed = app_mod.clean_qq_cache(str(tmp_path), now=t)
     assert n == 1 and freed == 100 and not old.exists() and new.exists() and db_.exists()
     assert (tmp_path / "nt_qq_x" / "nt_data" / "Pic").is_dir()
+
+
+def test_headline_drops_done_item():
+    import json as _j
+    _fresh()
+    now = int(time.time())
+    with app_mod.db() as x:
+        x.execute("DELETE FROM digests")
+        x.execute("INSERT INTO items(kind,title,status,first_ts,updated_ts,source,chat) VALUES('todo','前往大活3405参加紧急会议','done',?,?,'QQ','g1')", (now, now))
+        x.execute("INSERT INTO items(kind,title,due,status,first_ts,updated_ts,source,chat) VALUES('todo','今晚按时打卡学习','10月09日 今晚','open',?,?,'QQ','g2')", (now, now))
+        x.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (now, 24, _j.dumps({"headline": "请即刻前往大活3405参加紧急会议",
+                  "todos": [{"title": "今晚按时打卡学习", "due": "10月09日 今晚", "done": False}], "notices": []}, ensure_ascii=False)))
+    with TestClient(app_mod.app) as cc:
+        h = cc.get("/api/state", headers=AUTH).json()["digest"]["headline"]
+    assert "3405" not in h and "打卡" in h
+    with app_mod.db() as x:
+        assert "打卡" in _j.loads(x.execute("SELECT body FROM digests").fetchone()["body"])["headline"]
+    _fresh()
