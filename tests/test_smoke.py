@@ -1378,3 +1378,37 @@ def test_at_by_and_day_start_in_state():
     assert a["covered"] and a["by"] == k
     t = [t for t in st["digest"]["todos"] if t["key"] == k][0]
     assert t["first_ts"] >= st["day_start"]
+
+
+def test_due_change_rearms_reminder_and_reopens_expired():
+    """会议改期：截止时间变了要重新提醒；过期的事项群里又给了个还没到的新时间，要重新打开（沿用原 id）。"""
+    _fresh()
+    from datetime import datetime, timedelta
+    now = int(time.time())
+    fmt = lambda d: d.strftime("%Y-%m-%d %H:%M")
+    t1 = fmt(datetime.fromtimestamp(now, app_mod.TZ) + timedelta(days=2))
+    t2 = fmt(datetime.fromtimestamp(now, app_mod.TZ) + timedelta(days=3))
+    with app_mod.db() as x:
+        i = x.execute("INSERT INTO items(source,chat,kind,title,due,urgency,status,first_ts,updated_ts,reminded) "
+                      "VALUES('QQ','改期群','todo','开组会',?,'mid','open',?,?,1)", (t1, now, now)).lastrowid
+    app_mod.apply_changes("QQ", "改期群", {"update": [{"id": i, "due": t2}]})
+    with app_mod.db() as x:
+        r = x.execute("SELECT due, reminded FROM items WHERE id=?", (i,)).fetchone()
+    assert r["due"] == t2 and r["reminded"] == 0
+    # 过期的事项：模型把改期后的同一件事当新事项报
+    old = fmt(datetime.fromtimestamp(now, app_mod.TZ) - timedelta(days=2))
+    with app_mod.db() as x:
+        j = x.execute("INSERT INTO items(source,chat,kind,title,due,urgency,status,first_ts,updated_ts,reminded) "
+                      "VALUES('QQ','改期群','todo','交实验报告',?,'mid','expired',?,?,1)", (old, now - 86400 * 3, now - 3600)).lastrowid
+    app_mod.apply_changes("QQ", "改期群", {"new": [{"kind": "todo", "title": "交实验报告", "due": t1}]})
+    with app_mod.db() as x:
+        r = x.execute("SELECT status, due, reminded FROM items WHERE id=?", (j,)).fetchone()
+        n = x.execute("SELECT COUNT(*) n FROM items WHERE title='交实验报告'").fetchone()["n"]
+    assert (r["status"], r["due"], r["reminded"], n) == ("open", t1, 0, 1)
+    # 用户亲手勾了完成的不复活
+    with app_mod.db() as x:
+        k = x.execute("INSERT INTO items(source,chat,kind,title,due,urgency,status,first_ts,updated_ts) "
+                      "VALUES('QQ','改期群','todo','报名比赛',?,'mid','done',?,?)", (old, now - 86400 * 3, now - 3600)).lastrowid
+    app_mod.apply_changes("QQ", "改期群", {"new": [{"kind": "todo", "title": "报名比赛", "due": t1}]})
+    with app_mod.db() as x:
+        assert x.execute("SELECT status FROM items WHERE id=?", (k,)).fetchone()["status"] == "done"
