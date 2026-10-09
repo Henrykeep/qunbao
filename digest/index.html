@@ -911,7 +911,7 @@ function render(st,live){
       <span class="chip more" aria-hidden="true">${ICON.down}</span></div>
     ${t.quote?`<div class="quote"><div><blockquote>${hlAt(t.quote)}<cite>— ${esc(t.sender||"")}${t.sender?" · ":""}${esc(t.chat)}</cite></blockquote></div></div>`:""}
     <div class="acts2"><button class="go">去原文${ICON.arrow}</button><button class="pinb">${isPin(t)?"取消置顶":"置顶"}</button><button class="snz">稍后提醒</button>${t.due?`<a class="cal" href="/api/ics?${new URLSearchParams({title:t.title,due:t.due,detail:t.detail||"",chat:t.chat||""})}">加到日历</a>`:""}</div></div></div>`}).join("")
-    :`<div class="empty"><div class="big">没有要你动手的事</div>放心不看群 ☕</div>`;
+    :`<div class="empty"><div class="big">没有要你动手的事</div><span id="emptysub">${emptySub(st)}</span></div>`;
   h+=`</div><button class="donebar" id="donebar"></button></section>`;
 
   if(allAts.length){
@@ -1076,6 +1076,8 @@ $("#regen").onclick=()=>{tick();regen()};
 
 /* 自动更新：首页可见时每 60 秒看一眼，后台整理出新一期就无闪烁换上 */
 const runInfo=(x,mode)=>`${mode==="full"?"完整重新整理":mode==="weekly"?"周报":"增量整理"}：新消息 ${x.new} 条，送模型 ${x.sent} 条 · ${x.chats} 个群${x.skipped?` · 跳过 ${x.skipped} 个群（只看@我/不看）`:""} · 调用 ${x.calls} 次 · 用时 ${(+x.secs||0).toFixed(1)} 秒${x.errors?` · ${x.errors} 个群失败，下次重试`:""}`;
+// 待办为空时的那句话跟着新鲜度走：还有新消息没整理进来，就不能说「放心不看群」
+const emptySub=st=>{const n=st&&st.is_latest!==false&&!viewId&&st.pending&&st.pending.msgs;return n?`还有 ${n} 条新消息没整理进来，有事会自动出现在这里`:"放心不看群 ☕"};
 function renderPend(st){
   const p=(st&&st.pending)||{},a=(st&&st.auto)||{},e=$("#pend");let h="";
   if(st&&st.is_latest!==false&&!viewId){
@@ -1087,6 +1089,7 @@ function renderPend(st){
         h=p.msgs?`<i class="wait"></i>下面是${rel}整理的 · 还有 ${p.msgs} 条新消息没整理进来，正在自动整理`:`<i class="ok"></i>已是最新 · 所有消息都已整理（${rel.trim()}）`}
     }
   }
+  const es=$("#emptysub");if(es)es.textContent=emptySub(st);
   e.hidden=!h;if(e._h===h)return;e._h=h;e.innerHTML=h;
   $("#pendset")?.addEventListener("click",()=>{tick();go("set");openSub("about")});
 }
