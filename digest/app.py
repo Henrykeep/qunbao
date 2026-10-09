@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.6"
+VERSION = "0.33.7"
 TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")   # 时间解析/免打扰/每日整理都按这个时区
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -848,6 +848,7 @@ def llm_err_text(code: int, text: str) -> str:
     return f"大模型接口报错 {code}：{t[:160]}"
 
 
+LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "60"))  # 单次调用最多等这么久（以前 180 秒，超时再重试一次，一个群能「正在整理」6 分钟）
 LLM_TRIES = 5                 # 429 最多等 4 轮（3/8/20/45 秒，或按服务商的 Retry-After）
 LLM_429_WAITS = (3, 8, 20, 45)
 LLM_LAST_OK = [0.0]            # 最近一次调用成功的时间：判断「模型是好的，只是拒收这一块」还是「配置错了」
@@ -927,7 +928,7 @@ async def llm(messages, as_json=False):
         if wait > 0:
             await asyncio.sleep(min(wait, 120))
         try:
-            async with httpx.AsyncClient(timeout=180) as cl:
+            async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as cl:
                 r = await cl.post(f"{LLM_BASE}/chat/completions", json=body,
                                   headers={"Authorization": f"Bearer {LLM_KEY}"})
                 r.raise_for_status()
@@ -1309,12 +1310,30 @@ def pending_info(s=None):
     cc = _pend_cache["cls"]
     rows = []
     for r in _scan_rows():
-        k = cc.get(r["id"])
+        ck = (r["id"], r["source"], r["chat"])  # 带上群名：群改名后同一条消息按新群的档位重新分类
+        k = cc.get(ck)
         if k is None:
-            k = cc[r["id"]] = classify(r, s)
+            k = cc[ck] = classify(r, s)
         if k != "drop":
             rows.append(r)
-    return rows, {"msgs": len(rows), "chats": len({(r["source"], r["chat"]) for r in rows})}
+    return rows, pend_detail(rows)
+
+
+def pend_detail(rows, now=None) -> dict:
+    """待整理消息的状态，给首页那一行用：等了多久、是在整理还是失败等重试，不再永远写「正在自动整理」。"""
+    now = now or time.time()
+    keys = {(r["source"], r["chat"]) for r in rows}
+    out = {"msgs": len(rows), "chats": len(keys)}
+    if not rows:
+        return out
+    oldest = min(min(ARRIVE.get(r["id"], r["ts"]), now) for r in rows)
+    run = [now - AUTO["running"][k] for k in keys if k in AUTO["running"]]
+    fails = [AUTO["fail"][k] for k in keys if k in AUTO["fail"] and k not in AUTO["running"]]
+    out.update(oldest=int(now - oldest), running=len(run), run_secs=int(max(run)) if run else 0, failing=len(fails))
+    if fails:
+        f = max(fails, key=lambda v: v["ts"])
+        out.update(retry_in=max(0, int(min(v["until"] for v in fails) - now)), reason=llm_short(f.get("code", 0), f.get("err", "")))
+    return out
 
 
 def _line(r, cls) -> str:
@@ -1363,6 +1382,9 @@ def chat_prompt(s, source, chat):
 - 已有事项只能通过 id 更新（只写变化的字段）或关闭；不要把已有事项换个说法再放进 new，不要改它的标题。
 - done_recent 里是用户已经完成的事，不要再新建；只有群里提出了明确不同的新要求才 new，并在 title 里写清区别。
 - todo 是用户要动手做的事；notice 是值得知道的通知或变化。闲聊、广告/线报/优惠券、和用户无关的讨论一律忽略，宁缺毋滥。
+- 凡是会影响用户、需要用户到场 / 配合 / 准备的安排（查寝、查卫生、点名、点到、查课、检查、考试、开会、班会、集合、签到、上交、缴费等），哪怕只是陈述句（如「今晚导员会来查寝」「下课杨导要点到」），也要建成 todo，不要只写进 summary；
+  title 写成用户要做的动作，可以带上什么时候（如「今晚导员查寝：在寝室并收拾好」「下课点到：按时到场」），due 写上时间（今晚就写今天的日期 + 今晚）；@全体成员 的通知 urgency=high。
+  已经过去的、已取消的、纯闲聊（「昨天查寝好严」）不要建。
 - 一件事一条，不要把几件事拼进一个标题；detail 写标题没说的补充（地点、要求、金额），不要重复标题。
 - urgency=high 只给 48 小时内截止或老师/领导点名要求的事。没有变化就输出空数组。"""
 
@@ -1461,6 +1483,133 @@ def apply_changes(source, chat, d: dict, at_ids=frozenset(), now=None) -> bool:
     return changed
 
 
+# ---- 规则兜底：查寝 / 点名 / 开会 这类「要你到场或准备」的事，模型漏了、或模型整理失败时，也一定变成待办 ----
+EVENT_RE = re.compile(r"查寝|查宿舍?|查卫生|卫生检查|内务检查|查内务|点名|点到|查课|查早操|查晚自习|考试|测验|开会|班会|会议|集合|签到|上交|缴费|交费")
+WHEN_RE = re.compile(r"今天晚上|今天下午|今天上午|今晚|今早|今天|今日|明天晚上|明天下午|明天上午|明晚|明早|明天|后天|下课后?|晚自习|待会儿?|一会儿?|等下|等会儿?|稍后|马上|立刻|立即|现在|中午|下午|晚上")
+CLOCK_RE = re.compile(r"(\d{1,2})\s*[:：点]\s*(\d{1,2}|半)?")
+SOON_WORDS = ("下课", "待会", "一会", "等下", "等会", "稍后", "马上", "立刻", "立即", "现在")
+PAST_RE = re.compile(r"昨天|昨晚|前天|上周|已经|查过|查完|点过|签过|考完|开完|结束了|刚才|刚刚|取消|不查|不用|不点|没查|没点|好严|吓死|"
+                     r"好难|太难|难死|好简单|怎么样|咋样|纪要|记录|总结|回放|"
+                     r"抽奖|红包|直播|福利|领取|优惠|免费领")  # 过去的事、闲聊评论、直播抽奖都不算
+WHO_RE = re.compile(r"辅导员|导员|班主任|宿管|学生会|班长|[\u4e00-\u9fa5]导(?=[要会来查点说今明下])|[\u4e00-\u9fa5]?老师")
+EVENT_ACT = (("查寝|查宿|查卫生|卫生检查|内务", "在寝室并收拾好"), ("点名|点到|查课|查早操|查晚自习", "按时到场"), ("签到", "记得按时签到"),
+             ("考试|测验", "按时参加，带好证件"), ("开会|班会|会议", "按时参加"), ("集合", "按时到集合点"), ("上交|缴费|交费", "按要求完成"))
+EVENT_NAME = {"查宿": "查寝", "查宿舍": "查寝", "卫生检查": "查卫生", "内务检查": "查内务", "测验": "考试", "会议": "开会", "交费": "缴费"}
+
+
+def rule_event(r, now=None):
+    """一条消息是不是「今晚导员会来查寝」这类要你到场/准备的事：是就返回 (标题, 截止, 事件词, urgency)，否则 None。"""
+    text = (r["text"] or "").strip()
+    ev = EVENT_RE.search(text)
+    if not ev or len(text) > 200 or AD_RE.search(text) or PAST_RE.search(text):
+        return None
+    when, clock = WHEN_RE.search(text), CLOCK_RE.search(text)
+    if not when and not clock:
+        return None
+    if re.search(r"[吗嘛？?]\s*$", text) and "@全体" not in text:  # 「今晚查寝吗？」是问句，不是通知
+        return None
+    now = now or time.time()
+    nd, td = datetime.fromtimestamp(now, TZ), datetime.fromtimestamp(r["ts"], TZ)
+    w = when.group(0) if when else ""
+    shift = 2 if w.startswith("后天") else 1 if w.startswith("明") else 0
+    day = (td + timedelta(days=shift)).date()
+    dm = re.search(r"\d{1,2}月\d{1,2}[日号]?|(?:下下|下个?|本|这)?(?:周|星期|礼拜)[一二三四五六日天]", text)
+    if dm:  # 写了具体日期 / 周几：按它算哪天
+        pd = parse_due(dm.group(0), td)
+        if pd:
+            day = pd.date()
+            if w.startswith(("今", "明", "后天")):
+                w = ""
+    if day < nd.date():
+        return None  # 说的那天已经过去了
+    if any(x in w for x in SOON_WORDS) and now - r["ts"] > 3 * 3600:
+        return None  # 「下课」「待会」这种马上就发生的，三小时后就不算了
+    hm = ""
+    if clock:
+        hh, mm = int(clock.group(1)), clock.group(2)
+        mm = 30 if mm == "半" else int(mm or 0)
+        if hh <= 23 and mm <= 59:
+            pre = ("晚上 " if "晚" in w else "下午 " if "下午" in w else "") if hh < 12 else ""
+            hm = f"{pre}{hh}:{mm:02d}"
+    tag = hm or ({"今天晚上": "今晚", "明天晚上": "晚上", "明晚": "晚上", "明早": "上午", "明天上午": "上午", "明天下午": "下午",
+                  "今天下午": "下午", "今天上午": "上午", "下课": "下课后"}.get(w, w))
+    due = f"{day.month}月{day.day:02d}日 {tag}".strip()
+    if day == nd.date():
+        label = w if w and not w.startswith(("明", "后天")) else "今天"
+    elif day == nd.date() + timedelta(days=1):
+        label = "明天" + ("晚上" if "晚" in w else "")
+    else:
+        label = re.sub(r"^(?:星期|礼拜)", "周", dm.group(0)) if dm and not re.match(r"\d", dm.group(0)) else f"{day.month}月{day.day}日"
+    label = {"今天晚上": "今晚", "下课": "下课后", "现在": "马上", "立即": "马上", "立刻": "马上"}.get(label, label)
+    who = WHO_RE.search(text)
+    name = EVENT_NAME.get(ev.group(0), ev.group(0))
+    act = next(a for k, a in EVENT_ACT if re.search(k, ev.group(0)))
+    title = f"{label}{who.group(0) if who else ''}{name}：{act}"
+    allm = "@全体" in text or "@所有人" in text
+    urg = "high" if (allm or r["at_me"] or day <= nd.date() + timedelta(days=1)) else "mid"
+    return title, due, name, urg
+
+
+def rule_todos(source, chat, rows, s, now=None) -> bool:
+    """规则兜底：模型整理完（或整理失败）后再扫一遍这批消息，查寝/点名/开会这类事没有对应待办就补一条。
+    已有待办引用了这条消息、同群近期已有同类待办（包括你勾完成的）就不重复；模型只建成通知的改成待办。
+    不看 / 只看@我 的群、广告、噪音不处理。"""
+    now = int(now or time.time())
+    hits = []
+    for r in sorted(rows, key=lambda r: r["id"]):
+        if classify(r, s) == "drop":
+            continue
+        ev = rule_event(r, now)
+        if ev:
+            hits.append((r, ev))
+    if not hits:
+        return False
+    changed = False
+    with db() as c:
+        its = [dict(x) for x in c.execute("SELECT * FROM items WHERE source=? AND chat=? AND (status='open' OR updated_ts>=?)",
+                                          (source, chat, now - 2 * 86400))]
+        for r, (title, due, name, urg) in hits:
+            # 同一个发送人前后 2 分钟里单独发了一条 @全体成员：算这条通知是 @全体 的
+            allm = any(x["sender"] == r["sender"] and abs(x["ts"] - r["ts"]) <= 120 and ("@全体" in (x["text"] or "") or "@所有人" in (x["text"] or ""))
+                       for x in rows)
+            urg = "high" if allm else urg
+            mine = [it for it in its if str(r["id"]) in str(it.get("msg_ids") or "").split()]
+            same = [it for it in its if name in (it["title"] or "") + (it.get("detail") or "")
+                    and abs((it["first_ts"] or 0) - r["ts"]) <= 18 * 3600]
+            todo = next((it for it in mine + same if it["kind"] == "todo"), None)
+            if todo:
+                continue
+            note = next((it for it in mine + same if it["kind"] == "notice" and it["status"] == "open"), None)
+            if note:  # 模型只当成「通知」：改成待办，标题写成要做的动作
+                c.execute("UPDATE items SET kind='todo', title=?, due=CASE WHEN due='' THEN ? ELSE due END, urgency=?, updated_ts=? WHERE id=?",
+                          (title, due, urg, now, note["id"]))
+                note.update(kind="todo"); changed = True
+                continue
+            vals = dict(source=source, chat=chat, kind="todo", title=title, detail="", due=due, sender=str(r["sender"] or "")[:40],
+                        quote=(r["text"] or "")[:200], urgency=urg, status="open", first_ts=now, updated_ts=now, msg_ids=str(r["id"]),
+                        at_me=int(bool(r["at_me"])), pinned=0, reminded=0)
+            cr = c.execute(f"INSERT INTO items({','.join(vals)}) VALUES({','.join('?' * len(vals))})", tuple(vals.values()))
+            its.append({**vals, "id": cr.lastrowid, "first_ts": r["ts"]}); changed = True
+    return changed
+
+
+def rule_backfill(hours: int = 6, now=None) -> int:
+    """升级后补一遍：最近几小时里已经整理过、但当时没变成待办的查寝/点名/开会（每个版本只跑一次）。"""
+    now = int(now or time.time())
+    s = settings()
+    with db() as c:
+        rows = c.execute("SELECT * FROM msgs WHERE ts>=? ORDER BY id", (now - hours * 3600,)).fetchall()
+    by = {}
+    for r in rows:
+        if EVENT_RE.search(r["text"] or "") or "@全体" in (r["text"] or ""):
+            by.setdefault((r["source"], r["chat"]), []).append(r)
+    n = 0
+    for (src, chat), rs in by.items():
+        if in_digest(src, chat, s):
+            n += int(rule_todos(src, chat, rs, s, now))
+    return n
+
+
 _chat_locks: dict = {}
 
 
@@ -1500,6 +1649,7 @@ async def _update_chat(source, chat, rows, s, stats) -> bool:
         msgs = [{"role": "system", "content": chat_prompt(s, source, chat)},
                 {"role": "user", "content": f"旧状态：{state}\n新消息（{len(part)} 条）：\n" + "\n".join(x[2] for x in part)}]
         def bisect_or_skip(why):
+            nonlocal changed
             # 这一块被模型「拒收」（内容审核 / 请求本身有问题 / 反复吐不出合法 JSON）：重试同样内容没用。
             # 拆成两半各自重来；拆到 2 条以内还不行就跳过这几条，水位照常前进，整个群不再卡死、待整理不再永远清不掉
             stats["calls"] += 1
@@ -1509,6 +1659,7 @@ async def _update_chat(source, chat, rows, s, stats) -> bool:
             else:
                 stats["skipped"] += len(part)
                 stats[why] = stats.get(why, 0) + len(part)
+                changed |= rule_todos(source, chat, [x[0] for x in part], s)  # 跳过的几条里有查寝/点名，规则照样建待办
         try:
             out = await llm(msgs, as_json=True)
         except HTTPException as ex:
@@ -1534,6 +1685,7 @@ async def _update_chat(source, chat, rows, s, stats) -> bool:
         if isinstance(d.get("summary"), str) and d["summary"].strip():
             summary = d["summary"].strip()[:80]
         changed |= apply_changes(source, chat, d, {x[0]["id"] for x in part if x[0]["at_me"]})
+        changed |= rule_todos(source, chat, [x[0] for x in part], s)  # 模型漏建的查寝/点名/开会，规则补上
         if queue:  # 检查点：每块处理完就推进水位，后面的块失败（限流/超时）也不用从头重来
             with db() as c:
                 c.execute("INSERT INTO chat_state(source,chat,last_msg_id,summary,updated_ts) VALUES(?,?,?,?,?) "
@@ -1546,12 +1698,23 @@ async def _update_chat(source, chat, rows, s, stats) -> bool:
     return changed or summary != old_summary
 
 
+IMMEDIATE_RE = re.compile(r"立刻|马上|立即|即刻|速来|速到|赶紧|赶快|现在就|现在到|紧急(?:开会|集合|会议)")
+IMMEDIATE_HOURS = 6           # 「立刻 / 马上去开会」这种当下的事，没写具体截止：6 小时后自动算过期
+
+
 def expire_items(now=None):
-    """代码规则：截止已过 1 天的待办、3 天没更新的通知自动关闭（不花模型调用）。"""
+    """代码规则：截止已过 1 天的待办、3 天没更新的通知、6 小时前的「立刻/马上」类即时事项自动关闭（不花模型调用）。"""
     now = now or time.time()
     nd = datetime.fromtimestamp(now, TZ)
     n = 0
     with db() as c:
+        for r in c.execute("SELECT id, title, detail, due, quote, first_ts FROM items WHERE status='open' AND pinned=0 AND first_ts<?",
+                           (int(now) - IMMEDIATE_HOURS * 3600,)).fetchall():
+            d = parse_due(r["due"], nd) if r["due"] and not IMMEDIATE_RE.search(r["due"]) else None  # 「10月09日 马上」不算具体截止
+            if d and d > nd - timedelta(hours=IMMEDIATE_HOURS):
+                continue  # 有具体截止且还没过多久：按截止算
+            if IMMEDIATE_RE.search(" ".join(str(r[k] or "") for k in ("title", "detail", "due", "quote"))) and (not d or d < nd):
+                c.execute("UPDATE items SET status='expired', updated_ts=? WHERE id=?", (int(now), r["id"])); n += 1
         for r in c.execute("SELECT id, due FROM items WHERE status='open' AND kind='todo' AND due!='' AND pinned=0").fetchall():
             d = parse_due(r["due"], nd)
             if d and (nd - d).total_seconds() > 86400:
@@ -1667,7 +1830,7 @@ async def make_headline(body, s, weekly=False, stats=None) -> str:
     if weekly:
         done = [t["title"] for t in body["todos"] if t["done"]]
         lines.append(f"- 本周已完成 {len(done)} 件：" + "、".join(done[:8]))
-    out = await llm([{"role": "system", "content": "【头条】你是用户的群消息秘书。根据下面的要点写一句话头条：只说最要紧的一件事（有截止就带上时间），20 字左右、不超过 28 字，必须是完整的一句话，不要罗列多件事。"
+    out = await llm([{"role": "system", "content": "【头条】你是用户的群消息秘书。根据下面的要点写一句话头条：只能说「待办」或「通知」里最要紧的一件事（群要点只作参考，不要拿群要点里的事当头条）（有截止就带上时间），20 字左右、不超过 28 字，必须是完整的一句话，不要罗列多件事。"
                                                    "只输出这句话，不要引号。没有要紧事就写：群里没什么要你管的"},
                      {"role": "user", "content": ("这是一周汇总，" if weekly else "") + "要点：\n" + ("\n".join(lines) or "（没有）")}])
     if stats is not None:
@@ -1720,6 +1883,8 @@ async def _make_digest(hours=24, auto=False, full=False):
         body["headline"] = await make_headline(body, s, weekly, stats)
     else:  # 只是换了时间范围：沿用上一期头条
         body["headline"] = json.loads(latest["body"]).get("headline", "")
+    if not weekly:  # 模型可能照着群要点又写回已完成的事：头条只能说未完成事项里的一件
+        body["headline"] = fresh_headline(body)
     stats["secs"] = round(time.time() - t0, 2)
     body.update(stats=stats, mode="full" if full else ("weekly" if weekly else "inc"), upto_id=int(kv_get("scan_id", 0) or 0))
     if auto:
@@ -1736,13 +1901,18 @@ async def _make_digest(hours=24, auto=False, full=False):
 AUTO_TICK = 5                 # 后台检查周期（秒）
 AUTO_QUIET = 20               # 群里安静 20 秒就整理
 AUTO_BURST = 20               # 或攒满 20 条
-AUTO_MAX_WAIT = 90            # 持续刷屏也最迟 90 秒整理一次（防抖不能被无限推迟）
+AUTO_MAX_WAIT = 60            # 持续刷屏也最迟 60 秒整理一次（防抖不能被无限推迟）
+AUTO_FORCE = 60               # 巡检兜底：任何一条待整理消息等了 60 秒，不管最小间隔，立刻排上（排在最前）
+AUTO_RUN_LIMIT = int(os.getenv("AUTO_RUN_LIMIT", "100"))  # 单个群一次自动整理最多跑这么久，超时算失败，不让「正在整理」挂着不动
+AUTO_GIVEUP_N = 3             # 同一个群连续失败 3 次、而别的群期间整理成功过（模型是好的，是这几条有问题）：
+AUTO_GIVEUP_SECS = 180        # 或待整理消息已等 3 分钟且失败过 2 次：按规则兜底提取待办后跳过，水位前进，待整理清零
+AUTO_GIVEUP_HARD = 600        # 硬上限：任何待整理消息最多挂 10 分钟（模型整体故障也一样；余额不足/密钥错这类要你处理的除外）
 AUTO_URGENT_QUIET = 2         # 要紧消息（@我/@全体/重点群里带时间金额通知）：安静 2 秒（连发的几句凑一批）
 AUTO_URGENT_WAIT = 5          # 最多等 5 秒；加上模型耗时，10 秒内上首页
 AUTO_MIN_GAP = 45             # 同一个群两次整理至少隔 45 秒
 AUTO_URGENT_GAP = 10          # 要紧消息只要求隔 10 秒（否则 @我 可能要等 45 秒）
-AUTO_PARALLEL = 4             # 全局最多同时整理 4 个群
-AUTO_BACKOFF0, AUTO_BACKOFF_MAX = 30, 600   # 失败退避 30s → 60s → … 最多 10 分钟
+AUTO_PARALLEL = 6             # 全局最多同时整理 6 个群
+AUTO_BACKOFF0, AUTO_BACKOFF_MAX = 10, 60    # 失败退避 10s → 20s → 40s → 最多 60 秒（以前最多 10 分钟：别的群照常成功，这个群的几条就一直挂着）
 AUTO_FAIL_SHOW = 300          # 连续失败 5 分钟才在页面提示
 HEAD_GAP = 600                # 头条最多 10 分钟用模型重写一次；其间出现新的要紧事项用规则拼
 AUTO = {"running": {}, "last_run": {}, "fail": {}, "fatal": None, "ok_ts": 0.0, "done_ts": 0}
@@ -1803,10 +1973,14 @@ def auto_plan(s: dict, now: float | None = None):
         f = AUTO["fail"].get(k)
         if f:
             due = max(due, f["until"])
+        force = first + AUTO_FORCE
+        if force <= now and not (f and f["until"] > now):  # 巡检兜底：等了 60 秒还没整理，不管最小间隔，立刻排最前
+            due, why = min(due, force), "force"
         if due <= now:
-            ready.append((not urg, due, k, rs, why))
+            ready.append((why != "force", due, k, rs, why))
         else:
             nxt = due if nxt is None else min(nxt, due)
+    # 先排等太久的，再按到点先后（要紧消息本来就到点早）：以前要紧群永远排在前面，忙的时候普通群的几条可能一直轮不上
     ready.sort(key=lambda x: (x[0], x[1]))
     return [(k, rs, why) for _, _, k, rs, why in ready], nxt
 
@@ -1852,7 +2026,10 @@ async def auto_run_chat(k, rows, s, now: float | None = None):
     stats = {"new": len(rows), "sent": 0, "calls": 0, "chats": 1, "changed": 0, "secs": 0.0, "errors": 0, "skipped": 0}
     t0 = time.time()
     try:
-        changed = await update_chat(k[0], k[1], rows, s, stats)
+        try:
+            changed = await asyncio.wait_for(update_chat(k[0], k[1], rows, s, stats), AUTO_RUN_LIMIT)
+        except asyncio.TimeoutError:
+            raise HTTPException(502, f"大模型 {AUTO_RUN_LIMIT} 秒还没整理完这个群：稍后自动重试", headers={"x-llm-code": "0"})
         AUTO["fail"].pop(k, None)
         AUTO["ok_ts"] = time.time()
         for r in rows:
@@ -1874,10 +2051,36 @@ async def auto_run_chat(k, rows, s, now: float | None = None):
         if code in LLM_FATAL_CODES or code == -1:
             AUTO["fatal"] = {"err": err, "short": llm_short(code, err), "hash": _shash(s), "ts": time.time()}
         print(f"自动整理失败 {k[1]}（第 {n} 次）:", err)
+        # 模型整理不了的时候，查寝/点名/开会这类「要你到场」的事先按规则变成待办，不等模型
+        with contextlib.suppress(Exception):
+            if rule_todos(k[0], k[1], rows, s):
+                await refresh_live(s, stats, now, model_head=False)
+        # 模型是好的（别的群在这个群失败以后成功过），就是这个群这几条一直不行：跳过，水位前进，待整理不再挂着
+        oldest = min((min(ARRIVE.get(r["id"], r["ts"]), now) for r in rows), default=now)
+        model_ok = LLM_LAST_OK[0] > AUTO["fail"][k]["since"] and code not in LLM_FATAL_CODES and code != -1
+        fatal = code in LLM_FATAL_CODES or code == -1
+        age = time.time() - oldest
+        if (model_ok and (n >= AUTO_GIVEUP_N or (n >= 2 and age >= AUTO_GIVEUP_SECS))) or (not fatal and age >= AUTO_GIVEUP_HARD):
+            give_up_chat(k, rows, err)
         return None
     finally:
         AUTO["running"].pop(k, None)
         bump()
+
+
+def give_up_chat(k, rows, why=""):
+    """这个群的这几条消息模型反复整理不了：推进水位（规则兜底已经提取过待办），清掉失败记录，不再算进待整理。"""
+    if not rows:
+        return
+    top = max(r["id"] for r in rows)
+    with db() as c:
+        c.execute("INSERT INTO chat_state(source,chat,last_msg_id,updated_ts) VALUES(?,?,?,?) "
+                  "ON CONFLICT(source,chat) DO UPDATE SET last_msg_id=MAX(last_msg_id, excluded.last_msg_id)", (k[0], k[1], top, int(time.time())))
+    for r in rows:
+        ARRIVE.pop(r["id"], None)
+    AUTO["fail"].pop(k, None)
+    kv_add("skipped_msgs", len(rows))
+    print(f"自动整理跳过 {k[1]} 的 {len(rows)} 条（反复失败：{why[:80]}）")
 
 
 _live_lock = asyncio.Lock()
@@ -1890,7 +2093,10 @@ def rule_headline(items) -> str:
         return ""
     now = datetime.now(TZ)
     far = datetime(2100, 1, 1, tzinfo=TZ)
-    t = sorted(items, key=lambda t: (not t.get("at_me"), parse_due(t.get("due", ""), now) or far, t.get("urgency") != "high"))[0]
+    def k(t):
+        d = parse_due(t.get("due", ""), now)
+        return (bool(d and d < now), not t.get("at_me"), d or far, t.get("urgency") != "high")  # 已过截止的不当头条（除非只剩它）
+    t = sorted(items, key=k)[0]
     return tidy_headline(t["title"] + (f"，{t['due']}" if t.get("due") else ""))
 
 
@@ -1918,7 +2124,7 @@ async def refresh_live(s: dict | None = None, stats: dict | None = None, now: fl
             head = rule_headline(hot or opens) or head
             if want_model:
                 kv_set("head_ts", int(now))
-        body["headline"] = head or "群里没什么要你管的"
+        body["headline"] = valid_headline(head, opens)  # 旧头条说的事已勾完成/过期：这里就换掉，不等首页来修
         today = datetime.fromtimestamp(now, TZ).strftime("%Y-%m-%d")
         body.update(stats=stats or {}, mode="live", auto=True, live=True, live_day=today, upto_id=int(kv_get("scan_id", 0) or 0))
         with db() as c:
@@ -1949,6 +2155,7 @@ async def _model_head(body, s, stats):
                     r = c.execute("SELECT body FROM digests WHERE id=?", (body["id"],)).fetchone()
                     if r:
                         cur = json.loads(r["body"])
+                        mh = fresh_headline({**cur, "headline": mh})  # 模型写好时可能已经有事被勾完成：按当前状态校验
                         cur["headline"] = mh
                         c.execute("UPDATE digests SET ts=?, body=? WHERE id=?", (int(time.time()), json.dumps(cur, ensure_ascii=False), body["id"]))
                         body["headline"] = mh
@@ -2148,6 +2355,13 @@ def digest_hours(s: dict) -> set:
 async def scheduler():
     async def loop():
         last, cleaned, qq_cleaned = set(), None, 0.0
+        if kv_get("rule_backfill") != VERSION:  # 升级后补一遍最近几小时漏掉的查寝/点名/开会待办（每个版本一次）
+            kv_set("rule_backfill", VERSION)
+            try:
+                if rule_backfill():
+                    await refresh_live(settings(), model_head=False)
+            except Exception as ex:
+                print("规则补建待办失败:", ex)
         while True:
             now = datetime.now(TZ)
             s = settings()
@@ -2270,30 +2484,76 @@ def digest_row(d):
 
 
 def _head_score(head, title):
+    """头条有多少是在说这件事：事项标题的 2 字片段有几成出现在头条里（头条常带群名前缀、「需立刻」之类，整句比相似度会偏低）。"""
     nh, nt = norm_title(head), norm_title(title)
     if not nh or not nt:
         return 0.0
     if nt in nh or nh in nt:
         return 1.0
-    return SequenceMatcher(None, nh, nt).ratio()
+    g = _grams(nt)
+    return len(g & _grams(nh)) / len(g)
+
+
+HEAD_MATCH = 0.5
+
+
+def valid_headline(head, opens, gone=None) -> str:
+    """头条只能说一件还没做完的事：说的是未完成事项里的某一件（且不更像某件已完成/已过期的）就保留，
+    否则（说的是勾完成的事、过期的事、只在群要点里出现的事）一律换成规则从未完成事项里挑的一句。"""
+    head = head or ""
+    if gone is None:
+        with db() as c:
+            gone = [r["title"] for r in c.execute(
+                "SELECT title FROM items WHERE status!='open' AND updated_ts>=? ORDER BY updated_ts DESC LIMIT 300",
+                (int(time.time()) - 7 * 86400,))]
+    if not opens:
+        return head if head in QUIET_HEADS[1:] else "群里没什么要你管的"
+    if head in QUIET_HEADS:
+        return rule_headline(opens)
+    best_open = max((_head_score(head, t.get("title", "")) for t in opens), default=0.0)
+    best_gone = max((_head_score(head, t) for t in gone), default=0.0)
+    if best_open >= HEAD_MATCH and best_open >= best_gone:
+        return head
+    return rule_headline(opens) or "群里没什么要你管的"
 
 
 def fresh_headline(body):
-    """头条说的那件事已经勾完成 / 过期了，就别再挂在最上面：换成还没做的最要紧的一件（不调模型）。"""
+    """头条说的那件事已经勾完成 / 过期了，就别再挂在最上面：换成还没做的最要紧的一件（不调模型）。周报不动。"""
     head = body.get("headline") or ""
-    if head in QUIET_HEADS:
+    if body.get("mode") == "weekly":
         return head
     opens = [t for t in body.get("todos", []) if not t.get("done")] + (body.get("notices") or [])
-    best_open = max((_head_score(head, t.get("title", "")) for t in opens), default=0.0)
+    gone = [t.get("title", "") for t in body.get("todos", []) if t.get("done")]
     with db() as c:
-        gone = [r["title"] for r in c.execute(
-            "SELECT title FROM items WHERE status!='open' AND updated_ts>=? ORDER BY updated_ts DESC LIMIT 200",
+        gone += [r["title"] for r in c.execute(
+            "SELECT title FROM items WHERE status!='open' AND updated_ts>=? ORDER BY updated_ts DESC LIMIT 300",
             (int(time.time()) - 7 * 86400,))]
-    gone += [t.get("title", "") for t in body.get("todos", []) if t.get("done")]
-    best_gone = max((_head_score(head, t) for t in gone), default=0.0)
-    if best_gone >= 0.6 and best_gone > best_open:
-        return rule_headline(opens) or "群里没什么要你管的"
-    return head
+        # 这一期存的事项可能是旧的：以数据库里事项的当前状态为准（勾完成那一刻 items 已改，这一期还没重拼）
+        st = {r["id"]: r["status"] for r in c.execute("SELECT id, status FROM items")}
+    opens = [t for t in opens if not t.get("id") or st.get(t["id"], "open") == "open"]
+    return valid_headline(head, opens, gone)
+
+
+def fix_latest_headline():
+    """勾完成 / 取消完成之后马上校验最新一期的头条并存回（不等首页轮询、不等下一次整理）。返回现在的头条。"""
+    with db() as c:
+        d = c.execute("SELECT * FROM digests ORDER BY id DESC LIMIT 1").fetchone()
+    if not d:
+        return None
+    body = json.loads(d["body"])
+    with db() as c:
+        st = {r["id"]: r["status"] for r in c.execute("SELECT id, status FROM items")}
+    for t in body.get("todos", []):  # 这一期存的 done 是旧的：按事项当前状态
+        if t.get("id") in st:
+            t["done"] = st[t["id"]] == "done"
+    body["notices"] = [n for n in body.get("notices") or [] if st.get(n.get("id"), "open") == "open"]
+    fixed = fresh_headline(body)
+    if fixed != body.get("headline"):
+        with db() as c:
+            cur = json.loads(c.execute("SELECT body FROM digests WHERE id=?", (d["id"],)).fetchone()["body"])
+            cur["headline"] = fixed
+            c.execute("UPDATE digests SET body=? WHERE id=?", (json.dumps(cur, ensure_ascii=False), d["id"]))
+    return fixed
 
 
 def view_headline(hours, body):
@@ -2468,7 +2728,11 @@ async def todo(req: Request):
             else:
                 c.execute("UPDATE items SET status=?, updated_ts=? WHERE id=?",
                           ("done" if d.get("done") else "open", int(time.time()), it["id"]))
-        return {"ok": True, "id": it["id"]}
+        head = None
+        if "pin" not in d:
+            with contextlib.suppress(Exception):
+                head = fix_latest_headline()
+        return {"ok": True, "id": it["id"], "headline": head}
     t0, ch0 = split_key(d["key"])
     t = {"title": d.get("title") or t0, "chat": d.get("chat") or ch0, "due": d.get("due") or ""}
     table, on = ("pins", d["pin"]) if "pin" in d else ("todo_done", d.get("done"))
