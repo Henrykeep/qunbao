@@ -558,7 +558,7 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
   <div class="gd" id="bark-gd">一般用上面的通知就够了。想再加一路、或想要专注模式也响的提醒：iPhone 在 App Store 装 Bark，把它给的地址粘到这里。</div>
   <div class="gl">自动整理</div>
   <div class="group">
-    <div class="row"><span class="rl">有新消息自动整理<small>@我、@全体和重点群的通知 10 秒内上首页；其他群安静 20 秒后整理，刷屏也最迟 1 分半</small></span><label class="sw"><input type="checkbox" id="s-auto"><span></span></label></div>
+    <div class="row"><span class="rl">有新消息自动整理<small>@我、@全体、重点群、查寝点名开会这类事约 3 秒开始整理；其他消息安静 5 秒就整理，最多等 15 秒，任何消息 30 秒内一定整理；纯表情、撤回、明显广告不调模型</small></span><label class="sw"><input type="checkbox" id="s-auto"><span></span></label></div>
   </div>
 
   <div class="gl">关于我</div>
@@ -1097,7 +1097,7 @@ function renderPend(st){
   $("#pendgo")?.addEventListener("click",()=>{tick();$("#regen").click()});
 }
 /* 待整理那句话说实情：在整理 / 失败等重试 / 等太久了，不再永远「正在自动整理」。
-   后端兜底保证 60 秒内开始整理；数字超过 75 秒没变（后端旧版本或网络问题）也不再说「正在」 */
+   后端兜底保证 30 秒内开始整理；数字超过 75 秒没变（后端旧版本或网络问题）也不再说「正在」 */
 let PEND_N=-1,PEND_T=0;
 const dur=s=>s<60?`${s|0} 秒`:`${s/60|0} 分钟`;
 function pendText(p){
