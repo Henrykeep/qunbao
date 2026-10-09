@@ -251,6 +251,21 @@ def test_todo_snooze():
         assert cn.execute("SELECT COUNT(*) n FROM snooze").fetchone()["n"] == 2
 
 
+def test_snooze_tomorrow_after_midnight_and_late_warning():
+    from datetime import datetime, timedelta
+    tz = app_mod.TZ
+    # 凌晨 1 点说「明天」= 睡醒后的今早 9 点；白天说才是明早
+    assert app_mod.snooze_until("tomorrow", datetime(2026, 10, 10, 1, 0, tzinfo=tz)) == datetime(2026, 10, 10, 9, 0, tzinfo=tz)
+    assert app_mod.snooze_until("tomorrow", datetime(2026, 10, 9, 22, 0, tzinfo=tz)) == datetime(2026, 10, 10, 9, 0, tzinfo=tz)
+    assert app_mod.snooze_until(3, datetime(2026, 10, 9, 22, 0, tzinfo=tz)) == datetime(2026, 10, 10, 1, 0, tzinfo=tz)
+    # 提醒时间晚于截止：明说，不假装设好了
+    soon = (datetime.now(tz) + timedelta(minutes=30)).strftime("%Y-%m-%d %H:%M")
+    r = c.post("/api/todo/snooze", headers=AUTH, json={"key": "晚了|群", "title": "晚了", "hours": 3, "due": soon}).json()
+    assert r["late"] and "已过截止" in r["msg"]
+    r = c.post("/api/todo/snooze", headers=AUTH, json={"key": "来得及|群", "title": "来得及", "hours": 1, "due": ""}).json()
+    assert not r["late"] and "1 小时后" in r["msg"]
+
+
 def test_sender_filter_ui():
     r = c.get("/", headers=AUTH)
     assert "sfchip" in r.text and "applySF" in r.text
