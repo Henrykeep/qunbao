@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.32.6"
+VERSION = "0.32.7"
 TZ = ZoneInfo("Asia/Shanghai")
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -23,6 +23,7 @@ WEB_PASS = os.getenv("WEB_PASS", "")
 INGEST_TOKEN = os.getenv("INGEST_TOKEN", "")
 MAX_CHARS = int(os.getenv("MAX_CHARS", "60000"))
 KEEP_DAYS = int(os.getenv("KEEP_DAYS", "30"))
+NAPCAT_DATA = os.getenv("NAPCAT_DATA", "/napcat_qq")   # NapCat 的 QQ 数据目录（docker-compose 挂进来），用来清图片缓存
 SESSION_DAYS = int(os.getenv("SESSION_DAYS", "30"))  # 网页登录保持天数
 COOKIE = "qb_session"
 
@@ -1867,7 +1868,7 @@ def digest_hours(s: dict) -> set:
 
 async def scheduler():
     async def loop():
-        last, cleaned = set(), None
+        last, cleaned, qq_cleaned = set(), None, 0.0
         while True:
             now = datetime.now(TZ)
             s = settings()
@@ -1903,12 +1904,50 @@ async def scheduler():
                 await check_reminders()
             except Exception as ex:
                 print("截止提醒失败:", ex)
+            if time.time() - qq_cleaned > 6 * 3600:  # 每 6 小时清一次 QQ 媒体缓存（启动后先清一次）
+                qq_cleaned = time.time()
+                with contextlib.suppress(Exception):
+                    await asyncio.to_thread(clean_qq_cache)
             if now.hour == 4 and cleaned != now.date():  # 每天凌晨清理过期消息（不依赖正好 4:00 这一分钟醒着）
                 cleaned = now.date()
                 with db() as c:
                     c.execute("DELETE FROM msgs WHERE ts<?", (int(time.time()) - max(1, int(settings().get("keep_days") or KEEP_DAYS)) * 86400,))
             await asyncio.sleep(60)
     return asyncio.gather(loop(), auto_loop())
+
+
+# ---------------- 清 NapCat 里 QQ 的媒体缓存 ----------------
+# 群报显示图片直接从 QQ 服务器加载（过期换 rkey），不用 QQ 本地缓存；这些缓存只占空间。
+# 只删 nt_data 下的 Pic / Video / Ptt / Thumb 目录里超过 6 小时的文件，登录数据、数据库一律不碰。
+QQ_CACHE_DIRS = {"Pic", "Video", "Ptt", "Thumb"}
+
+
+def clean_qq_cache(root=None, max_age=6 * 3600, now=None):
+    root = root or NAPCAT_DATA
+    now = now or time.time()
+    freed = files = 0
+    if not root or not os.path.isdir(root):
+        return 0, 0
+    for dp, dns, fns in os.walk(root, topdown=False):
+        parts = dp.replace(os.sep, "/").split("/")
+        if "nt_data" not in parts or not (QQ_CACHE_DIRS & set(parts[parts.index("nt_data") + 1:])):
+            continue
+        for fn in fns:
+            fp = os.path.join(dp, fn)
+            try:
+                st = os.lstat(fp)
+                if os.path.isfile(fp) and not os.path.islink(fp) and now - st.st_mtime > max_age:
+                    os.remove(fp)
+                    freed += st.st_size
+                    files += 1
+            except OSError:
+                pass
+        if dp.split(os.sep)[-1] not in QQ_CACHE_DIRS:
+            with contextlib.suppress(OSError):
+                os.rmdir(dp)  # 只删空的月份子目录
+    if files:
+        print(f"清理 QQ 媒体缓存：{files} 个文件，{freed / 1048576:.1f} MB")
+    return files, freed
 
 
 # ---------------- 网页接口 ----------------
