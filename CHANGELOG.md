@@ -1,5 +1,8 @@
 # 更新记录
 
+## 0.33.15 — 2026-10-10　容器健康检查
+- docker-compose 给群报加 healthcheck（探 /healthz），卡死时 docker ps 显示 unhealthy，方便排查。
+
 ## 0.33.14 — 2026-10-10　/onebot 可选口令
 - 8000 端口公网可达时，任何人都能往 /onebot 伪造群消息。现在 .env 里设 ONEBOT_TOKEN 后，必须带 Authorization: Bearer 或网址 ?token=（NapCat 地址写 http://qunbao:8000/onebot?token=xxx）；不设则保持原样，不影响现有部署。
 
