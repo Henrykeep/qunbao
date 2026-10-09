@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.12"
+VERSION = "0.33.13"
 TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")   # 时间解析/免打扰/每日整理都按这个时区
 DB = os.getenv("DB_PATH", "/data/qunbao.db")
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -2531,8 +2531,21 @@ async def scheduler():
                 cleaned = now.date()
                 with db() as c:
                     c.execute("DELETE FROM msgs WHERE ts<?", (int(time.time()) - max(1, int(settings().get("keep_days") or KEEP_DAYS)) * 86400,))
+                with contextlib.suppress(Exception):
+                    await asyncio.to_thread(prune_db)
             await asyncio.sleep(60)
     return asyncio.gather(loop(), auto_loop())
+
+
+def prune_db(now=None):
+    """每天一次：清过期登录会话、90 天前的历史整理、60 天前的提醒记录，并截断 WAL 文件。"""
+    now = int(now or time.time())
+    with db() as c:
+        c.execute("DELETE FROM sessions WHERE exp<?", (now,))
+        c.execute("DELETE FROM digests WHERE ts<?", (now - 90 * 86400,))
+        c.execute("DELETE FROM reminded WHERE ts<?", (now - 60 * 86400,))
+    with contextlib.suppress(Exception):
+        c = db(); c.execute("PRAGMA wal_checkpoint(TRUNCATE)"); c.close()
 
 
 # ---------------- 清 NapCat 里 QQ 的媒体缓存 ----------------
