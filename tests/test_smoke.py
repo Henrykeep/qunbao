@@ -2015,3 +2015,12 @@ def test_digest_markdown_export():
     r = c.get("/api/digest.md", headers=AUTH)
     assert r.status_code == 200 and r.text.startswith("# 群报") and "## 待办" in r.text
     assert c.get("/api/digest.md").status_code == 401
+
+
+def test_db_wal_and_busy_timeout():
+    c = app_mod.db() if 'app_mod' in globals() else None
+    if c is None:
+        import digest.app as app_mod2
+        c = app_mod2.db()
+    assert c.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal"
+    assert c.execute("PRAGMA busy_timeout").fetchone()[0] >= 30000
