@@ -218,6 +218,8 @@ def test_llm_retry_and_error_state():
     finally:
         app_mod.httpx.AsyncClient = orig; app_mod.LLM_KEY = ""
     assert len(calls) == 2
+    assert c.get("/api/state", headers=AUTH).json()["status"]["llm_err"] == ""   # 偶发失败不立刻挂黄条
+    app_mod.LLM_STATE["fail_since"] = time.time() - 400
     st = c.get("/api/state", headers=AUTH).json()["status"]
     assert "连不上" in st["llm_err"]
 
@@ -672,6 +674,8 @@ def test_auto_parallel_backoff_and_fatal():
             waits.append(round(app_mod.AUTO["fail"][k]["until"] - now))
         assert waits == [30, 60, 120, 240, 480, 600, 600]
         assert "坏群" not in {x[1] for x, _, _ in app_mod.auto_plan(s, time.time() + 500)[0]}
+        assert app_mod.auto_status(s)["state"] == "idle"                    # 刚失败：后台退避重试，不打扰
+        app_mod.AUTO["fail"][k]["since"] = time.time() - 400                # 连续失败 5 分钟以上才提示
         assert app_mod.auto_status(s)["state"] == "failed" and app_mod.auto_status(s)["reason"] == "服务商故障"
         # 余额不足：不重试，直到设置变更
         app_mod.AUTO["fail"].clear()
