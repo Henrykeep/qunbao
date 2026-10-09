@@ -551,11 +551,11 @@ textarea.area{display:block;width:100%;border:0;background:none;outline:none;res
   </div>
   <div class="gd">同一件事只提醒一次；「不看」的群不推；免打扰时段攒着，到点合并成一条。主屏幕图标上的数字是还没完成的待办数。</div>
 
-  <div class="gl">备用：Bark</div>
+  <div class="gl" id="bark-gl">备用：Bark</div>
   <div class="group">
     <div class="row"><input type="url" id="s-bark" placeholder="Bark 地址 https://api.day.app/你的key" style="text-align:left"><button class="btn ghost" id="s-test">测试</button></div>
   </div>
-  <div class="gd">一般用上面的通知就够了。想再加一路、或想要专注模式也响的提醒：iPhone 在 App Store 装 Bark，把它给的地址粘到这里。</div>
+  <div class="gd" id="bark-gd">一般用上面的通知就够了。想再加一路、或想要专注模式也响的提醒：iPhone 在 App Store 装 Bark，把它给的地址粘到这里。</div>
   <div class="gl">自动整理</div>
   <div class="group">
     <div class="row"><span class="rl">有新消息自动整理<small>@我、@全体和重点群的通知 10 秒内上首页；其他群安静 20 秒后整理，刷屏也最迟 1 分半</small></span><label class="sw"><input type="checkbox" id="s-auto"><span></span></label></div>
@@ -1570,6 +1570,10 @@ const WPTXT={
 function wpRender(){
   const l=$("#wp-l");if(!l)return;const st=wpState(),[t,d,b]=WPTXT[st],btn=$("#wp-btn"),row=$("#wp-row");
   row.className="row wprow "+st;
+  const ins=st==="insecure";row.style.display=ins?"none":"";  // 没有 HTTPS 时网页通知用不了：整行藏起来，Bark 才是正经通知渠道
+  const bg=$("#bark-gl"),bd=$("#bark-gd");
+  if(bg)bg.textContent=ins?"通知：Bark":"备用：Bark";
+  if(bd)bd.textContent=ins?"手机收通知用 Bark：iPhone 在 App Store 装 Bark，把它给的地址粘到这里，点测试。新待办、@我、重要的人、截止提醒都会推到它。":"一般用上面的通知就够了。想再加一路、或想要专注模式也响的提醒：iPhone 在 App Store 装 Bark，把它给的地址粘到这里。";
   const desc=st==="on"?`这台设备会收到通知${WP.n>1?` · 共 ${WP.n} 台设备`:""} · <button class="plink" id="wp-off">关闭</button>`:esc(d);
   l.innerHTML=(st==="on"?'<i class="ok-dot"></i>':"")+esc(t)+`<small id="wp-d">${desc}</small>`;
   btn.hidden=!b;btn.textContent=WP.busy?"正在开启…":b;btn.disabled=WP.busy;btn.classList.toggle("ghost",st==="on");
