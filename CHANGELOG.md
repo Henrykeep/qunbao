@@ -1,5 +1,8 @@
 # 更新记录
 
+## 0.33.16 — 2026-10-10　密码含中文不再报 500
+- 登录/Basic/onebot/ingest 口令比较遇到非 ASCII 字符会抛异常，现统一按字节比较。
+
 ## 0.33.15 — 2026-10-10　容器健康检查
 - docker-compose 给群报加 healthcheck（探 /healthz），卡死时 docker ps 显示 unhealthy，方便排查。
 
