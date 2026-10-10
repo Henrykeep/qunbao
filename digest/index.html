@@ -329,6 +329,7 @@ button.cite::after{content:"";position:absolute;inset:-10px -6px}
 .bub .thumbs .imgx{display:grid;place-items:center;color:var(--faint);font-size:var(--t-xs)}
 #imgbox{position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.88)}
 #imgbox img{max-width:96vw;max-height:92vh;border-radius:6px}
+.brief .sk{height:14px;margin-top:10px}.brief .sk.l1{margin-top:8px}.brief .sk.l2{width:80%}.brief .sk.l3{width:60%}.brief .subtxt{color:var(--sub);font-size:var(--t-sm)}
 .tolatest{position:fixed;right:var(--s4);bottom:calc(var(--dockh) + var(--s3));z-index:4;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 
 /* ================= 设置 ================= */
@@ -1329,16 +1330,15 @@ async function jumpTo(id,chat,src){
 }
 async function loadBrief(my,refresh){
   const b=$("#brief");b.hidden=false;
-  b.innerHTML=`<div class="bh"><b>助 手</b><span>${READ0?"你上次看过之后":"最近"}</span></div><div class="sk" style="height:14px;margin-top:8px"></div><div class="sk" style="height:14px;width:80%;margin-top:10px"></div><div class="sk" style="height:14px;width:60%;margin-top:10px"></div>`;
+  b.innerHTML=`<div class="bh"><b>助 手</b><span>${READ0?"你上次看过之后":"最近"}</span></div><div class="sk l1"></div><div class="sk l2"></div><div class="sk l3"></div>`;
   try{const r=await api(`/api/chat_brief?chat=${encodeURIComponent(chatName)}${chatSrc?`&source=${encodeURIComponent(chatSrc)}`:""}&since_id=${READ0}${refresh?"&refresh=1":""}`);
     if(my!==chatSeq)return;
     const lbl=r.nothing_new?(r.a?"上次之后没有新消息 · 之前的要点":"上次看过之后没有新消息"):READ0?"你上次看过之后":"最近 24 小时";
     b.innerHTML=`<div class="bh"><b>助 手</b><span>${lbl}</span></div>${r.a?mdCite(r.a,r.citations):""}
-      <div class="bf"><button class="btn line sm" data-a="unread">我没看的这段讲了啥</button><button class="btn line sm" data-a="latest">看最新消息 ↓</button></div>`;
-    b.querySelector('[data-a="latest"]').onclick=()=>{tick();window.scrollTo({top:document.documentElement.scrollHeight,behavior:"smooth"})};
+      <div class="bf"><button class="btn line sm" data-a="unread">我没看的这段讲了啥</button></div>`;
     b.querySelector('[data-a="unread"]').onclick=()=>{tick();chatAsk("我没看的这段讲了啥",true)};
     bindCites(b,r.citations);
-  }catch(e){if(my===chatSeq)b.innerHTML=`<div class="bh"><b>助 手</b><span></span></div><p style="color:var(--sub);font-size:14px">${esc(e.message)}</p><div class="bf"><button class="btn line sm" id="brf">重试</button></div>`;$("#brf")?.addEventListener("click",()=>loadBrief(chatSeq,true))}
+  }catch(e){if(my===chatSeq)b.innerHTML=`<div class="bh"><b>助 手</b><span></span></div><p class="subtxt">${esc(e.message)}</p><div class="bf"><button class="btn line sm" id="brf">重试</button></div>`;$("#brf")?.addEventListener("click",()=>loadBrief(chatSeq,true))}
 }
 /* 回答里的 [1][2] 角标：点一下跳到原文那条 */
 function mdCite(text,cites){
