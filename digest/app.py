@@ -1582,9 +1582,11 @@ def rule_event(r, now=None):
         return None
     now = now or time.time()
     nd, td = datetime.fromtimestamp(now, TZ), datetime.fromtimestamp(r["ts"], TZ)
+    g = timedelta(hours=5)  # 凌晨 5 点前仍算「昨天的今晚」：「天」按减 5 小时算
+    nd, tdd = nd - g, td - g
     w = when.group(0) if when else ""
     shift = 2 if w.startswith("后天") else 1 if w.startswith("明") else 0
-    day = (td + timedelta(days=shift)).date()
+    day = (tdd + timedelta(days=shift)).date()
     dm = re.search(r"\d{1,2}月\d{1,2}[日号]?|(?:下下|下个?|本|这)?(?:周|星期|礼拜)[一二三四五六日天]", text)
     if dm:  # 写了具体日期 / 周几：按它算哪天
         pd = parse_due(dm.group(0), td)
@@ -1592,7 +1594,7 @@ def rule_event(r, now=None):
             day = pd.date()
             if w.startswith(("今", "明", "后天")):
                 w = ""
-    if day < (nd - timedelta(hours=5)).date():  # 凌晨 5 点前仍算「昨天的今晚」
+    if day < nd.date():
         return None  # 说的那天已经过去了
     if any(x in w for x in SOON_WORDS) and now - r["ts"] > 3 * 3600:
         return None  # 「下课」「待会」这种马上就发生的，三小时后就不算了
