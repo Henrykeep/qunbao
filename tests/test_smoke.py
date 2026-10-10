@@ -1329,7 +1329,7 @@ def test_history_one_per_day():
     with app_mod.db() as x:
         x.execute("DELETE FROM digests")
         for i in range(6):  # 旧版：同一天每半小时存一期
-            x.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (now - 600 * i, 24, _j.dumps({"headline": f"h{i}"})))
+            x.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (now - 20 * i, 24, _j.dumps({"headline": f"h{i}"})))
         x.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (now - 86400 * 2, 24, _j.dumps({"headline": "old"})))
     app_mod.kv_set("rule_backfill", app_mod.VERSION)  # 启动时的规则补建会原地更新最新一期，这里只测往期列表
     with TestClient(app_mod.app) as c:
