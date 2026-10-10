@@ -2208,3 +2208,13 @@ def test_ask_reuses_repeated_answer():
     finally:
         app_mod.llm = ol
     assert r1.get("used") and r2.get("reused") and len(calls) == 1
+
+
+def test_remind_start_moves_to_evening_when_quiet():
+    from datetime import datetime, timedelta
+    due = datetime(2026, 10, 12, 7, 30, tzinfo=app_mod.TZ)
+    s = {"quiet_start": 23, "quiet_end": 7}
+    assert app_mod.remind_start(due, 3, s) == datetime(2026, 10, 11, 22, 0, tzinfo=app_mod.TZ)
+    assert app_mod.remind_start(due, 3, {"quiet_start": -1}) == due - timedelta(hours=3)
+    d2 = datetime(2026, 10, 12, 15, 0, tzinfo=app_mod.TZ)
+    assert app_mod.remind_start(d2, 3, s) == d2 - timedelta(hours=3)
