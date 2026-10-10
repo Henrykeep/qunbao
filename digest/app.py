@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.12"
+VERSION = "0.34.13"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -42,6 +42,7 @@ DEFAULTS = {
     "keywords": ["截止", "ddl", "提交", "开会", "考试", "缴费", "通知", "报名", "@全体成员"],
     "modes": {},               # 每个群怎么盯，键 "来源|群名"：focus 重点盯 / normal 正常 / atonly 只看@我 / off 不看
     "default_mode": "normal",  # 新出现的群默认档位
+    "chat_pins": {},           # 手动置顶的群，键 "来源|群名" → 置顶时间；只管列表位置，和档位互相独立
     "modes_tip_done": False,   # 首页「给群分档」引导已处理
     # 以下为 0.30 及以前的旧字段，启动时迁移进 modes 后清空
     "only_mode": False, "allowed": [], "muted": [], "levels": {},
@@ -167,6 +168,7 @@ def save_settings(new: dict):
     if s.get("default_mode") not in MODES:
         s["default_mode"] = "normal"
     s["modes"] = {k: v for k, v in (s.get("modes") or {}).items() if v in MODES and "|" in k}
+    s["chat_pins"] = {k: v for k, v in (s.get("chat_pins") or {}).items() if "|" in k and isinstance(v, (int, float))}
     with db() as c:
         c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('settings',?)", (json.dumps(s, ensure_ascii=False),))
     wake_auto()  # 设置变了：解除「余额不足 / 密钥错误」的暂停，马上看一眼
@@ -644,8 +646,12 @@ def rename_chat(source: str, old: str, new: str) -> int:
         m = modes.pop(ckey(source, old))
         modes.setdefault(ckey(source, new), m)
         s["modes"] = modes
-        with db() as c:
-            c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('settings',?)", (json.dumps(s, ensure_ascii=False),))
+    pins = dict(s.get("chat_pins") or {})
+    if ckey(source, old) in pins:
+        pins.setdefault(ckey(source, new), pins.pop(ckey(source, old)))
+        s["chat_pins"] = pins
+    with db() as c:
+        c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('settings',?)", (json.dumps(s, ensure_ascii=False),))
     return n
 
 
@@ -2864,6 +2870,7 @@ def state(id: int | None = None, hours: int | None = None):
         "links": extract_links(link_rows, s=s),
         "done": done,
         "pins": pins,
+        "chat_pins": settings().get("chat_pins") or {},
         "status": {"last_msg": last, "heartbeat": hb_ts, "online": qq_on or wx_on,
                    "qq": {"online": qq_on, "seen": hb_ts or last_qq, "last": last_qq},
                    "wx": {"online": wx_on, "seen": wx_ts, "last": last_wx, "ready": bool(INGEST_TOKEN)},
@@ -3011,6 +3018,28 @@ def activity(days: int = 7, source: str = ""):
     return activity_stats(max(1, min(days, 90)), source)
 
 
+def set_chat_pin(source, chat, on):
+    s = settings()
+    pins = dict(s.get("chat_pins") or {})
+    if on:
+        pins[ckey(source, chat)] = time.time()
+    else:
+        pins.pop(ckey(source, chat), None)
+    s["chat_pins"] = pins
+    with db() as c:
+        c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('settings',?)", (json.dumps(s, ensure_ascii=False),))
+
+
+@app.post("/api/chat_pin", dependencies=[Depends(auth)])
+async def chat_pin_api(req: Request):
+    """置顶 / 取消置顶一个群：{"source":"QQ","chat":"群名","pin":true}"""
+    d = await req.json()
+    if not d.get("chat"):
+        raise HTTPException(400, "没有选群")
+    set_chat_pin(str(d.get("source") or "QQ"), str(d["chat"]), bool(d.get("pin")))
+    return {"ok": True, "pin": bool(d.get("pin"))}
+
+
 @app.get("/api/chats", dependencies=[Depends(auth)])
 def chats(hours: int = 168, source: str = ""):
     s = settings()
@@ -3033,6 +3062,7 @@ def chats(hours: int = 168, source: str = ""):
             out.append({"chat": r["chat"], "source": r["source"], "n": r["n"], "last_ts": r["last_ts"],
                         "ats": r["ats"] or 0, "at_ids": at_ids, "last": f"{m['sender']}：{m['text']}" if m else "",
                         "open": nopen.get((r["source"], r["chat"]), 0),
+                        "pin": (s.get("chat_pins") or {}).get(ckey(r["source"], r["chat"]), 0),
                         "mode": chat_mode(r["source"], r["chat"], s), "today": today.get((r["source"], r["chat"]), 0),
                         "muted": chat_mode(r["source"], r["chat"], s) == "off"})
     return out
