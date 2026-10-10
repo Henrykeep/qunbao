@@ -2072,3 +2072,16 @@ def test_ics_fold():
     for l in t.split("\r\n"):
         assert len(l.encode()) <= 75
     assert t.endswith("END:VCALENDAR\r\n")
+
+
+def test_prune_old_closed_items():
+    import time
+    from digest import app as m
+    now = int(time.time())
+    with m.db() as c:
+        c.execute("INSERT INTO items(source,chat,kind,title,status,first_ts,updated_ts,pinned) VALUES('qq','g','todo','旧完成','done',1,?,0)", (now - 100 * 86400,))
+        c.execute("INSERT INTO items(source,chat,kind,title,status,first_ts,updated_ts,pinned) VALUES('qq','g','todo','旧置顶','done',1,?,1)", (now - 100 * 86400,))
+    m.prune_db(now)
+    with m.db() as c:
+        ts = [r["title"] for r in c.execute("SELECT title FROM items")]
+    assert "旧完成" not in ts and "旧置顶" in ts
