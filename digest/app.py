@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.11"
+VERSION = "0.34.12"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -3021,6 +3021,8 @@ def chats(hours: int = 168, source: str = ""):
         rows = c.execute("""SELECT chat, source, COUNT(*) n, MAX(ts) last_ts, SUM(at_me) ats FROM msgs
                             WHERE ts>=? AND (?='' OR source=?) GROUP BY chat, source ORDER BY last_ts DESC""",
                          (int(time.time()) - hours * 3600, source, source)).fetchall()
+        nopen = {(r["source"], r["chat"]): r["n"] for r in c.execute(
+            "SELECT source, chat, COUNT(*) n FROM items WHERE status='open' AND kind='todo' GROUP BY source, chat")}
         out = []
         for r in rows:
             m = c.execute("SELECT sender, text FROM msgs WHERE chat=? AND source=? ORDER BY id DESC LIMIT 1",
@@ -3030,6 +3032,7 @@ def chats(hours: int = 168, source: str = ""):
                 (r["chat"], r["source"], int(time.time()) - hours * 3600))]
             out.append({"chat": r["chat"], "source": r["source"], "n": r["n"], "last_ts": r["last_ts"],
                         "ats": r["ats"] or 0, "at_ids": at_ids, "last": f"{m['sender']}：{m['text']}" if m else "",
+                        "open": nopen.get((r["source"], r["chat"]), 0),
                         "mode": chat_mode(r["source"], r["chat"], s), "today": today.get((r["source"], r["chat"]), 0),
                         "muted": chat_mode(r["source"], r["chat"], s) == "off"})
     return out
