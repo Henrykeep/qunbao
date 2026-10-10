@@ -1838,7 +1838,7 @@ def test_frontend_pend_text_not_forever_auto():
 
 def test_rule_event_titles_and_negatives():
     now = time.time()
-    nd = app_mod.datetime.fromtimestamp(now, app_mod.TZ)
+    nd = app_mod.datetime.fromtimestamp(now - 5 * 3600, app_mod.TZ)  # 凌晨 5 点前算前一天
     today = f"{nd.month}月{nd.day:02d}日"
     R = lambda t, ago=60, at=0: {"text": t, "ts": int(now - ago), "at_me": at, "sender": "甲", "chat": "g", "source": "QQ"}
     ev = app_mod.rule_event(R("今晚导员会来查寝"), now)
