@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.33"
+VERSION = "0.34.34"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -968,6 +968,7 @@ CHUNK_MSGS = int(os.getenv("CHUNK_MSGS", "120"))       # 单群新消息太多�
 CHUNK_CHARS = int(os.getenv("CHUNK_CHARS", "6000"))   # 每块最多这么多字（约 token 上限的保守估计）
 LLM_PARALLEL = 4             # 手动/定时整理时同时整理的群数
 from auto_stats import summarize  # noqa: E402
+from auto_due import plan_chats  # noqa: E402
 from headline import tidy_headline, rule_headline, QUIET_HEADS, _head_score, HEAD_MATCH  # noqa: E402,F401 (0.34.31 拆出)
 from auto_due import chat_due  # noqa: E402 (0.34.29 拆出)
 from noise import is_noise, NOISE_WORDS, NOISE_PH, PLACEHOLDER_RE, RECALL_RE, SYS_RE  # noqa: E402 (0.34.28 拆出)
@@ -983,8 +984,8 @@ AD_RE = re.compile(r"券后|优惠券|领券|返利|返现|包邮|秒杀|神价|
                    r"代取快递|代拿|跑腿|可小刀|出闲置|低价出|私聊下单|招代理|兼职日结|刷单", re.I)
 # 0.34：只有「高置信度广告」才不送模型：至少两类强特征同时命中（其中一类是促销/拼团/代取兼职），且不带任何通知类字眼。
 # 拿不准一律送模型（例：「缴费链接今晚截止 https://… ¥50」只命中 链接+金额，照样送）
-from timing import snooze_until, digest_hours, weekly_title  # noqa: E402,F401 (0.34.33 拆出)
-from textclean import AD_CATS, AD_VETO, DATE_IN_TITLE, URL_ONLY_RE, is_ad_sure, tidy_title, same_text  # noqa: E402,F401 (0.34.33 拆出)
+from timing import snooze_until, digest_hours, weekly_title  # noqa: E402,F401 (0.34.34 拆出)
+from textclean import AD_CATS, AD_VETO, DATE_IN_TITLE, URL_ONLY_RE, is_ad_sure, tidy_title, same_text  # noqa: E402,F401 (0.34.34 拆出)
 
 
 def classify(r, s) -> str:
@@ -1710,27 +1711,9 @@ def auto_plan(s: dict, now: float | None = None):
     by = {}
     for r in rows:
         by.setdefault((r["source"], r["chat"]), []).append(r)
-    busy = _rpm_now(now) >= AUTO_RPM
-    ready, nxt = [], None
-    for k, rs in by.items():
-        if k in AUTO["running"]:
-            continue
-        arr = sorted(min(ARRIVE.get(r["id"], r["ts"]), now) for r in rs)
-        start, end = AUTO["last_run"].get(k, 0), AUTO["last_end"].get(k, 0)
-        urg = [min(ARRIVE.get(r["id"], r["ts"]), now) for r in rs if is_urgent(r, s)]
-        f = AUTO["fail"].get(k)
-        due, why = chat_due(arr, urg, start, end, f["until"] if f else None, busy, now,
-                            quiet=AUTO_QUIET, max_wait=AUTO_MAX_WAIT, burst=AUTO_BURST,
-                            urgent_quiet=AUTO_URGENT_QUIET, urgent_wait=AUTO_URGENT_WAIT,
-                            min_gap=AUTO_MIN_GAP, force_after=AUTO_FORCE)
-        urg = bool(urg)
-        if due <= now:
-            ready.append((why != "force", 0 if urg else 1, due, k, rs, why))
-        else:
-            nxt = due if nxt is None else min(nxt, due)
-    # 先排等太久的，再排要紧的，再按到点先后
-    ready.sort(key=lambda x: (x[0], x[1], x[2]))
-    return [(k, rs, why) for _, _, _, k, rs, why in ready], nxt
+    return plan_chats(by, now, AUTO, ARRIVE, lambda r: is_urgent(r, s), _rpm_now(now) >= AUTO_RPM,
+                      quiet=AUTO_QUIET, max_wait=AUTO_MAX_WAIT, burst=AUTO_BURST, urgent_quiet=AUTO_URGENT_QUIET,
+                      urgent_wait=AUTO_URGENT_WAIT, min_gap=AUTO_MIN_GAP, force_after=AUTO_FORCE)
 
 
 def auto_sweep(s: dict):
