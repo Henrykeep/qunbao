@@ -2161,3 +2161,27 @@ def test_same_todo_regressions():
     f = lambda a, b: A.same_todo({"title": a, "chat": "x"}, {"title": b, "chat": "x"})
     assert all(f(a, b) for a, b in same)
     assert not any(f(a, b) for a, b in diff)
+
+
+def test_same_todo_distinguishes_relative_days():
+    import app as A
+    assert not A.same_todo({"title": "明晚8点查寝", "chat": "宿舍群"}, {"title": "今晚八点查寝", "chat": "宿舍群"})
+    assert A.same_todo({"title": "今晚八点查寝", "chat": "宿舍群"}, {"title": "今晚8点查寝", "chat": "宿舍群"})
+
+
+import pytest  # noqa
+
+
+def T(t):
+    return {"title": t, "chat": "x"}
+
+
+@pytest.mark.parametrize("a,b", [("交第一章作业", "交第二章作业"), ("带身份证去体检", "带身份证办卡"),
+                                  ("周五交材料", "周五领材料"), ("报名篮球赛", "报名辩论赛")])
+def test_different_todos(a, b):
+    assert not importlib.import_module('app').same_todo(T(a), T(b))
+
+
+@pytest.mark.parametrize("a,b", [("提交实验报告", "缴纳实验报告"), ("参加班会", "参与班会"), ("交实验报告", "实验报告提交")])
+def test_same_todos(a, b):
+    assert importlib.import_module('app').same_todo(T(a), T(b))
