@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.27"
+VERSION = "0.34.28"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -980,32 +980,7 @@ async def todo_snooze(req: Request):
 CHUNK_MSGS = int(os.getenv("CHUNK_MSGS", "120"))       # 单群新消息太多时，每块最多这么多条
 CHUNK_CHARS = int(os.getenv("CHUNK_CHARS", "6000"))   # 每块最多这么多字（约 token 上限的保守估计）
 LLM_PARALLEL = 4             # 手动/定时整理时同时整理的群数
-# 0.34：噪音只跳过「跟一个表情一样没内容」的：整条就是附和/客套/笑（可能是回答的「可以」「行」「对」「在」不算噪音，照样送模型）
-NOISE_WORDS = {"收到", "收到收到", "好的收到", "收到谢谢", "好的", "好滴", "好哒", "好嘞", "嗯嗯", "嗯呢", "嗯", "ok", "okk", "okay",
-               "谢谢", "谢谢老师", "多谢", "感谢", "哈", "哈哈", "哈哈哈", "哈哈哈哈", "哈哈哈哈哈", "1", "11", "111", "6", "66", "666", "6666",
-               "牛", "牛啊", "赞", "知道了", "明白", "了解", "晚安", "早安", "嘿嘿", "辛苦了", "辛苦", "笑死", "啊这", "草"}
-PLACEHOLDER_RE = re.compile(r"^(\s*\[(图片|表情|动画表情|语音|视频|文件|卡片|聊天记录|红包|位置|名片)\]\s*)+$")
-# 只有这几种占位符算噪音（纯图片 / 表情 / 贴纸，没有文字）；[文件][聊天记录][卡片][语音][红包] 可能就是通知，照样送模型
-NOISE_PH = {"图片", "表情", "动画表情", "贴纸", "动画", "emoji"}
-RECALL_RE = re.compile(r"撤回了一条消息|撤回一条消息|recalled a message")
-SYS_RE = re.compile(r"^\s*\S{0,24}?(?:邀请\S{0,40}?加入了群聊|加入了群聊|加入本群|退出了群聊|被移出群聊|被移出了群聊|修改群名(?:称)?为\S{0,40}|"
-                    r"拍了拍\S{0,30}|开启了全员禁言|关闭了全员禁言|被设置为管理员|被取消了管理员|成为新群主)\s*[。.]?\s*$")
-
-
-def is_noise(text: str) -> bool:
-    """极保守的噪音：空 / 撤回 / 群系统提示 / 只有图片表情贴纸没有文字 / 整条只是附和客套或笑。拿不准一律不算。"""
-    t = (text or "").strip()
-    if not t or RECALL_RE.search(t) or (len(t) <= 80 and SYS_RE.match(t)):
-        return True
-    toks = re.findall(r"\[([^\[\]]{1,6})\]", t)
-    rest = re.sub(r"\[[^\[\]]{1,6}\]", "", t)
-    core = re.sub(r"[\s\W_]+", "", rest.lower())
-    if toks and not core:  # 只有 [xx] 占位符 / 微信小表情：全是图片表情贴纸类才算噪音，有 [文件] 之类的照样送
-        return all(x in NOISE_PH or (x not in ("文件", "卡片", "聊天记录", "红包", "位置", "名片", "语音", "视频", "链接", "小程序", "转账", "群公告", "公告")
-                                     and len(x) <= 4 and not re.search(r"\d", x)) for x in toks)
-    if not core:  # 纯 emoji / 标点
-        return True
-    return core in NOISE_WORDS or bool(re.fullmatch(r"(哈|呵|嘿|嘻)+|6+|1+|\+1", core))
+from noise import is_noise, NOISE_WORDS, NOISE_PH, PLACEHOLDER_RE, RECALL_RE, SYS_RE  # noqa: E402 (0.34.28 拆出)
 
 
 KEY_RE = re.compile(r"\d{1,2}[:：点时]\d{0,2}|\d{1,2}月\d{1,2}|\d{1,2}[/-]\d{1,2}|周[一二三四五六日天]|星期|今天|明天|后天|今晚|明早|下周|"
