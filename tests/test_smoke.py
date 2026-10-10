@@ -2152,3 +2152,12 @@ def test_chat_pin_independent_of_mode():
     assert ch[("微信", "置顶测试群")]["pin"] == 0
     html = c.get("/", headers=AUTH).text
     assert "/api/chat_pin" in html and "byTier" in html
+
+
+def test_same_todo_regressions():
+    import app as A
+    same = [("下载国家反诈APP", "安装国家反诈App"), ("填写健康打卡表", "提交健康打卡"), ("周三前交实验报告", "周五前交实验报告")]
+    diff = [("交第一章作业", "交第二章作业"), ("交班费20元", "交班费30元"), ("缴纳学费", "缴纳住宿费"), ("领取教材", "领取校服")]
+    f = lambda a, b: A.same_todo({"title": a, "chat": "x"}, {"title": b, "chat": "x"})
+    assert all(f(a, b) for a, b in same)
+    assert not any(f(a, b) for a, b in diff)
