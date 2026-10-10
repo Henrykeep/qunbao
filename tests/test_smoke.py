@@ -2085,3 +2085,11 @@ def test_prune_old_closed_items():
     with m.db() as c:
         ts = [r["title"] for r in c.execute("SELECT title FROM items")]
     assert "旧完成" not in ts and "旧置顶" in ts
+
+
+def test_security_headers():
+    from fastapi.testclient import TestClient
+    import digest.app as a
+    r = TestClient(a.app).get("/login")
+    assert r.headers.get("x-content-type-options") == "nosniff"
+    assert r.headers.get("x-frame-options") == "DENY"
