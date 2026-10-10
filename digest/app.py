@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.14"
+VERSION = "0.34.15"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -2318,6 +2318,10 @@ async def _model_head(body, s, stats):
 async def auto_tick(s: dict | None = None, now: float | None = None) -> float | None:
     """一次调度：收尾水位 + 启动到点的群（不超过并发上限）。返回下一次该醒的时间。"""
     s = s or settings()
+    stale = (now or time.time()) - (AUTO_RUN_LIMIT * 2 + 60)
+    for k in [k for k, t0 in AUTO["running"].items() if t0 < stale]:  # 任务异常没清占位：释放，别让这个群永远卡在「整理中」
+        AUTO["running"].pop(k, None)
+        print("自动整理占位超时已释放:", k[1])
     auto_sweep(s)
     ready, nxt = auto_plan(s, now)
     room = AUTO_PARALLEL - len(AUTO["running"])
