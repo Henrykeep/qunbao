@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.22"
+VERSION = "0.33.23"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -2570,7 +2570,7 @@ def prune_db(now=None):
         c.execute("DELETE FROM snooze WHERE until<?", (now - 30 * 86400,))  # 早已触发的稍后提醒记录
         c.execute("DELETE FROM items WHERE status!='open' AND pinned=0 AND updated_ts<?", (now - 90 * 86400,))  # 已完成/过期的旧事项
     with contextlib.suppress(Exception):
-        c = db(); c.execute("PRAGMA wal_checkpoint(TRUNCATE)"); c.close()
+        c = db(); c.execute("PRAGMA optimize"); c.execute("PRAGMA wal_checkpoint(TRUNCATE)"); c.close()  # optimize：刷新索引统计，大库查询计划更准
 
 
 # ---------------- 清 NapCat 里 QQ 的媒体缓存 ----------------
