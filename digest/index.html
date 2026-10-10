@@ -269,11 +269,6 @@ footer{margin-top:var(--s7);text-align:center;font-size:var(--t-2xs);color:var(-
 .crow .cl{display:flex;gap:6px;align-items:center;min-width:0;margin-top:2px;font-size:var(--t-sm);color:var(--sub);white-space:nowrap;overflow:hidden}
 .crow .cl span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .mute-ic{width:12px;height:12px;color:var(--faint);flex:none}
-details.actd{margin-top:var(--s6)}
-details.actd summary{list-style:none;padding:var(--s2) 0;font-size:var(--t-xs);color:var(--faint);cursor:pointer}
-details.actd summary::-webkit-details-marker{display:none}
-.act{margin:6px 0 var(--s1);padding:var(--s3);border:1px solid var(--line);border-radius:var(--r-md)}
-.act h4{margin:0 0 var(--s2);font-family:var(--serif);font-size:var(--t-sm)}
 .act .bars{display:flex;align-items:flex-end;gap:2px;height:48px}
 .act .bars i{flex:1;min-height:2px;background:var(--accent);border-radius:2px 2px 0 0;opacity:.8}
 .act .ax{display:flex;justify-content:space-between;margin-top:2px;font-size:var(--t-2xs);color:var(--sub)}
@@ -661,6 +656,8 @@ details.howto[open] summary svg{transform:rotate(180deg)}
       <div class="row"><span class="rl">累计大模型调用</span><span class="stat-dot" id="st-calls"><span>—</span></span></div>
       <div class="row"><span class="rl">更新记录</span><a class="btn ghost" href="https://github.com/Henrykeep/qunbao/blob/main/CHANGELOG.md" target="_blank" rel="noopener">查看</a></div>
     </div>
+    <div class="gl" id="act-gl">近 7 天活跃时段</div>
+    <div class="group card" id="actbox"></div>
     <div class="gl">高级</div>
     <div class="group card">
       <div class="row"><span class="rl">完整重新整理<small>平时只整理新消息；这里会从最近 24 小时的消息重新整理一遍（已完成、置顶的保留），较慢也较费钱</small></span><button class="btn ghost" id="s-full">重新整理</button></div>
@@ -1229,15 +1226,14 @@ function renderSrcs(){
 async function loadChats(){
   const q=$("#sq").value.trim();if(q)return search(q);
   if(!CHATS.length)$("#clist").innerHTML='<div class="sk" style="height:56px;margin-top:12px"></div>'.repeat(5);
-  try{CHATS=await api("/api/chats");renderChats();loadAct()}catch(e){$("#clist").innerHTML=`<div class="empty">${esc(e.message)}</div>`}
+  try{CHATS=await api("/api/chats");renderChats()}catch(e){$("#clist").innerHTML=`<div class="empty">${esc(e.message)}</div>`}
 }
 async function loadAct(){
-  try{const a=await api("/api/activity"+(SRCF?`?source=${encodeURIComponent(SRCF)}`:""));
-  let el=$("#actbox");if(!el){el=document.createElement("div");el.id="actbox";$("#clist").after(el)}
-  if(!a.total){el.innerHTML="";return}
+  const el=$("#actbox");if(!el)return;
+  try{const a=await api("/api/activity");
+  if(!a.total){el.innerHTML='<div class="row"><span class="rl">还没有足够的消息</span></div>';return}
   const mx=Math.max(...a.hours,1);
-  const wasOpen=el.querySelector("details")?.open;
-  el.innerHTML=`<details class="actd" ${wasOpen?"open":""}><summary>近 ${a.days} 天活跃时段 · 最吵的群 ▾</summary><div class="act"><h4>近 ${a.days} 天活跃时段</h4><div class="bars">${a.hours.map((n,h)=>`<i title="${h}点 ${n}条" style="height:${Math.round(n/mx*100)}%"></i>`).join("")}</div><div class="ax"><span>0时</span><span>12时</span><span>23时</span></div><div class="tp">最吵：${a.top.map(t=>`${esc(t.chat)} ${t.n}`).join(" · ")}</div></div></details>`}catch(e){}
+  el.innerHTML=`<div class="act"><div class="bars">${a.hours.map((n,h)=>`<i title="${h}点 ${n}条" style="height:${Math.round(n/mx*100)}%"></i>`).join("")}</div><div class="ax"><span>0时</span><span>12时</span><span>23时</span></div><div class="tp">最吵：${a.top.map(t=>`${esc(t.chat)} ${t.n}`).join(" · ")}</div></div>`}catch(e){}
 }
 function renderChats(){
   renderSrcs();
@@ -1266,7 +1262,6 @@ function swipeRow(b){let x0=null,y0=0,dx=0;
 }
 let SDAYS=0;
 const search=debounce(async q=>{
-  const ab=$("#actbox");if(ab)ab.hidden=!!q;  // 搜索时不显示活跃时段
   if(!q){renderChats();return}
   try{const rs=await api(`/api/messages?q=${encodeURIComponent(q)}&limit=80${SDAYS?`&since=${Math.floor(Date.now()/1000)-SDAYS*86400}`:""}${SRCF?`&source=${encodeURIComponent(SRCF)}`:""}`);
     $("#clist").innerHTML=rs.length?`<div class="sfilter"><span>找到 ${rs.length} 条${rs.length>=80?"（最近 80 条）":""}</span>${[[0,"全部"],[1,"今天"],[7,"7天"],[30,"30天"]].map(([d,t])=>`<button class="btn line sm sdf ${SDAYS==d?"on":""}" data-d="${d}">${t}</button>`).join("")}</div>`+Object.entries(rs.reverse().reduce((g,m)=>((g[m.chat]=g[m.chat]||[]).push(m),g),{})).map(([chat,ms])=>`<div class="sgh">${esc(chat)} · ${ms.length}</div>`+ms.map(m=>`<div class="sres lrow" data-chat="${esc(m.chat)}" data-src="${esc(m.source)}" data-q="${esc(q)}">
@@ -1474,6 +1469,7 @@ function openSub(n){
   const sy=window.scrollY;SUB=n;$("#set-main").hidden=true;$$("#v-set .sub").forEach(e=>e.hidden=e.id!=="sub-"+n);window.scrollTo(0,0);
   navPush({t:"sub",sy,close:()=>closeSubUI(sy)},"#set/"+n);
   if(n==="groups")loadGroups();
+  if(n==="about")loadAct();
 }
 function closeSubUI(sy){
   if(!SUB)return;const was=SUB;SUB=null;$$("#v-set .sub").forEach(e=>e.hidden=true);$("#set-main").hidden=false;setSummary();
