@@ -2093,3 +2093,13 @@ def test_security_headers():
     r = TestClient(a.app).get("/login")
     assert r.headers.get("x-content-type-options") == "nosniff"
     assert r.headers.get("x-frame-options") == "DENY"
+
+
+def test_healthz_checks_db(monkeypatch):
+    from fastapi.testclient import TestClient
+    import app as A
+    c = TestClient(A.app)
+    assert c.get("/healthz").status_code == 200
+    def boom(*a, **k): raise RuntimeError("x")
+    monkeypatch.setattr(A, "db", boom)
+    assert c.get("/healthz").status_code == 503
