@@ -1146,7 +1146,7 @@ $("#histbtn").onclick=async()=>{
   try{const list=await api("/api/digests");
     $("#hist").innerHTML=list.length?list.map(x=>`<button class="hrow lrow ${(viewId?x.id===viewId:x===list[0])?"cur":""}" data-id="${x.id}">
       <div class="lh"><b>${ago(x.ts)} · ${{24:"日报",72:"3 天合订",168:"周报"}[x.hours]||x.hours+" 小时"}${x.auto?" · 自动":""}</b><span>${x.count} 条 · ${x.todos} 件待办</span></div><div class="ht">${esc(x.headline)}</div></button>`).join("")
-      :`<div class="empty">还没有往期群报</div>`;
+      :emptyBox("还没有往期群报","有了整理结果会按天存在这里");
     $$(".hrow").forEach(b=>b.onclick=()=>{viewId=+b.dataset.id===list[0].id?null:+b.dataset.id;sheetOff(sh);load();window.scrollTo(0,0)});
   }catch(e){$("#hist").innerHTML=`<div class="empty">${esc(e.message)}</div>`}
 };
@@ -1242,7 +1242,7 @@ function renderChats(){
   if(!L.length&&SRCF==="微信"){
     $("#clist").innerHTML=`<div class="emptywx card fade"><div class="big">微信还没接上</div><p>用一台旧安卓机登录微信小号，把通知转发给群报，微信群就会和 QQ 群出现在一起。</p><button class="btn" id="towx">去设置接入</button></div>`;
     $("#towx").onclick=()=>{tick();go("set");openSub("conn");$("#wx-how").open=true;setTimeout(()=>$("#wxsec").scrollIntoView({behavior:"smooth"}),250)};return}
-  if(!L.length&&SRCF==="QQ"){$("#clist").innerHTML=`<div class="empty"><div class="big">QQ 还没有消息</div>登录 NapCat 并设置上报地址后，QQ 群会出现在这里</div>`;return}
+  if(!L.length&&SRCF==="QQ"){$("#clist").innerHTML=emptyBox("QQ 还没有消息","登录 NapCat 并设置上报地址后，QQ 群会出现在这里");return}
   const rank={focus:0,normal:0,atonly:1,off:2};
   const S=[...L].sort((a,b)=>(rank[a.mode]||0)-(rank[b.mode]||0)||b.last_ts-a.last_ts);
   const prev=t=>String(t||"").replace(/```\w*/g,"").replace(/\s+/g," ").trim();
@@ -1250,7 +1250,7 @@ function renderChats(){
     <div class="gav" style="background:hsl(${hue(c.chat)} 26% 46%)">${first(c.chat)}${srcBadge(c.source)}</div>
     <div class="ci"><div class="cn"><b>${esc(c.chat)}</b>${c.mode&&c.mode!=="normal"?`<span class="mtag ${c.mode}">${MODE[c.mode][0]}</span>`:""}<span style="flex:1"></span><span class="tm">${ago(c.last_ts)}</span></div>
     <div class="cl">${c.mode==="off"?ICON.bell.replace("<svg",'<svg class="mute-ic"'):""}<span>${esc(prev(c.last))}</span>${unreadAts(c)?`<span class="badge">@${unreadAts(c)}</span>`:""}</div></div></button>`).join("")
-    :`<div class="empty"><div class="big">还没有消息</div>连上 QQ 或微信后，这里能翻所有群的原始记录</div>`;
+    :emptyBox("还没有消息","连上 QQ 或微信后，这里能翻所有群的原始记录");
   $$(".crow").forEach(b=>{b.onclick=()=>{if(b._sw){b._sw=0;return}tick();openChat(b.dataset.chat,null,b.dataset.src)};swipeRow(b);longPress(b,()=>modeSheet(b.dataset.src,b.dataset.chat))});
 }
 /* 原文群列表：左滑一行 → 怎么盯 */
@@ -1260,13 +1260,16 @@ function swipeRow(b){let x0=null,y0=0,dx=0;
     if(dx<0)b.style.transform=`translateX(${Math.max(dx,-90)}px)`},{passive:true});
   b.addEventListener("touchend",()=>{b.style.transform="";if(x0!=null&&dx<-60){b._sw=1;tick();modeSheet(b.dataset.src,b.dataset.chat)}x0=null});
 }
+const emptyBox=(title,sub="",btn="")=>`<div class="empty"><div class="big">${title}</div>${sub?`<div>${sub}</div>`:""}${btn}</div>`;
 let SDAYS=0;
+const sFilter=n=>`<div class="sfilter"><span>找到 ${n} 条${n>=80?"（最近 80 条）":""}</span>${[[0,"全部"],[1,"今天"],[7,"7天"],[30,"30天"]].map(([d,t])=>`<button class="btn line sm sdf ${SDAYS==d?"on":""}" data-d="${d}">${t}</button>`).join("")}</div>`;
+const sHit=(m,q)=>`<div class="sres lrow" data-chat="${esc(m.chat)}" data-src="${esc(m.source)}" data-q="${esc(q)}"><div class="lh"><span><b>${esc(m.sender)}</b>${srcTag(m.source)}</span><span>${ago(m.ts)}</span></div><div class="st">${hlQ(m.text,q)}</div></div>`;
+const sGroups=(rs,q)=>Object.entries(rs.reduce((g,m)=>((g[m.chat]=g[m.chat]||[]).push(m),g),{})).map(([chat,ms])=>`<div class="sgh">${esc(chat)} · ${ms.length}</div>${ms.map(m=>sHit(m,q)).join("")}`).join("");
 const search=debounce(async q=>{
   if(!q){renderChats();return}
   try{const rs=await api(`/api/messages?q=${encodeURIComponent(q)}&limit=80${SDAYS?`&since=${Math.floor(Date.now()/1000)-SDAYS*86400}`:""}${SRCF?`&source=${encodeURIComponent(SRCF)}`:""}`);
-    $("#clist").innerHTML=rs.length?`<div class="sfilter"><span>找到 ${rs.length} 条${rs.length>=80?"（最近 80 条）":""}</span>${[[0,"全部"],[1,"今天"],[7,"7天"],[30,"30天"]].map(([d,t])=>`<button class="btn line sm sdf ${SDAYS==d?"on":""}" data-d="${d}">${t}</button>`).join("")}</div>`+Object.entries(rs.reverse().reduce((g,m)=>((g[m.chat]=g[m.chat]||[]).push(m),g),{})).map(([chat,ms])=>`<div class="sgh">${esc(chat)} · ${ms.length}</div>`+ms.map(m=>`<div class="sres lrow" data-chat="${esc(m.chat)}" data-src="${esc(m.source)}" data-q="${esc(q)}">
-      <div class="lh"><span><b>${esc(m.sender)}</b>${srcTag(m.source)}</span><span>${ago(m.ts)}</span></div><div class="st">${hlQ(m.text,q)}</div></div>`).join("")).join("")
-      :`<div class="empty">没搜到「${esc(q)}」${SDAYS?`<br><button class="btn line sm sdf" data-d="0">取消时间限制</button>`:""}</div>`;
+    $("#clist").innerHTML=rs.length?sFilter(rs.length)+sGroups(rs.reverse(),q)
+      :emptyBox(`没搜到「${esc(q)}」`,"换个关键词试试",SDAYS?`<button class="btn line sm sdf" data-d="0">取消时间限制</button>`:"");
     $$(".sdf").forEach(b=>b.onclick=()=>{SDAYS=+b.dataset.d;search(q)});
     $$(".sres").forEach(r=>r.onclick=()=>openChat(r.dataset.chat,r.dataset.q,r.dataset.src));
   }catch(e){toast(e.message)}
@@ -1386,7 +1389,7 @@ function msgHtml(ms,st){
   return {h,st:{day:lastDay,sender:lastSender,ts:lastTs,id:ms.length?Math.max(st.id||0,...ms.map(m=>m.id)):st.id}};
 }
 function renderMsgs(ms,prepend){
-  if(!ms.length&&!prepend){$("#cmsgs").innerHTML='<div class="empty">这个群还没有消息</div>';CHATTAIL={day:"",sender:"",ts:0,id:0};return}
+  if(!ms.length&&!prepend){$("#cmsgs").innerHTML=emptyBox('这个群还没有消息','新消息进来会出现在这里');CHATTAIL={day:"",sender:"",ts:0,id:0};return}
   if(ms.length)oldest=Math.min(...ms.map(m=>m.id));
   let h="";
   if(ms.length>=6||prepend&&ms.length)h+=`<button class="btn line sm more-btn" id="older">更早的消息</button>`;
@@ -1449,7 +1452,7 @@ function drawGroups(){
       <div class="gi"><b>${esc(c.chat)}</b><small>今天 ${c.today} 条 · 30 天 ${c.n} 条${c.ats?` · @我 ${c.ats}`:""}</small></div>
       <select class="${c.mode}" aria-label="怎么盯">${Object.entries(MODE).map(([m,[n]])=>`<option value="${m}" ${c.mode===m?"selected":""}>${n}</option>`).join("")}</select></div>`}).join("")+`</div>`};
   const srcs=[...new Set(L.map(c=>c.source))];
-  $("#g-list").innerHTML=(sec("QQ","QQ 群")+sec("微信","微信群")+srcs.filter(x=>x!=="QQ"&&x!=="微信").map(x=>sec(x,x)).join(""))||`<div class="empty">${q?"没有匹配的群":"有消息进来后，群会出现在这里"}</div>`;
+  $("#g-list").innerHTML=(sec("QQ","QQ 群")+sec("微信","微信群")+srcs.filter(x=>x!=="QQ"&&x!=="微信").map(x=>sec(x,x)).join(""))||(q?emptyBox("没有匹配的群"):emptyBox("还没有群","有消息进来后，群会出现在这里"));
   const pair=k=>{const i=k.indexOf("|");return{source:k.slice(0,i),chat:k.slice(i+1)}};
   $$("#g-list .grow").forEach(r=>{const k=r.dataset.k;
     r.querySelector("input").onchange=e=>{tick();e.target.checked?GSEL.add(k):GSEL.delete(k);drawBatch()};
