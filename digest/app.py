@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.13"
+VERSION = "0.34.14"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -1987,7 +1987,6 @@ AUTO_GIVEUP_HARD = 600        # 硬上限：任何待整理消息最多挂 10 �
 AUTO_URGENT_QUIET = 1         # 要紧消息：安静 1 秒（同一个人连发的两三句凑一批）
 AUTO_URGENT_WAIT = 2          # 最多等 2 秒；加上唤醒延迟约 2–3 秒开始整理
 AUTO_MIN_GAP = 15             # 同一个群两次「普通」整理至少隔 15 秒（只管闲聊；要紧消息和 30 秒兜底不受限）
-AUTO_URGENT_GAP = 0           # 要紧消息不等间隔
 AUTO_PARALLEL = int(os.getenv("AUTO_PARALLEL", "6"))   # 全局最多同时整理 6 个群
 AUTO_RPM = int(os.getenv("AUTO_RPM", "30"))            # 全局 1 分钟内模型调用到这个数，普通消息暂缓（防限流）；要紧和兜底不受限
 AUTO_BACKOFF0, AUTO_BACKOFF_MAX = 10, 60    # 失败退避 10s → 20s → 40s → 最多 60 秒
@@ -2301,20 +2300,19 @@ async def refresh_live(s: dict | None = None, stats: dict | None = None, now: fl
 
 
 async def _model_head(body, s, stats):
-    if True:
-        try:
-            mh = await make_headline(body, s, stats=stats)
-            async with _live_lock:
-                with db() as c:
-                    r = c.execute("SELECT body FROM digests WHERE id=?", (body["id"],)).fetchone()
-                    if r:
-                        cur = json.loads(r["body"])
-                        mh = fresh_headline({**cur, "headline": mh})  # 模型写好时可能已经有事被勾完成：按当前状态校验
-                        cur["headline"] = mh
-                        c.execute("UPDATE digests SET ts=?, body=? WHERE id=?", (int(time.time()), json.dumps(cur, ensure_ascii=False), body["id"]))
-                        body["headline"] = mh
-        except Exception as ex:
-            print("模型头条失败，保留规则头条:", ex)
+    try:
+        mh = await make_headline(body, s, stats=stats)
+        async with _live_lock:
+            with db() as c:
+                r = c.execute("SELECT body FROM digests WHERE id=?", (body["id"],)).fetchone()
+                if r:
+                    cur = json.loads(r["body"])
+                    mh = fresh_headline({**cur, "headline": mh})  # 模型写好时可能已经有事被勾完成：按当前状态校验
+                    cur["headline"] = mh
+                    c.execute("UPDATE digests SET ts=?, body=? WHERE id=?", (int(time.time()), json.dumps(cur, ensure_ascii=False), body["id"]))
+                    body["headline"] = mh
+    except Exception as ex:
+        print("模型头条失败，保留规则头条:", ex)
 
 
 async def auto_tick(s: dict | None = None, now: float | None = None) -> float | None:
@@ -2600,7 +2598,7 @@ def clean_qq_cache(root=None, max_age=6 * 3600, now=None):
     freed = files = 0
     if not root or not os.path.isdir(root):
         return 0, 0
-    for dp, dns, fns in os.walk(root, topdown=False):
+    for dp, _dns, fns in os.walk(root, topdown=False):
         parts = dp.replace(os.sep, "/").split("/")
         if "nt_data" not in parts or not (QQ_CACHE_DIRS & set(parts[parts.index("nt_data") + 1:])):
             continue
