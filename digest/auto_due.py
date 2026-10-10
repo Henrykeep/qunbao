@@ -26,3 +26,22 @@ def chat_due(arr, urg, start, end, fail_until, busy, now, *, quiet, max_wait, bu
     elif not fail_until:
         due = min(due, force)
     return due, why
+
+
+def plan_chats(by, now, auto, arrive, is_urg, busy, **cfg):
+    """by={(来源,群): 待整理消息}；返回 (ready, next_due)。等太久的排最前，再要紧的，再按到点先后。"""
+    ready, nxt = [], None
+    for k, rs in by.items():
+        if k in auto["running"]:
+            continue
+        arr = sorted(min(arrive.get(r["id"], r["ts"]), now) for r in rs)
+        start, end = auto["last_run"].get(k, 0), auto["last_end"].get(k, 0)
+        urg = [min(arrive.get(r["id"], r["ts"]), now) for r in rs if is_urg(r)]
+        f = auto["fail"].get(k)
+        due, why = chat_due(arr, urg, start, end, f["until"] if f else None, busy, now, **cfg)
+        if due <= now:
+            ready.append((why != "force", 0 if urg else 1, due, k, rs, why))
+        else:
+            nxt = due if nxt is None else min(nxt, due)
+    ready.sort(key=lambda x: (x[0], x[1], x[2]))
+    return [(k, rs, why) for _, _, _, k, rs, why in ready], nxt
