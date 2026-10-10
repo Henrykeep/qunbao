@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.40"
+VERSION = "0.34.41"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -883,7 +883,7 @@ CHUNK_CHARS = int(os.getenv("CHUNK_CHARS", "6000"))   # 每块最多这么多字
 LLM_PARALLEL = 4             # 手动/定时整理时同时整理的群数
 from auto_stats import summarize  # noqa: E402
 from auto_due import plan_chats  # noqa: E402
-from headline import tidy_headline, rule_headline, QUIET_HEADS, _head_score, HEAD_MATCH  # noqa: E402,F401 (0.34.31 拆出)
+from headline import live_head_plan, tidy_headline, rule_headline, QUIET_HEADS, _head_score, HEAD_MATCH  # noqa: E402,F401 (0.34.31 拆出)
 from auto_due import chat_due  # noqa: E402 (0.34.29 拆出)
 from noise import is_noise, NOISE_WORDS, NOISE_PH, PLACEHOLDER_RE, RECALL_RE, SYS_RE  # noqa: E402 (0.34.28 拆出)
 
@@ -1096,7 +1096,7 @@ def apply_changes(source, chat, d: dict, at_ids=frozenset(), now=None) -> bool:
     return changed
 
 
-from rules import AD_RE, EVENT_RE, WHEN_RE, CLOCK_RE, SOON_WORDS, PAST_RE, WHO_RE, EVENT_ACT, EVENT_NAME, rule_event  # noqa: E402,F401 (0.34.40 拆出)
+from rules import AD_RE, EVENT_RE, WHEN_RE, CLOCK_RE, SOON_WORDS, PAST_RE, WHO_RE, EVENT_ACT, EVENT_NAME, rule_event  # noqa: E402,F401 (0.34.41 拆出)
 
 
 def rule_todos(source, chat, rows, s, now=None) -> bool:
@@ -1627,17 +1627,9 @@ async def refresh_live(s: dict | None = None, stats: dict | None = None, now: fl
         prev = json.loads(latest["body"]) if latest else {}
         hours = latest["hours"] if latest and latest["hours"] in (24, 72) else 24
         body = build_body(hours, s)
-        old_ids = {(t.get("id"), t.get("title")) for t in (prev.get("todos") or []) + (prev.get("notices") or [])}
-        new = [t for t in body["todos"] + body["notices"] if (t.get("id"), t.get("title")) not in old_ids and not t.get("done")]
-        hot = [t for t in new if t.get("urgency") == "high" or t.get("at_me")]
-        head = prev.get("headline") or ""
-        opens = [t for t in body["todos"] if not t["done"]] + body["notices"]
-        rewrite = bool(hot or (head in QUIET_HEADS and opens) or not latest)
-        want_model = rewrite and model_head and now - float(kv_get("head_ts", 0) or 0) >= HEAD_GAP
-        if rewrite:
-            head = rule_headline(hot or opens) or head
-            if want_model:
-                kv_set("head_ts", int(now))
+        new, head, opens, want_model = live_head_plan(prev, body, bool(latest), kv_get("head_ts", 0), now, HEAD_GAP, model_head)
+        if want_model:
+            kv_set("head_ts", int(now))
         body["headline"] = valid_headline(head, opens)  # 旧头条说的事已勾完成/过期：这里就换掉，不等首页来修
         today = datetime.fromtimestamp(now, TZ).strftime("%Y-%m-%d")
         body.update(stats=stats or {}, mode="live", auto=True, live=True, live_day=today, upto_id=int(kv_get("scan_id", 0) or 0))
@@ -2525,7 +2517,7 @@ async def push_test(req: Request):
 
 ASK_LINES = int(os.getenv("ASK_LINES", "220"))      # 一次问答最多送多少条原文
 ASK_CHARS = int(os.getenv("ASK_CHARS", "16000"))
-from askfmt import CITE_RE, _q_terms, cite, tidy_bullets  # noqa: E402,F401 (0.34.40 拆出)
+from askfmt import CITE_RE, _q_terms, cite, tidy_bullets  # noqa: E402,F401 (0.34.41 拆出)
 
 
 def ask_context(q: str, s: dict, chat: str = "", source: str = "", since_id: int = 0, hours: int = 72, prior: str = ""):
