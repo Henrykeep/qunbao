@@ -2218,3 +2218,13 @@ def test_remind_start_moves_to_evening_when_quiet():
     assert app_mod.remind_start(due, 3, {"quiet_start": -1}) == due - timedelta(hours=3)
     d2 = datetime(2026, 10, 12, 15, 0, tzinfo=app_mod.TZ)
     assert app_mod.remind_start(d2, 3, s) == d2 - timedelta(hours=3)
+
+
+def test_auto_stats_summarize():
+    import auto_stats, time
+    now = time.time()
+    log = [{"ts": now, "wait": 1, "secs": 2, "ok": True, "calls": 1, "n": 5, "sent": 4, "why": "chat"},
+           {"ts": now, "wait": 0, "secs": 1, "ok": False, "calls": 2, "n": 3, "sent": 3, "why": "urgent"},
+           {"ts": now - 9999, "wait": 0, "secs": 1, "ok": True, "calls": 9, "n": 9, "sent": 9, "why": "old"}]
+    r = auto_stats.summarize(log, 3600, now)
+    assert r["runs"] == 2 and r["calls"] == 3 and r["fails"] == 1 and r["max_latency"] == 3
