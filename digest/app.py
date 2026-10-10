@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.17"
+VERSION = "0.34.18"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -1101,7 +1101,7 @@ def parse_due(text: str, now: datetime) -> datetime | None:
 _PUNCT = re.compile(r"[\s\W_]+", re.U)
 _NUM_RE = re.compile(r"\d+|第[一二三四五六七八九十百]+|[一二三四五六七八九十]+[章节次课题号期周]")
 _STOP = ("请", "记得", "需要", "务必", "按时", "尽快", "一下", "及时", "之前")
-_SYN = (("提交", "交"), ("上交", "交"), ("缴纳", "交"), ("缴", "交"), ("参加", "去"), ("参与", "去"))
+_SYN = (("提交", "交"), ("上交", "交"), ("缴纳", "交"), ("缴", "交"), ("参加", "去"), ("参与", "去"), ("安装", "下载"))
 
 
 def todo_key(t: dict) -> str:
@@ -1113,10 +1113,23 @@ def split_key(k: str):
     return (title, chat) if sep else (k or "", "")
 
 
+def _cn_hour(w: str) -> int:
+    d = {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+    if w == "十":
+        return 10
+    if w.startswith("十"):
+        return 10 + d.get(w[1:], 0)
+    if "十" in w:
+        h, _, l = w.partition("十")
+        return d.get(h, 1) * 10 + d.get(l, 0)
+    return d.get(w, 0)
+
+
 def norm_title(x: str) -> str:
     x = _PUNCT.sub("", (x or "").lower())
     for a, b in _SYN:
         x = x.replace(a, b)
+    x = re.sub(r"([一二三四五六七八九十两]+)点", lambda m: str(_cn_hour(m.group(1))) + "点", x)
     for w in _STOP:
         x = x.replace(w, "")
     return x
@@ -1134,6 +1147,20 @@ def _norm_due(x: str) -> str:
     return d.strftime("%Y-%m-%d %H:%M") if d else _PUNCT.sub("", x)
 
 
+_DAYWORDS = (("大后天", "d3"), ("后天", "d2"), ("明天", "d1"), ("明晚", "d1"), ("明早", "d1"), ("明日", "d1"),
+             ("今天", "d0"), ("今晚", "d0"), ("今早", "d0"), ("今日", "d0"), ("今夜", "d0"))
+
+
+def _day_tokens(x: str) -> set:
+    """标题里的相对日期（今晚/明晚/后天）归一成可比较的标记。"""
+    out = set()
+    for w, k in _DAYWORDS:
+        if w in x:
+            out.add(k)
+            x = x.replace(w, "")
+    return out
+
+
 def _grams(x: str) -> set:
     return {x[i:i + 2] for i in range(len(x) - 1)} or ({x} if x else set())
 
@@ -1143,6 +1170,9 @@ def same_todo(a: dict, b: dict) -> bool:
     ca, cb = _norm_chat(a.get("chat")), _norm_chat(b.get("chat"))
     if ca and cb and ca != cb and ca not in cb and cb not in ca:
         return False
+    da_, db2 = _day_tokens(a.get("title") or ""), _day_tokens(b.get("title") or "")
+    if da_ and db2 and da_ != db2:  # 「明晚8点查寝」≠「今晚八点查寝」
+        return False
     ta, tb = norm_title(a.get("title")), norm_title(b.get("title"))
     if not ta or not tb:
         return False
@@ -1150,6 +1180,9 @@ def same_todo(a: dict, b: dict) -> bool:
         return True
     na, nb = _NUM_RE.findall(ta), _NUM_RE.findall(tb)
     if na and nb and na != nb:  # 「交第一章作业」和「交第二章作业」不是一件事
+        return False
+    ops = [o for o in SequenceMatcher(None, ta, tb).get_opcodes() if o[0] != "equal"]
+    if len(ops) == 1 and ops[0][0] == "replace" and not re.search(r"[\d一二三四五六七八九十日天]", ta[ops[0][1]:ops[0][2]] + tb[ops[0][3]:ops[0][4]]):  # 只换了一处动作/对象：「报名篮球赛」≠「报名辩论赛」
         return False
     if min(len(ta), len(tb)) >= 3 and (ta in tb or tb in ta):
         return True
