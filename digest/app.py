@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.21"
+VERSION = "0.34.22"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -303,6 +303,19 @@ def in_quiet(s, now=None) -> bool:
         return False
     h = (now or datetime.now(TZ)).hour
     return (a <= h < b) if a < b else (h >= a or h < b)
+
+
+def remind_start(due, n, s):
+    """提醒窗口起点：默认截止前 n 小时；若这一刻落在免打扰里（凌晨 7 点的事 3 小时前是半夜 4 点，
+    推了也只会被压到早上），就提前到免打扰开始前 1 小时（前一晚），睡前就知道明早有事。"""
+    st = due - timedelta(hours=n)
+    a = int(s.get("quiet_start", -1))
+    if a >= 0 and in_quiet(s, st):
+        q = due.replace(hour=a, minute=0, second=0, microsecond=0)
+        if q > due:
+            q -= timedelta(days=1)
+        st = min(st, q - timedelta(hours=1))
+    return st
 
 
 async def flush_held():
@@ -2335,7 +2348,7 @@ async def check_reminders():
 
     async def fire(t):
         due = parse_due(t.get("due", ""), now)
-        if not due or not (timedelta(0) <= due - now <= timedelta(hours=n)):
+        if not due or not (remind_start(due, n, s) <= now <= due):
             return False
         left = int((due - now).total_seconds() // 60)
         when = f"{left // 60} 小时 {left % 60} 分钟" if left >= 60 else f"{left} 分钟"
