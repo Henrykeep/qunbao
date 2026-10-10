@@ -505,10 +505,10 @@ details.howto[open] summary svg{transform:rotate(180deg)}
   </div>
   <div id="msgs-chat" hidden>
     <div class="chat-head"><button class="back" id="cback"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>返回</button>
-      <div class="ttl" id="ctitle"></div><button class="btn line sm cmode" id="cmode" aria-label="怎么盯这个群">正常</button></div>
+      <div class="ttl" id="ctitle"></div><button class="btn line sm" id="cfbtn" aria-label="在本群查找"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button><button class="btn line sm cmode" id="cmode" aria-label="怎么盯这个群">正常</button></div>
     <div class="brief card" id="brief" hidden></div>
     <div class="sfchip" id="sfchip" hidden></div>
-    <div class="cfind"><input id="cfq" type="search" placeholder="在本群记录中查找" autocomplete="off"><small id="cfn" hidden></small></div>
+    <div class="cfind" id="cfind" hidden><input id="cfq" type="search" placeholder="在本群记录中查找" autocomplete="off"><small id="cfn" hidden></small></div>
     <div class="msgs" id="cmsgs"></div>
     <button class="btn tolatest" id="tolatestmsg" hidden>↓ 最新</button>
   </div>
@@ -1293,7 +1293,7 @@ async function openChat(chat,focus,src,msgId){
   if(top&&top.t==="chat")history.replaceState({qb:NAV.length},"",h0);  // 群里跳到另一个群：替换，不叠
   else{const pv=$("#msgs-chat").hidden?prev:"msgs",sy=window.scrollY;navPush({t:"chat",prev:pv,sy,close:()=>closeChatUI(pv,sy)},h0)}
   showChatView();
-  chatName=chat;oldest=0;SENDERF="";$("#cfq").value="";$("#cfn").hidden=true;$("#msgs-list").hidden=true;$("#msgs-chat").hidden=false;
+  chatName=chat;oldest=0;SENDERF="";$("#cfq").value="";$("#cfn").hidden=true;$("#cfind").hidden=true;$("#msgs-list").hidden=true;$("#msgs-chat").hidden=false;
   if(!CHATS.length){try{CHATS=await api("/api/chats")}catch(e){}}
   const c=CHATS.find(x=>x.chat===chat&&(!src||x.source===src));chatSrc=src||c?.source||"";
   $("#ctitle").innerHTML=`${esc(chat)}<small>${c?`${c.n} 条 · ${esc(c.source)}`:"聊天记录"}</small>`;
@@ -1411,6 +1411,7 @@ function cfind(){const q=$("#cfq").value.trim(),n=$("#cfn");let k=0;
   n.hidden=!q;n.textContent=k?`匹配 ${k} 条（已加载部分）`:"没有匹配";
   if(q){const f=$("#cmsgs .bub mark");f&&f.scrollIntoView({block:"center"})}}
 $("#cfq").addEventListener("input",debounce(cfind,200));
+$("#cfbtn").onclick=()=>{tick();const f=$("#cfind");f.hidden=!f.hidden;if(!f.hidden)$("#cfq").focus();else{$("#cfq").value="";cfind()}};
 let SENDERF="";
 function applySF(){const b=$("#cmsgs"),c=$("#sfchip");b.classList.toggle("sf",!!SENDERF);
   $$("#cmsgs .m").forEach(e=>e.classList.toggle("sfhit",e.dataset.s===SENDERF));
@@ -1629,8 +1630,6 @@ async function wpOff(){
   WP.n=Math.max(0,WP.n-1);wpRender();toast("已关闭这台设备的通知")
 }
 $("#wp-btn").onclick=()=>{tick();if($("#wp-btn").dataset.st==="on")wpTest();else wpEnable()};
-
-/* 往下滑时收起快捷问题，给内容腾地方 */
 
 /* 底栏实际高度：问答栏只在今日页出现，其他页只留标签栏的高度 */
 const dockH=()=>{const d=$("#dock");if(d.classList.contains("compact"))return;document.documentElement.style.setProperty("--dockh",d.getBoundingClientRect().height+"px")};
