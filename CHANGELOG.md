@@ -1,3 +1,7 @@
+## 0.34.40 — 2026-10-11
+
+- 重构：JSON 容错解析 _jparse / _int 收进 textclean.py，app.py 再瘦；行为不变。
+
 ## 0.34.39 — 2026-10-11
 
 - 重构：规则兜底的纯函数（查寝/点名/开会识别 rule_event、广告特征 AD_RE）拆到 digest/rules.py，app.py 再瘦约 100 行；行为不变，142 测试通过。
