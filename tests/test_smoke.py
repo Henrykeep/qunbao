@@ -2125,3 +2125,11 @@ def test_design_tokens_0340():
         assert old not in css, old                                                 # 旧的各自为政的按钮样式不再回来
     assert 'class="btn line sm more-btn"' in h and 'class="btn line lg go"' in h
     assert '[hidden]{display:none!important}' in css
+
+
+def test_chats_expose_open_and_tier_rule_in_page():
+    ch = c.get("/api/chats", headers=AUTH).json()
+    assert ch and all("open" in x for x in ch)
+    html = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
+    assert 'mode==="off"?4:(open>0||ats>0)?0:{focus:1,atonly:3}[mode]??2' in html
+    assert "已静音 ${off.length} 个群" in html
