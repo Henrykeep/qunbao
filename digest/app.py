@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.15"
+VERSION = "0.34.16"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -965,10 +965,12 @@ async def llm(messages, as_json=False):
                 r = await cl.post(f"{LLM_BASE}/chat/completions", json=body,
                                   headers={"Authorization": f"Bearer {LLM_KEY}"})
                 r.raise_for_status()
-                out = r.json()["choices"][0]["message"]["content"]
+                out_j = r.json()
+                out = out_j["choices"][0]["message"]["content"]
                 LLM_STATE.update(ok=True, err="", ts=int(time.time()), code=0, fail_since=0)
                 LLM_LAST_OK[0] = time.time()
                 kv_add("llm_calls", 1)
+                kv_add("llm_tokens", int((out_j.get("usage") or {}).get("total_tokens") or 0))
                 llm_log(kind)
                 return out
         except httpx.HTTPStatusError as ex:
@@ -2855,6 +2857,7 @@ def state(id: int | None = None, hours: int | None = None):
         "pending": pend,
         "checked_ts": int(kv_get("checked_ts", 0) or 0) or None,
         "llm_calls": int(kv_get("llm_calls", 0) or 0),
+        "llm_tokens": int(kv_get("llm_tokens", 0) or 0),
         "llm_hour": llm_calls_since(3600),
         "diff": todo_diff(digest_row(d), json.loads(pv["body"])) if d and pv else None,
         "day_start": int(datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()),
