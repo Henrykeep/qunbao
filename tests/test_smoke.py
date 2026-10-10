@@ -933,7 +933,7 @@ def test_settings_groups_keep_fields():
     html = c.get("/", headers=AUTH).text
     # 每个设置项都还在页面上有入口（重组后不丢字段）
     for k in app_mod.DEFAULTS:
-        if k in ("only_mode", "allowed", "muted", "levels", "modes", "modes_tip_done"):  # 旧字段已迁移；modes 走 /api/chat_mode
+        if k in ("only_mode", "allowed", "muted", "levels", "modes", "modes_tip_done", "chat_pins"):  # 旧字段已迁移；modes 走 /api/chat_mode
             continue
         assert f"SET.{k}" in html or f'data-k="{k}"' in html, k
     for sub in ("me", "groups", "kw", "remind", "conn", "data", "acct", "about"):
@@ -2133,3 +2133,18 @@ def test_chats_expose_open_and_tier_rule_in_page():
     html = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
     assert 'mode==="off"?4:(open>0||ats>0)?0:{focus:1,atonly:3}[mode]??2' in html
     assert "已静音 ${off.length} 个群" in html
+
+
+def test_chat_pin_independent_of_mode():
+    _ingest("置顶测试群", "大家好")
+    assert c.post("/api/chat_pin", headers=AUTH, json={"chat": ""}).status_code == 400
+    c.post("/api/chat_pin", headers=AUTH, json={"source": "微信", "chat": "置顶测试群", "pin": True})
+    c.post("/api/chat_mode", headers=AUTH, json={"chats": [{"source": "微信", "chat": "置顶测试群"}], "mode": "off"})
+    ch = {(x["source"], x["chat"]): x for x in c.get("/api/chats", headers=AUTH).json()}
+    assert ch[("微信", "置顶测试群")]["pin"] > 0 and ch[("微信", "置顶测试群")]["mode"] == "off"
+    assert "微信|置顶测试群" in c.get("/api/state", headers=AUTH).json()["chat_pins"]
+    c.post("/api/chat_pin", headers=AUTH, json={"source": "微信", "chat": "置顶测试群", "pin": False})
+    ch = {(x["source"], x["chat"]): x for x in c.get("/api/chats", headers=AUTH).json()}
+    assert ch[("微信", "置顶测试群")]["pin"] == 0
+    html = c.get("/", headers=AUTH).text
+    assert "/api/chat_pin" in html and "byTier" in html
