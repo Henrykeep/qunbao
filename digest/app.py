@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.23"
+VERSION = "0.33.24"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -3440,6 +3440,11 @@ def manifest():
 
 @app.get("/healthz")
 def healthz():
+    try:  # 数据库打不开/损坏时返回 503，docker 会标 unhealthy
+        with db() as c:
+            c.execute("SELECT 1").fetchone()
+    except Exception:
+        return JSONResponse({"ok": False, "version": VERSION}, status_code=503)
     return {"ok": True, "version": VERSION}
 
 
