@@ -16,7 +16,7 @@
    间距 --s1..--s7 = 4/8/12/16/20/24/32；字号 --t-2xs..--t-2xl；圆角 --r-*；点击区 --hit */
 :root{
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s7:32px;
-  --t-2xs:10.5px; --t-xs:12px; --t-sm:13.5px; --t-md:15px; --t-lg:16px; --t-xl:21px; --t-2xl:30px;
+  --t-2xs:.6176rem; --t-xs:.7059rem; --t-sm:.7941rem; --t-md:.8824rem; --t-lg:.9412rem; --t-xl:1.2353rem; --t-2xl:1.7647rem; /* rem 基准 17px = iOS 默认正文，跟随系统字号 */
   --r-xs:5px; --r-sm:10px; --r-md:14px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
   --hit:40px; --tab:58px;
   /* 浅色次要文字/琥珀/微信绿都按白底 ≥4:1 调过（0.33 的 --faint #A8A399 只有 2.3:1） */
@@ -38,6 +38,8 @@
 /* ================= 基础 ================= */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
+html{font-size:17px}
+@supports (font:-apple-system-body){html{font:-apple-system-body}}
 html{background:var(--bg);overflow-x:hidden;-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation}
 html,body{max-width:100%;overscroll-behavior:none}
 /* 只在 html 上 hidden（传给视口）；body 用 clip：body 设 hidden 会变成滚动容器，导致 position:sticky 失效（标题栏滚走） */
