@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.30"
+VERSION = "0.34.31"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -981,6 +981,7 @@ CHUNK_MSGS = int(os.getenv("CHUNK_MSGS", "120"))       # 单群新消息太多�
 CHUNK_CHARS = int(os.getenv("CHUNK_CHARS", "6000"))   # 每块最多这么多字（约 token 上限的保守估计）
 LLM_PARALLEL = 4             # 手动/定时整理时同时整理的群数
 from auto_stats import summarize  # noqa: E402
+from headline import tidy_headline, rule_headline, QUIET_HEADS, _head_score, HEAD_MATCH  # noqa: E402,F401 (0.34.31 拆出)
 from auto_due import chat_due  # noqa: E402 (0.34.29 拆出)
 from noise import is_noise, NOISE_WORDS, NOISE_PH, PLACEHOLDER_RE, RECALL_RE, SYS_RE  # noqa: E402 (0.34.28 拆出)
 
@@ -1629,21 +1630,6 @@ async def make_headline(body, s, weekly=False, stats=None) -> str:
     return tidy_headline((out.splitlines() or [""])[0]) or "群里没什么要你管的"
 
 
-def tidy_headline(t: str, limit: int = 30) -> str:
-    """头条只留一件完整的事：太长就在标点处截断，绝不从半个词中间切开。"""
-    t = (t or "").strip().strip("\"“”「」'").strip()
-    t = re.sub(r"^(头条|标题)[:：]\s*", "", t)
-    segs = re.split(r"[、，,；;]|另外|还有|以及|并且", t)
-    if (t.count("、") >= 1 and len(segs) >= 3 or len(segs) >= 4) and len(segs[0].strip()) >= 6:
-        t = segs[0].strip()  # 模型罗列了好几件事：头条只说第一件（最要紧的）
-    if len(t) <= limit:
-        return t.rstrip("，、；,;")
-    cut = max((m.end() for m in re.finditer(r"[，。；！？、,;!?]", t[:limit + 1])), default=0)
-    if cut >= 8:
-        return t[:cut].rstrip("，。；、,;").strip()
-    return t[:limit - 1].rstrip("，、；,;") + "…"
-
-
 _digest_lock = asyncio.Lock()
 
 
@@ -1928,25 +1914,6 @@ def give_up_chat(k, rows, why=""):
 
 
 _live_lock = asyncio.Lock()
-QUIET_HEADS = ("", "群里没什么要你管的", "这段时间群里很安静")
-
-
-def rule_headline(items) -> str:
-    """不调模型的头条：挑最要紧的一件（@我 > 截止最早 > 高优先级），标题 + 截止。"""
-    if not items:
-        return ""
-    now = datetime.now(TZ)
-    far = datetime(2100, 1, 1, tzinfo=TZ)
-    def k(t):
-        d = parse_due(t.get("due", ""), now)
-        return (bool(d and d < now), not t.get("at_me"), d or far, t.get("urgency") != "high")  # 已过截止的不当头条（除非只剩它）
-    t = sorted(items, key=k)[0]
-    lead = t["title"] + (f"，{t['due']}" if t.get("due") else "")
-    if len(items) > 1:  # 头条是概括不是复制：多件时点出最急的一件 + 总数，首页待办列表里就不会再看到一模一样的一行
-        return tidy_headline(f"共 {len(items)} 件待办，最急：{lead}")
-    return tidy_headline(lead)
-
-
 async def refresh_live(s: dict | None = None, stats: dict | None = None, now: float | None = None, model_head: bool = True,
                        bg_head: bool = False):
     """某个群整理完：把首页那一期按事项表重新拼一遍（不调模型），原地更新；
@@ -2356,20 +2323,6 @@ def digest_row(d):
     body = json.loads(d["body"])
     body["id"] = d["id"]
     return body
-
-
-def _head_score(head, title):
-    """头条有多少是在说这件事：事项标题的 2 字片段有几成出现在头条里（头条常带群名前缀、「需立刻」之类，整句比相似度会偏低）。"""
-    nh, nt = norm_title(head), norm_title(title)
-    if not nh or not nt:
-        return 0.0
-    if nt in nh or nh in nt:
-        return 1.0
-    g = _grams(nt)
-    return len(g & _grams(nh)) / len(g)
-
-
-HEAD_MATCH = 0.5
 
 
 def valid_headline(head, opens, gone=None) -> str:
