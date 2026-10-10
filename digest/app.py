@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.16"
+VERSION = "0.33.17"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -795,7 +795,10 @@ async def ingest(req: Request):
     if not INGEST_TOKEN or not _ceq(tok, INGEST_TOKEN):
         raise HTTPException(401, "口令不对")
     ct = req.headers.get("content-type", "")
-    raw = (await req.body()).decode("utf-8", "ignore")
+    body = await req.body()
+    if len(body) > 256 * 1024:
+        raise HTTPException(413, "内容太大")
+    raw = body.decode("utf-8", "ignore")
     if "urlencoded" in ct:
         d = {k: v[0] for k, v in parse_qs(raw).items()}
     else:
