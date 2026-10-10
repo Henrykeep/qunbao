@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.17"
+VERSION = "0.33.18"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -2929,6 +2929,22 @@ def _ics_esc(t: str) -> str:
     return (t or "").replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\r", "").replace("\n", "\\n")
 
 
+def _ics_fold(line: str) -> str:
+    """RFC5545：每行不超过 75 字节，超出折行（按字符边界，不切断中文）。"""
+    out, cur, n = [], "", 0
+    for ch in line:
+        b = len(ch.encode())
+        if n + b > (75 if not out else 74):
+            out.append(cur); cur, n = "", 0
+        cur += ch; n += b
+    out.append(cur)
+    return "\r\n ".join(out)
+
+
+def _ics_fold_all(t: str) -> str:
+    return "\r\n".join(_ics_fold(l) for l in t.split("\r\n")) 
+
+
 def build_ics(title: str, due: str, detail: str = "", chat: str = "") -> str:
     now = datetime.now(TZ)
     dt = parse_due(due, now)
@@ -2942,7 +2958,7 @@ def build_ics(title: str, due: str, detail: str = "", chat: str = "") -> str:
         d0 = now.date()
         when = f"DTSTART;VALUE=DATE:{d0:%Y%m%d}\r\nDTEND;VALUE=DATE:{d0 + timedelta(days=1):%Y%m%d}"
     desc = "\n".join(x for x in [detail, f"来自群：{chat}" if chat else "", f"原定：{due}" if due else ""] if x)
-    return ("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//qunbao//CN\r\nBEGIN:VEVENT\r\n"
+    return _ics_fold_all("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//qunbao//CN\r\nBEGIN:VEVENT\r\n"
             f"UID:{uid}\r\nDTSTAMP:{stamp}\r\n{when}\r\nSUMMARY:{_ics_esc(title)}\r\n"
             f"DESCRIPTION:{_ics_esc(desc)}\r\nBEGIN:VALARM\r\nTRIGGER:-PT1H\r\nACTION:DISPLAY\r\n"
             "DESCRIPTION:待办提醒\r\nEND:VALARM\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
