@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.23"
+VERSION = "0.34.24"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -364,27 +364,16 @@ async def push(title: str, body: str, key: str = "", force=False, test=False, le
     _last_push[key] = time.time()
     path = url or chat_path(key)
     ok_b = ok_w = False
-    burl = (s.get("bark_url") or "").rstrip("/")
-    if bark and burl:
-        payload = {"title": title[:60], "body": body[:300], "group": "群报"}
-        if level in ("timeSensitive", "passive"):
-            payload["level"] = level
-        if s.get("site_url"):
-            payload["url"] = s["site_url"].rstrip("/") + path if path != "/" else s["site_url"]
-            payload["icon"] = s["site_url"].rstrip("/") + "/icon.png"
-        try:
-            async with httpx.AsyncClient(timeout=8) as cl:
-                r = await cl.post(burl, json=payload)
-                ok_b = r.status_code < 300
-        except Exception as ex:
-            print("推送失败:", ex)
+    if bark:
+        ok_b = await send_bark(s.get("bark_url"), title, body, level, s.get("site_url") or "", path)
     if web and level != "passive":
         ok_w = await webpush_all({"title": title[:60], "body": body[:300], "url": path, "tag": tag or key or "",
                                   "badge": open_todo_count(s)}) > 0
     return ok_b or ok_w
 
 
-# Web Push 传输层见 webpush.py
+# 传输层见 webpush.py / bark.py
+from bark import send_bark
 import webpush as _wp
 _wp.bind(lambda: db(), lambda k: kv_get(k))
 from webpush import vapid_keys, webpush_all, VAPID_SUB  # noqa: F401
