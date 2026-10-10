@@ -406,7 +406,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 /* 不透明、独立合成层、不随滚动改样式：iOS 滚动时毛玻璃 + 视口高度变化会让整块底栏抖、闪、散 */
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--bg);border-top:1px solid var(--line);
   transform:translateZ(0);-webkit-transform:translateZ(0);will-change:transform;contain:layout paint}
-.askbox{display:none;padding:10px var(--s4) 2px}
+.askbox{display:none;padding:var(--s2) var(--s4) 0}
 .dock.home #homeask,.dock.chat #chatask{display:block}
 .askbox form,.sheet form{display:flex;gap:var(--s2);max-width:608px;margin:0 auto}
 .inp{flex:1;min-width:0;padding:11px 18px;border:1px solid var(--line);border-radius:var(--r-pill);background:var(--card);outline:none;transition:border-color .2s}
@@ -415,9 +415,10 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .send{flex:none;width:44px;height:44px;border:0;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;transition:transform .15s}
 .send:active{transform:scale(.9)}
 .send svg{width:18px;height:18px}
-.suggest{display:flex;gap:6px;max-width:608px;margin:0 auto 9px;overflow-x:auto;scrollbar-width:none;
+.suggest{display:flex;gap:6px;max-width:608px;margin:0 auto var(--s2);overflow-x:auto;scrollbar-width:none;
   -webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
 .suggest::-webkit-scrollbar{display:none}
+.askbox:focus-within .suggest{display:none}  /* 键盘弹出时收起快捷问题，底栏只剩输入框，给消息留空间 */
 .tabs{display:flex;max-width:640px;height:var(--tab);margin:0 auto env(safe-area-inset-bottom)}
 .tabs button{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:none;font-size:var(--t-2xs);color:var(--faint);letter-spacing:.06em;transition:color .2s}
 .tabs button svg{width:22px;height:22px}
