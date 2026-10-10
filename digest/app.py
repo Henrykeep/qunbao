@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.41"
+VERSION = "0.34.42"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -883,7 +883,7 @@ CHUNK_CHARS = int(os.getenv("CHUNK_CHARS", "6000"))   # 每块最多这么多字
 LLM_PARALLEL = 4             # 手动/定时整理时同时整理的群数
 from auto_stats import summarize  # noqa: E402
 from auto_due import plan_chats  # noqa: E402
-from headline import live_head_plan, tidy_headline, rule_headline, QUIET_HEADS, _head_score, HEAD_MATCH  # noqa: E402,F401 (0.34.31 拆出)
+from headline import check_headline, live_head_plan, tidy_headline, rule_headline, QUIET_HEADS, _head_score, HEAD_MATCH  # noqa: E402,F401 (0.34.31 拆出)
 from auto_due import chat_due  # noqa: E402 (0.34.29 拆出)
 from noise import is_noise, NOISE_WORDS, NOISE_PH, PLACEHOLDER_RE, RECALL_RE, SYS_RE  # noqa: E402 (0.34.28 拆出)
 
@@ -1984,23 +1984,13 @@ def digest_row(d):
 
 
 def valid_headline(head, opens, gone=None) -> str:
-    """头条只能说一件还没做完的事：说的是未完成事项里的某一件（且不更像某件已完成/已过期的）就保留，
-    否则（说的是勾完成的事、过期的事、只在群要点里出现的事）一律换成规则从未完成事项里挑的一句。"""
-    head = head or ""
+    """头条校验：规则见 headline.check_headline；这里只负责补上最近 7 天已完成/过期的标题。"""
     if gone is None:
         with db() as c:
             gone = [r["title"] for r in c.execute(
                 "SELECT title FROM items WHERE status!='open' AND updated_ts>=? ORDER BY updated_ts DESC LIMIT 300",
                 (int(time.time()) - 7 * 86400,))]
-    if not opens:
-        return head if head in QUIET_HEADS[1:] else "群里没什么要你管的"
-    if head in QUIET_HEADS:
-        return rule_headline(opens)
-    best_open = max((_head_score(head, t.get("title", "")) for t in opens), default=0.0)
-    best_gone = max((_head_score(head, t) for t in gone), default=0.0)
-    if best_open >= HEAD_MATCH and best_open >= best_gone:
-        return head
-    return rule_headline(opens) or "群里没什么要你管的"
+    return check_headline(head, opens, gone)
 
 
 def fresh_headline(body):
