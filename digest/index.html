@@ -729,6 +729,8 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 <div class="toast" id="toast"></div>
 
 <script>
+function callsText(st){const t=+st.llm_tokens||0;return `${st.llm_calls||0} 次`+(t?` · ${t>=1e4?(t/1e4).toFixed(1)+" 万":t} token`:"")}
+
 /* ---------- 工具 ---------- */
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1576,7 +1578,7 @@ fill("#s-hour2",[[-1,"关闭"],...hs],s.digest_hour2??-1);fill("#s-qs",[[-1,"关
     dot("#st-qq",S.qq);dot("#st-wx",S.wx);$("#st-ver span").textContent=S.version?`v${S.version}`:"—";
     api("/api/ingest").then(r=>{$("#wx-url").textContent=r.ready?`${location.origin}/ingest?token=${r.token}`:"服务器 .env 里还没设置 INGEST_TOKEN";$("#wx-copy").disabled=!r.ready}).catch(()=>{});
     $("#st-last span").textContent=S.last_msg?ago(S.last_msg):"还没有";
-    $("#st-calls span").textContent=`${st.llm_calls||0} 次`;
+    $("#st-calls span").textContent=callsText(st);
     const lh=st.llm_hour||{};$("#st-hour span").textContent=`${lh.total||0} 次`;
     $("#st-hour-d").textContent=lh.total?`整理群 ${lh.chat||0} · 头条 ${lh.head||0} · 问答/群简报 ${(lh.ask||0)+(lh.brief||0)}`:"每个有新消息的群整理一次；头条只在有新的要紧事时重写";
     const ds=st.digest&&st.digest.stats;$("#st-run").textContent=ds?`${ago(st.digest_ts)} · `+runInfo(ds,st.digest.mode):"还没有整理过";
@@ -1588,7 +1590,7 @@ $("#s-profile").oninput=e=>{SET.profile=e.target.value;saveSet()};
 $("#s-defmode").onchange=e=>{tick();SET.default_mode=e.target.value;saveSet()};
 $("#s-hour").onchange=e=>{SET.digest_hour=+e.target.value;saveSet()};
 $("#s-full").onclick=async e=>{if(!confirm("完整重新整理最近 24 小时的消息？已完成和置顶的事项会保留。"))return;tick();const b=e.currentTarget;b.disabled=true;b.textContent="整理中…";
-  try{const r=await api("/api/digest",{hours:24,full:true});const x=r.stats||{};toast(`完成：送模型 ${x.sent||0} 条 · 调用 ${x.calls||0} 次 · ${(+x.secs||0).toFixed(1)} 秒`);ST=null;$("#st-calls span").textContent=`${(await api("/api/state")).llm_calls||0} 次`}
+  try{const r=await api("/api/digest",{hours:24,full:true});const x=r.stats||{};toast(`完成：送模型 ${x.sent||0} 条 · 调用 ${x.calls||0} 次 · ${(+x.secs||0).toFixed(1)} 秒`);ST=null;$("#st-calls span").textContent=callsText(await api("/api/state"))}
   catch(err){toast("失败："+err.message)}finally{b.disabled=false;b.textContent="重新整理"}};
 $("#s-auto").onchange=e=>{tick();SET.auto_on=e.target.checked;saveSet();setTimeout(()=>pollRev(),600)};
 $("#s-hour2").onchange=e=>{SET.digest_hour2=+e.target.value;saveSet()};
