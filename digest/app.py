@@ -1592,7 +1592,7 @@ def rule_event(r, now=None):
             day = pd.date()
             if w.startswith(("今", "明", "后天")):
                 w = ""
-    if day < nd.date():
+    if day < (nd - timedelta(hours=5)).date():  # 凌晨 5 点前仍算「昨天的今晚」
         return None  # 说的那天已经过去了
     if any(x in w for x in SOON_WORDS) and now - r["ts"] > 3 * 3600:
         return None  # 「下课」「待会」这种马上就发生的，三小时后就不算了
