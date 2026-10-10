@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.16"
+VERSION = "0.34.17"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -2200,7 +2200,8 @@ async def auto_run_chat(k, rows, s, now: float | None = None, why: str = ""):
             give_up_chat(k, rows, err)
         return None
     finally:
-        AUTO["running"].pop(k, None)
+        if AUTO["running"].get(k) == now:  # 占位已被超时释放并被新一轮接手时，别把别人的占位清掉
+            AUTO["running"].pop(k, None)
         AUTO["last_end"][k] = time.time()
         secs = round(time.time() - t0, 2)
         AUTO_LOG.append({"ts": int(now), "chat": k[1], "source": k[0], "why": why, "n": len(rows), "sent": stats["sent"],
