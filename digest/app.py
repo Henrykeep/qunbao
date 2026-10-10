@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.35"
+VERSION = "0.34.36"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -1631,55 +1631,10 @@ AUTO = {"running": {}, "last_run": {}, "last_end": {}, "fail": {}, "fatal": None
 AUTO_TASKS: set = set()
 AUTO_LOG: collections.deque = collections.deque(maxlen=500)   # 每次自动整理：群、原因、条数、送模型条数、调用次数、耗时、最久等待
 _BUMP = [0]
-URGENT_WORDS = re.compile(r"立刻|马上|立即|紧急|速来|尽快|赶紧|火速|十万火急")
-# 交作业 / 交报告 / 报名 / 截止这类「带时间的要你做的事」：只用来走快车道（不影响送不送模型，也不生成规则待办）
-DUE_TASK_RE = re.compile(r"交作业|交报告|交材料|交表|提交|上交|作业|实验报告|报名|缴费|交费|截止|ddl|签到|打卡|填表|填报|问卷", re.I)
-DUE_WHEN_RE = re.compile(r"今天|今晚|今日|明天|明早|明晚|后天|下周|本周|这周|周[一二三四五六日天]|星期[一二三四五六日天]|\d{1,2}月\d{1,2}|\d{1,2}[:：]\d{2}|\d{1,2}\s*点|[一二三四五六七八九十]{1,3}点|月底|之前|以前|前交")
 
 
 def bump():
     _BUMP[0] += 1
-
-
-def _shash(s: dict) -> str:
-    return hashlib.md5(json.dumps(s, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
-
-
-_urg_cache = {"key": None, "v": {}}
-
-
-def is_urgent(r, s) -> bool:
-    """要紧 = 走快车道（约 3 秒内整理）。只影响快慢：不要紧的消息最迟 30 秒也一定送模型。"""
-    key = _shash(s)
-    if _urg_cache["key"] != key or len(_urg_cache["v"]) > 100000:
-        _urg_cache.update(key=key, v={})
-    ck = (r["id"], r["source"], r["chat"]) if "id" in r.keys() else None
-    if ck is not None and ck in _urg_cache["v"]:
-        return _urg_cache["v"][ck]
-    v = _is_urgent(r, s)
-    if ck is not None:
-        _urg_cache["v"][ck] = v
-    return v
-
-
-def _is_urgent(r, s) -> bool:
-    t = r["text"] or ""
-    if r["at_me"] or "@全体" in t or "@所有人" in t:
-        return True
-    if chat_mode(r["source"], r["chat"], s) == "focus":
-        return True
-    if r["sender"] and any(v and v in r["sender"] for v in s.get("vip") or []):
-        return True
-    if any(k and k.lower() in t.lower() for k in s.get("keywords") or []):
-        return True
-    if URGENT_WORDS.search(t):
-        return True
-    if DUE_TASK_RE.search(t) and DUE_WHEN_RE.search(t) and not re.search(r"[吗嘛？?]\s*$", t):
-        return True
-    with contextlib.suppress(Exception):
-        if rule_event(r):
-            return True
-    return False
 
 
 def _rpm_now(now: float) -> int:
@@ -2162,6 +2117,8 @@ def prune_db(now=None):
 # ---------------- 清 NapCat 里 QQ 的媒体缓存 ----------------
 # 群报显示图片直接从 QQ 服务器加载（过期换 rkey），不用 QQ 本地缓存；这些缓存只占空间。
 # 只删 nt_data 下的 Pic / Video / Ptt / Thumb 目录里超过 6 小时的文件，登录数据、数据库一律不碰。
+from urgent import is_urgent, shash as _shash, _hooks as _urgent_hooks, URGENT_WORDS, DUE_TASK_RE, DUE_WHEN_RE  # noqa: E402,F401 (0.34.36 拆出)
+_urgent_hooks.update(chat_mode=lambda *a: chat_mode(*a), rule_event=lambda r: rule_event(r))
 from qqcache import QQ_CACHE_DIRS, clean_qq_cache  # noqa: E402,F401 (0.34.35 拆出)
 
 
