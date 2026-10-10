@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.39"
+VERSION = "0.34.40"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -896,7 +896,7 @@ ITEM_FIELDS = ("detail", "due", "urgency", "quote")
 # 0.34：只有「高置信度广告」才不送模型：至少两类强特征同时命中（其中一类是促销/拼团/代取兼职），且不带任何通知类字眼。
 # 拿不准一律送模型（例：「缴费链接今晚截止 https://… ¥50」只命中 链接+金额，照样送）
 from timing import snooze_until, digest_hours, weekly_title  # noqa: E402,F401 (0.34.35 拆出)
-from textclean import AD_CATS, AD_VETO, DATE_IN_TITLE, URL_ONLY_RE, is_ad_sure, tidy_title, same_text  # noqa: E402,F401 (0.34.35 拆出)
+from textclean import _jparse, _int, AD_CATS, AD_VETO, DATE_IN_TITLE, URL_ONLY_RE, is_ad_sure, tidy_title, same_text  # noqa: E402,F401 (0.34.35 拆出)
 
 
 def classify(r, s) -> str:
@@ -1018,22 +1018,6 @@ def chat_prompt(s, source, chat):
 - urgency=high 只给 48 小时内截止或老师/领导点名要求的事。没有变化就输出空数组。"""
 
 
-def _jparse(out: str) -> dict:
-    m = re.search(r"\{.*\}", out or "", re.S)
-    try:
-        d = json.loads(m.group(0) if m else out)
-    except (json.JSONDecodeError, TypeError):
-        raise HTTPException(502, "大模型返回的不是合法 JSON，再试一次")
-    return d if isinstance(d, dict) else {}
-
-
-def _int(x):
-    try:
-        return int(x)
-    except (TypeError, ValueError):
-        return None
-
-
 def item_dict(r) -> dict:
     d = dict(r)
     d["key"] = f"item:{d['id']}"
@@ -1112,7 +1096,7 @@ def apply_changes(source, chat, d: dict, at_ids=frozenset(), now=None) -> bool:
     return changed
 
 
-from rules import AD_RE, EVENT_RE, WHEN_RE, CLOCK_RE, SOON_WORDS, PAST_RE, WHO_RE, EVENT_ACT, EVENT_NAME, rule_event  # noqa: E402,F401 (0.34.39 拆出)
+from rules import AD_RE, EVENT_RE, WHEN_RE, CLOCK_RE, SOON_WORDS, PAST_RE, WHO_RE, EVENT_ACT, EVENT_NAME, rule_event  # noqa: E402,F401 (0.34.40 拆出)
 
 
 def rule_todos(source, chat, rows, s, now=None) -> bool:
@@ -2541,7 +2525,7 @@ async def push_test(req: Request):
 
 ASK_LINES = int(os.getenv("ASK_LINES", "220"))      # 一次问答最多送多少条原文
 ASK_CHARS = int(os.getenv("ASK_CHARS", "16000"))
-from askfmt import CITE_RE, _q_terms, cite, tidy_bullets  # noqa: E402,F401 (0.34.39 拆出)
+from askfmt import CITE_RE, _q_terms, cite, tidy_bullets  # noqa: E402,F401 (0.34.40 拆出)
 
 
 def ask_context(q: str, s: dict, chat: str = "", source: str = "", since_id: int = 0, hours: int = 72, prior: str = ""):
