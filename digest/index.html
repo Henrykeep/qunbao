@@ -255,6 +255,7 @@ footer{margin-top:var(--s7);text-align:center;font-size:var(--t-2xs);color:var(-
 .srcs .btn small{font-size:var(--t-2xs);opacity:.65}
 .sfilter{display:flex;gap:6px;align-items:center;margin:var(--s3) 0 2px;font-size:var(--t-xs);color:var(--faint)}
 .sfilter span{flex:1}
+.offgrp>summary{cursor:pointer}
 .sgh{margin:var(--s3) 0 0;font-size:var(--t-xs);color:var(--faint)}
 .sres .st{margin-top:2px;font-size:var(--t-md)}
 .sres{display:block}
@@ -859,6 +860,10 @@ const normT=x=>String(x||"").toLowerCase().replace(/[\s\W_]+/g,"").replace(/请|
 const dupText=(a,b)=>{const x=normT(a).replace(/\d+/g,""),y=normT(b).replace(/\d+/g,"");if(!x||!y)return false;if(x.includes(y)||y.includes(x))return true;
   const g=[...Array(Math.max(0,x.length-1)).keys()].map(i=>x.slice(i,i+2));return g.length>0&&g.filter(t=>y.includes(t)).length/g.length>=0.6};  // 详情只是把标题换个说法：不重复显示
 const MODE={focus:["重点盯","总结加权，要紧消息即时推送"],normal:["正常","正常整理，@你、关键词会推送"],atonly:["只看@我","不整理，只有 @你 / @全体 才提醒"],off:["不看","不整理不推送，原文照样能翻、能问助手"]};
+/* 群的重要性分档（首页「各群在聊」与原文群列表共用）：0 有待办/未读@我  1 重点盯  2 正常  3 只看@我  4 不看。处理完自动回落到自己的档位。 */
+const TIERS=["待处理","重点盯","正常","只看@我"];
+const chatTier=(mode,open,ats)=>mode==="off"?4:(open>0||ats>0)?0:{focus:1,atonly:3}[mode]??2;
+const byTier=(tier,ts)=>(a,b)=>tier(a)-tier(b)||ts(b)-ts(a);
 /* 首页渲染：数据整理（homeModel）→ 每个区块一个小函数（返回 HTML）→ 统一绑定事件。 */
 function homeModel(st){
   const d=st.digest,done=new Set(st.done||[]),pins=new Set(st.pins||[]),ps=st.per_src||{},per=st.per_chat||{},now=Date.now()/1000;
@@ -868,7 +873,7 @@ function homeModel(st){
   const open=todos.filter(t=>!isDone(t));
   const soon=open.filter(t=>t.due_ts&&t.due_ts-now<48*3600&&t.due_ts>now).length;
   const gN=g=>ps[(g.source||"QQ")+"|"+g.chat]??per[g.chat]??0;
-  const groups=(d.groups||[]).map(g=>({...g,n:gN(g)})).sort((a,b)=>(b.open||0)-(a.open||0)||(b.focus?1:0)-(a.focus?1:0)||b.n-a.n);
+  const groups=(d.groups||[]).map(g=>({...g,n:gN(g)})).sort(byTier(g=>chatTier(g.focus?"focus":"normal",g.open||0,0),g=>g.n));
   return {st,d,now,isDone,isPin,todos,notices:d.notices||[],ats,allAts,open,soon,groups,links:st.links||[],atBy:new Set(allAts.filter(a=>a.covered).map(a=>a.by||""))};
 }
 const secHead=(title,n)=>`<h2>${title} <span class="c">${n||""}</span></h2>`;
@@ -1260,14 +1265,17 @@ function renderChats(){
     $("#clist").innerHTML=`<div class="emptywx card fade"><div class="big">微信还没接上</div><p>用一台旧安卓机登录微信小号，把通知转发给群报，微信群就会和 QQ 群出现在一起。</p><button class="btn" id="towx">去设置接入</button></div>`;
     $("#towx").onclick=()=>{tick();go("set");openSub("conn");$("#wx-how").open=true;setTimeout(()=>$("#wxsec").scrollIntoView({behavior:"smooth"}),250)};return}
   if(!L.length&&SRCF==="QQ"){$("#clist").innerHTML=emptyBox("QQ 还没有消息","登录 NapCat 并设置上报地址后，QQ 群会出现在这里");return}
-  const rank={focus:0,normal:0,atonly:1,off:2};
-  const S=[...L].sort((a,b)=>(rank[a.mode]||0)-(rank[b.mode]||0)||b.last_ts-a.last_ts);
   const prev=t=>String(t||"").replace(/```\w*/g,"").replace(/\s+/g," ").trim();
-  $("#clist").innerHTML=S.length?S.map(c=>`<button class="crow ${c.mode==="off"?"muted":""}" data-chat="${esc(c.chat)}" data-src="${esc(c.source)}">
+  const tr=c=>chatTier(c.mode,c.open||0,unreadAts(c));
+  const S=[...L].sort(byTier(tr,c=>c.last_ts));
+  const row=c=>`<button class="crow ${c.mode==="off"?"muted":""}" data-chat="${esc(c.chat)}" data-src="${esc(c.source)}">
     <div class="gav" style="background:hsl(${hue(c.chat)} 26% 46%)">${first(c.chat)}${srcBadge(c.source)}</div>
     <div class="ci"><div class="cn"><b>${esc(c.chat)}</b>${c.mode&&c.mode!=="normal"?`<span class="mtag ${c.mode}">${MODE[c.mode][0]}</span>`:""}<span style="flex:1"></span><span class="tm">${ago(c.last_ts)}</span></div>
-    <div class="cl">${c.mode==="off"?ICON.bell.replace("<svg",'<svg class="mute-ic"'):""}<span>${esc(prev(c.last))}</span>${unreadAts(c)?`<span class="badge">@${unreadAts(c)}</span>`:""}</div></div></button>`).join("")
-    :emptyBox("还没有消息","连上 QQ 或微信后，这里能翻所有群的原始记录");
+    <div class="cl">${c.mode==="off"?ICON.bell.replace("<svg",'<svg class="mute-ic"'):""}<span>${esc(prev(c.last))}</span>${unreadAts(c)?`<span class="badge">@${unreadAts(c)}</span>`:""}</div></div></button>`;
+  let html="",last=-1;const off=S.filter(c=>tr(c)===4);
+  S.filter(c=>tr(c)<4).forEach(c=>{const t=tr(c);if(t!==last){html+=`<div class="sgh">${TIERS[t]}</div>`;last=t}html+=row(c)});
+  if(off.length)html+=`<details class="offgrp"><summary class="sgh">已静音 ${off.length} 个群</summary>${off.map(row).join("")}</details>`;
+  $("#clist").innerHTML=S.length?html:emptyBox("还没有消息","连上 QQ 或微信后，这里能翻所有群的原始记录");
   $$(".crow").forEach(b=>{b.onclick=()=>{if(b._sw){b._sw=0;return}tick();openChat(b.dataset.chat,null,b.dataset.src)};swipeRow(b);longPress(b,()=>modeSheet(b.dataset.src,b.dataset.chat))});
 }
 /* 原文群列表：左滑一行 → 怎么盯 */
