@@ -1,4 +1,6 @@
 """广告判定与事项标题整理（纯函数，不依赖 app.py）：is_ad_sure / tidy_title / same_text。"""
+import json
+from fastapi import HTTPException
 import re
 from difflib import SequenceMatcher
 
@@ -60,3 +62,19 @@ def same_text(a: str, b: str) -> bool:
         return True
     g = [x[i:i + 2] for i in range(len(x) - 1)]
     return bool(g) and sum(1 for t in g if t in y) / len(g) >= 0.6
+
+
+def _jparse(out: str) -> dict:
+    m = re.search(r"\{.*\}", out or "", re.S)
+    try:
+        d = json.loads(m.group(0) if m else out)
+    except (json.JSONDecodeError, TypeError):
+        raise HTTPException(502, "大模型返回的不是合法 JSON，再试一次")
+    return d if isinstance(d, dict) else {}
+
+
+def _int(x):
+    try:
+        return int(x)
+    except (TypeError, ValueError):
+        return None
