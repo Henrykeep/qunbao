@@ -2064,3 +2064,11 @@ def test_ingest_rejects_huge_body():
     c = TestClient(m.app)
     r = c.post("/ingest", headers={"X-Token": m.INGEST_TOKEN}, content="x" * 300000)
     assert r.status_code == 413
+
+
+def test_ics_fold():
+    from digest.app import build_ics
+    t = build_ics("很长的标题" * 30, "2026-10-10 18:00")
+    for l in t.split("\r\n"):
+        assert len(l.encode()) <= 75
+    assert t.endswith("END:VCALENDAR\r\n")
