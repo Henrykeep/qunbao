@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.28"
+VERSION = "0.34.29"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -980,6 +980,7 @@ async def todo_snooze(req: Request):
 CHUNK_MSGS = int(os.getenv("CHUNK_MSGS", "120"))       # 单群新消息太多时，每块最多这么多条
 CHUNK_CHARS = int(os.getenv("CHUNK_CHARS", "6000"))   # 每块最多这么多字（约 token 上限的保守估计）
 LLM_PARALLEL = 4             # 手动/定时整理时同时整理的群数
+from auto_due import chat_due  # noqa: E402 (0.34.29 拆出)
 from noise import is_noise, NOISE_WORDS, NOISE_PH, PLACEHOLDER_RE, RECALL_RE, SYS_RE  # noqa: E402 (0.34.28 拆出)
 
 
@@ -1795,29 +1796,14 @@ def auto_plan(s: dict, now: float | None = None):
         if k in AUTO["running"]:
             continue
         arr = sorted(min(ARRIVE.get(r["id"], r["ts"]), now) for r in rs)
-        first, last = arr[0], arr[-1]
-        cands = [(last + AUTO_QUIET, "quiet"), (first + AUTO_MAX_WAIT, "maxwait")]
-        if len(arr) >= AUTO_BURST:
-            cands.append((arr[AUTO_BURST - 1], "burst"))
         start, end = AUTO["last_run"].get(k, 0), AUTO["last_end"].get(k, 0)
-        if end >= start > 0 and any(start < a <= end for a in arr):  # 上次整理进行中来的消息：一结束就接着整理
-            cands.append((end, "follow"))
         urg = [min(ARRIVE.get(r["id"], r["ts"]), now) for r in rs if is_urgent(r, s)]
-        if urg:
-            cands.append((min(last + AUTO_URGENT_QUIET, min(urg) + AUTO_URGENT_WAIT), "urgent"))
-        due, why = min(cands)
-        if not urg:  # 同群最小间隔只管闲聊
-            due = max(due, start + AUTO_MIN_GAP)
-            if busy:  # 全局调用快到上限：闲聊暂缓（30 秒兜底照常）
-                due = max(due, now + 2)
         f = AUTO["fail"].get(k)
-        if f:
-            due = max(due, f["until"])
-        force = first + AUTO_FORCE
-        if force <= now and not (f and f["until"] > now):  # 兜底：等了 30 秒还没整理，不管间隔，立刻排最前
-            due, why = min(due, force), "force"
-        elif not f:
-            due = min(due, force)
+        due, why = chat_due(arr, urg, start, end, f["until"] if f else None, busy, now,
+                            quiet=AUTO_QUIET, max_wait=AUTO_MAX_WAIT, burst=AUTO_BURST,
+                            urgent_quiet=AUTO_URGENT_QUIET, urgent_wait=AUTO_URGENT_WAIT,
+                            min_gap=AUTO_MIN_GAP, force_after=AUTO_FORCE)
+        urg = bool(urg)
         if due <= now:
             ready.append((why != "force", 0 if urg else 1, due, k, rs, why))
         else:
