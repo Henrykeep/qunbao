@@ -1329,19 +1329,26 @@ async function openChat(chat,focus,src,msgId){
     let target=null;
     if(msgId)target=$(`#cmsgs .m[data-id="${msgId}"]`);
     if(!target&&focus){const f=String(focus).slice(0,12);target=$$("#cmsgs .m").reverse().find(e=>e.dataset.t.includes(f))}
-    if(target){target.scrollIntoView({block:"center"});flashMsg(target)}  // 跳转：同一帧内定位后才显示
+    if(target)pinMsg(target)  // 跳转：同一帧内定位后才显示
   }catch(e){box.innerHTML=`<div class="empty">${esc(e.message)}</div>`}
   finally{if(my===chatSeq)box.classList.remove("pos");updToLatest()}
+}
+/* 定位到某条消息并高亮；上方的助手卡/图片稍后撑开版面时，3 秒内持续重新居中（用户一动手就停） */
+function pinMsg(el,smooth){
+  const at=()=>el.scrollIntoView({block:"center",behavior:smooth?"smooth":"auto"});
+  at();flashMsg(el);
+  const ro=new ResizeObserver(()=>at()),stop=()=>{ro.disconnect();removeEventListener("touchstart",stop);removeEventListener("wheel",stop)};
+  ro.observe($("#cmsgs"));ro.observe($("#brief"));addEventListener("touchstart",stop,{passive:true});addEventListener("wheel",stop,{passive:true});setTimeout(stop,3000);
 }
 function flashMsg(el){el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),2100)}
 /* 跳到某条消息：已加载就滚过去高亮 2 秒，没加载就按 id 取它前后的上下文 */
 async function jumpTo(id,chat,src){
   if(chat&&(chat!==chatName||(src&&src!==chatSrc)||$("#msgs-chat").hidden))return openChat(chat,null,src,id);
   const el=$(`#cmsgs .m[data-id="${id}"]`);
-  if(el){el.scrollIntoView({block:"center",behavior:"smooth"});flashMsg(el);return}
+  if(el){pinMsg(el,true);return}
   const box=$("#cmsgs");box.classList.add("pos");
   try{const ms=await api(`/api/messages?chat=${encodeURIComponent(chatName)}&around=${id}&limit=80${chatSrc?`&source=${encodeURIComponent(chatSrc)}`:""}`);
-    renderMsgs(ms,false);const t=$(`#cmsgs .m[data-id="${id}"]`);if(t){t.scrollIntoView({block:"center"});flashMsg(t)}}
+    renderMsgs(ms,false);const t=$(`#cmsgs .m[data-id="${id}"]`);if(t)pinMsg(t)}
   finally{box.classList.remove("pos");updToLatest()}
 }
 async function loadBrief(my,refresh){
