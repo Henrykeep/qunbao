@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.9"
+VERSION = "0.34.10"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -2242,7 +2242,10 @@ def rule_headline(items) -> str:
         d = parse_due(t.get("due", ""), now)
         return (bool(d and d < now), not t.get("at_me"), d or far, t.get("urgency") != "high")  # 已过截止的不当头条（除非只剩它）
     t = sorted(items, key=k)[0]
-    return tidy_headline(t["title"] + (f"，{t['due']}" if t.get("due") else ""))
+    lead = t["title"] + (f"，{t['due']}" if t.get("due") else "")
+    if len(items) > 1:  # 头条是概括不是复制：多件时点出最急的一件 + 总数，首页待办列表里就不会再看到一模一样的一行
+        return tidy_headline(f"共 {len(items)} 件待办，最急：{lead}")
+    return tidy_headline(lead)
 
 
 async def refresh_live(s: dict | None = None, stats: dict | None = None, now: float | None = None, model_head: bool = True,
