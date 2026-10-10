@@ -392,8 +392,8 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .grow select.focus{color:var(--amber)} .grow select.off{color:var(--faint)}
 .batch{position:sticky;bottom:calc(var(--dockh) + var(--s2));z-index:3;display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:var(--s3);padding:10px var(--s3);border-radius:var(--r-lg);background:var(--ink);color:var(--bg);font-size:var(--t-sm)}
 .batch span{margin-right:auto}
-.batch button{min-height:36px;padding:0 var(--s3);border:0;border-radius:var(--r-pill);background:color-mix(in srgb,var(--bg) 16%,transparent);color:var(--bg);font-size:var(--t-sm)}
-.sugg{margin-top:var(--s3);padding:var(--s3) 14px;border-radius:var(--r-md);background:color-mix(in srgb,var(--amber) 12%,var(--card));font-size:var(--t-sm)}
+.batch .btn{background:color-mix(in srgb,var(--bg) 16%,transparent);color:var(--bg)}
+.sugg{margin-top:var(--s3);padding:var(--s3) var(--s4);border-radius:var(--r-lg);background:color-mix(in srgb,var(--amber) 12%,var(--card));font-size:var(--t-sm)}
 .sugg b{display:block;margin-bottom:var(--s1);font-size:var(--t-md)}
 .sugg .sl{margin-bottom:var(--s2);color:var(--sub);font-size:var(--t-xs);line-height:1.6}
 
@@ -1462,7 +1462,7 @@ function drawGroups(){
   });
   drawBatch();
   function drawBatch(){const b=$("#g-batch");b.hidden=!GSEL.size;
-    b.innerHTML=`<span>已选 ${GSEL.size} 个</span>${Object.entries(MODE).map(([m,[n]])=>`<button data-m="${m}">${n}</button>`).join("")}<button data-m="">取消</button>`;
+    b.innerHTML=`<span>已选 ${GSEL.size} 个</span>${Object.entries(MODE).map(([m,[n]])=>`<button class="btn sm" data-m="${m}">${n}</button>`).join("")}<button class="btn sm" data-m="">取消</button>`;
     b.querySelectorAll("button").forEach(x=>x.onclick=async()=>{tick();const m=x.dataset.m;if(!m){GSEL.clear();drawGroups();return}
       await api("/api/chat_mode",{chats:[...GSEL].map(pair),mode:m});toast(`${GSEL.size} 个群改为${MODE[m][0]}`);GSEL.clear();loadGroups()})}
 }
