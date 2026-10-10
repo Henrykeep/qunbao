@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.29"
+VERSION = "0.34.30"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -980,6 +980,7 @@ async def todo_snooze(req: Request):
 CHUNK_MSGS = int(os.getenv("CHUNK_MSGS", "120"))       # 单群新消息太多时，每块最多这么多条
 CHUNK_CHARS = int(os.getenv("CHUNK_CHARS", "6000"))   # 每块最多这么多字（约 token 上限的保守估计）
 LLM_PARALLEL = 4             # 手动/定时整理时同时整理的群数
+from auto_stats import summarize  # noqa: E402
 from auto_due import chat_due  # noqa: E402 (0.34.29 拆出)
 from noise import is_noise, NOISE_WORDS, NOISE_PH, PLACEHOLDER_RE, RECALL_RE, SYS_RE  # noqa: E402 (0.34.28 拆出)
 
@@ -1908,14 +1909,7 @@ async def auto_run_chat(k, rows, s, now: float | None = None, why: str = ""):
 
 
 def auto_log_summary(sec: int = 3600) -> dict:
-    """最近一段时间自动整理的真实成本：次数、调用次数、送模型条数、等待时间中位/最慢。"""
-    cut = time.time() - sec
-    rs = [x for x in AUTO_LOG if x["ts"] >= cut]
-    w = sorted(x["wait"] + x["secs"] for x in rs if x["ok"])
-    return {"runs": len(rs), "calls": sum(x["calls"] for x in rs), "msgs": sum(x["n"] for x in rs), "sent": sum(x["sent"] for x in rs),
-            "fails": sum(1 for x in rs if not x["ok"]), "avg_secs": round(sum(x["secs"] for x in rs) / len(rs), 1) if rs else 0,
-            "p50_latency": w[len(w) // 2] if w else 0, "max_latency": w[-1] if w else 0,
-            "by_why": {k: sum(1 for x in rs if x["why"] == k) for k in sorted({x["why"] for x in rs})}}
+    return summarize(AUTO_LOG, sec)
 
 
 def give_up_chat(k, rows, why=""):
