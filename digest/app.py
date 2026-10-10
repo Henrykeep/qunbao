@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.32"
+VERSION = "0.34.33"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -868,11 +868,6 @@ def about_me(s):
     return "\n".join(parts)
 
 
-def weekly_title(d: dict) -> str:
-    n = len([t for t in d.get("todos", []) if not (isinstance(t, dict) and t.get("done"))])
-    return "本周群报" + (f" · {n} 件待办" if n else "")
-
-
 from todo_match import (parse_due, todo_key, split_key, norm_title, same_todo, _PUNCT, _NUM_RE, _norm_chat, _norm_due, _day_tokens, _cn_hour, _grams)  # noqa: F401
 
 
@@ -943,14 +938,6 @@ def merge_cross_chat(todos: list) -> list:
     return out
 
 
-def snooze_until(h, now: datetime) -> datetime:
-    """稍后提醒的时间点。「明早 9 点」：凌晨 5 点前说「明天」，指的是睡醒后的今早 9 点，不是 30 多小时以后。"""
-    if h == "tomorrow":
-        t = now.replace(hour=9, minute=0, second=0, microsecond=0)
-        return t if now.hour < 5 else t + timedelta(days=1)
-    return now + timedelta(hours=float(h or 1))
-
-
 @app.post("/api/todo/snooze", dependencies=[Depends(auth)])
 async def todo_snooze(req: Request):
     d = await req.json()
@@ -996,7 +983,8 @@ AD_RE = re.compile(r"券后|优惠券|领券|返利|返现|包邮|秒杀|神价|
                    r"代取快递|代拿|跑腿|可小刀|出闲置|低价出|私聊下单|招代理|兼职日结|刷单", re.I)
 # 0.34：只有「高置信度广告」才不送模型：至少两类强特征同时命中（其中一类是促销/拼团/代取兼职），且不带任何通知类字眼。
 # 拿不准一律送模型（例：「缴费链接今晚截止 https://… ¥50」只命中 链接+金额，照样送）
-from textclean import AD_CATS, AD_VETO, DATE_IN_TITLE, URL_ONLY_RE, is_ad_sure, tidy_title, same_text  # noqa: E402,F401 (0.34.32 拆出)
+from timing import snooze_until, digest_hours, weekly_title  # noqa: E402,F401 (0.34.33 拆出)
+from textclean import AD_CATS, AD_VETO, DATE_IN_TITLE, URL_ONLY_RE, is_ad_sure, tidy_title, same_text  # noqa: E402,F401 (0.34.33 拆出)
 
 
 def classify(r, s) -> str:
@@ -2104,14 +2092,6 @@ def migrate_items():
         c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('scan_id',?)", (str(body.get("upto_id") or top),))
         c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('migrated_items','1')")
     return n
-
-
-def digest_hours(s: dict) -> set:
-    hs = {int(s.get("digest_hour", 21))}
-    h2 = int(s.get("digest_hour2", -1))
-    if 0 <= h2 <= 23:
-        hs.add(h2)
-    return hs
 
 
 async def scheduler():
