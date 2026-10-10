@@ -70,3 +70,18 @@ def live_head_plan(prev_body: dict, body: dict, has_latest: bool, last_model_ts:
         head = rule_headline(hot or opens) or head
     want_model = rewrite and model_head and now - float(last_model_ts or 0) >= gap
     return new, head, opens, want_model
+
+
+def check_headline(head, opens, gone) -> str:
+    """头条只能说一件还没做完的事：说的是未完成事项里的某一件（且不更像某件已完成/已过期的）就保留，
+    否则（勾完成的事、过期的事、只在群要点里出现的事）一律换成规则从未完成事项里挑的一句。纯函数。"""
+    head = head or ""
+    if not opens:
+        return head if head in QUIET_HEADS[1:] else "群里没什么要你管的"
+    if head in QUIET_HEADS:
+        return rule_headline(opens)
+    best_open = max((_head_score(head, t.get("title", "")) for t in opens), default=0.0)
+    best_gone = max((_head_score(head, t) for t in gone), default=0.0)
+    if best_open >= HEAD_MATCH and best_open >= best_gone:
+        return head
+    return rule_headline(opens) or "群里没什么要你管的"
