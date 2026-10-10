@@ -1,4 +1,7 @@
 # 更新记录
+## 0.34.32 — 2026-10-11
+- 结构：广告判定与事项标题整理（is_ad_sure / tidy_title / same_text）拆到 digest/textclean.py，app.py 只做引用；行为不变。仅模拟环境测试。
+
 
 ## 0.34.31 — 2026-10-11
 - 结构：头条相关纯函数（截断整理、规则头条、头条与事项匹配度）拆到 digest/headline.py，app.py 只保留带数据库的校验；行为不变。仅模拟环境测试（凌晨跑时 test_rule_backfill_recent_inspection 因「今晚」时间窗口偶发失败，与本次无关）。
