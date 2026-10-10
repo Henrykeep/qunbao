@@ -2185,3 +2185,11 @@ def test_different_todos(a, b):
 @pytest.mark.parametrize("a,b", [("提交实验报告", "缴纳实验报告"), ("参加班会", "参与班会"), ("交实验报告", "实验报告提交")])
 def test_same_todos(a, b):
     assert importlib.import_module('app').same_todo(T(a), T(b))
+
+
+def test_merge_cross_chat():
+    import app as A
+    ts = [{"title": "下载反诈APP", "chat": "一班群"}, {"title": "下载反诈APP", "chat": "二班群"},
+          {"title": "下载反诈APP", "chat": "三班群"}, {"title": "交作业", "chat": "二班群"}]
+    out = A.merge_cross_chat(ts)
+    assert len(out) == 2 and out[0]["also"] == ["二班群", "三班群"]
