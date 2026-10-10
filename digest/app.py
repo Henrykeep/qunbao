@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.34"
+VERSION = "0.34.35"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -984,8 +984,8 @@ AD_RE = re.compile(r"券后|优惠券|领券|返利|返现|包邮|秒杀|神价|
                    r"代取快递|代拿|跑腿|可小刀|出闲置|低价出|私聊下单|招代理|兼职日结|刷单", re.I)
 # 0.34：只有「高置信度广告」才不送模型：至少两类强特征同时命中（其中一类是促销/拼团/代取兼职），且不带任何通知类字眼。
 # 拿不准一律送模型（例：「缴费链接今晚截止 https://… ¥50」只命中 链接+金额，照样送）
-from timing import snooze_until, digest_hours, weekly_title  # noqa: E402,F401 (0.34.34 拆出)
-from textclean import AD_CATS, AD_VETO, DATE_IN_TITLE, URL_ONLY_RE, is_ad_sure, tidy_title, same_text  # noqa: E402,F401 (0.34.34 拆出)
+from timing import snooze_until, digest_hours, weekly_title  # noqa: E402,F401 (0.34.35 拆出)
+from textclean import AD_CATS, AD_VETO, DATE_IN_TITLE, URL_ONLY_RE, is_ad_sure, tidy_title, same_text  # noqa: E402,F401 (0.34.35 拆出)
 
 
 def classify(r, s) -> str:
@@ -2162,35 +2162,7 @@ def prune_db(now=None):
 # ---------------- 清 NapCat 里 QQ 的媒体缓存 ----------------
 # 群报显示图片直接从 QQ 服务器加载（过期换 rkey），不用 QQ 本地缓存；这些缓存只占空间。
 # 只删 nt_data 下的 Pic / Video / Ptt / Thumb 目录里超过 6 小时的文件，登录数据、数据库一律不碰。
-QQ_CACHE_DIRS = {"Pic", "Video", "Ptt", "Thumb"}
-
-
-def clean_qq_cache(root=None, max_age=6 * 3600, now=None):
-    root = root or NAPCAT_DATA
-    now = now or time.time()
-    freed = files = 0
-    if not root or not os.path.isdir(root):
-        return 0, 0
-    for dp, _dns, fns in os.walk(root, topdown=False):
-        parts = dp.replace(os.sep, "/").split("/")
-        if "nt_data" not in parts or not (QQ_CACHE_DIRS & set(parts[parts.index("nt_data") + 1:])):
-            continue
-        for fn in fns:
-            fp = os.path.join(dp, fn)
-            try:
-                st = os.lstat(fp)
-                if os.path.isfile(fp) and not os.path.islink(fp) and now - st.st_mtime > max_age:
-                    os.remove(fp)
-                    freed += st.st_size
-                    files += 1
-            except OSError:
-                pass
-        if dp.split(os.sep)[-1] not in QQ_CACHE_DIRS:
-            with contextlib.suppress(OSError):
-                os.rmdir(dp)  # 只删空的月份子目录
-    if files:
-        print(f"清理 QQ 媒体缓存：{files} 个文件，{freed / 1048576:.1f} MB")
-    return files, freed
+from qqcache import QQ_CACHE_DIRS, clean_qq_cache  # noqa: E402,F401 (0.34.35 拆出)
 
 
 # ---------------- 网页接口 ----------------
