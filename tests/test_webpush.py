@@ -41,7 +41,7 @@ def clean(monkeypatch):
             raise FakeWPErr(code)
         return FakeResp(201)
     fake_send.codes = {}
-    monkeypatch.setattr(app_mod, "_wp_send", fake_send)
+    monkeypatch.setattr(__import__("webpush"), "_wp_send", fake_send)
     yield sent, fake_send
     with app_mod.db() as cc:
         cc.execute("DELETE FROM push_subs")
