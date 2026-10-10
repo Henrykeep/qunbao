@@ -467,7 +467,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 <div class="view on" id="v-home"><div class="wrap">
   <header>
     <div class="mast">群报</div>
-    <div class="date"><b><span id="today"></span> <span id="week"></span></b><span class="live" id="live"><span class="lv" id="lv-qq"><b></b>QQ</span><span class="lv" id="lv-wx"><b></b>微信</span></span></div>
+    <div class="date"><b><span id="today"></span> <span id="week"></span></b><span class="live" id="live"><span class="lv" data-lv="qq"><b></b>QQ</span><span class="lv" data-lv="wx"><b></b>微信</span></span></div>
   </header>
   <div class="rule"></div>
   <div class="bar">
@@ -513,31 +513,31 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 <!-- ============ 设置 ============ -->
 <div class="view" id="v-set"><div class="wrap">
   <div id="set-main">
-  <header><div class="mast">设置</div><div class="date"><b>群报</b><span>改完自动保存</span></div></header>
+  <header><div class="mast">设置</div><div class="date"><b id="set-ver">群报</b><span class="live"><span class="lv" data-lv="qq"><b></b>QQ</span><span class="lv" data-lv="wx"><b></b>微信</span></span></div></header>
   <div class="rule"></div>
 
   <div class="gl">通知</div>
   <div class="group card">
     <div class="row wprow" id="wp-row"><span class="rl" id="wp-l">新待办直接通知到手机<small id="wp-d">正在检查这台设备…</small></span><button class="btn" id="wp-btn" hidden>开启通知</button></div>
-    <div class="row"><span class="rl">有人 @我 / 重要的人 / 重点群<small>命中就立刻通知；关键词命中只走 Bark 静默推送</small></span><label class="sw"><input type="checkbox" id="s-pushat"><span></span></label></div>
-    <div class="row"><span class="rl">出现新待办时通知<small>自动整理出新待办立刻提醒；定时群报、周报只走 Bark</small></span><label class="sw"><input type="checkbox" id="s-pushdg"><span></span></label></div>
+    <div class="row"><span class="rl">有人 @我 / 重要的人 / 重点群<small>命中立刻通知；关键词只走 Bark 静默推送</small></span><label class="sw"><input type="checkbox" id="s-pushat"><span></span></label></div>
+    <div class="row"><span class="rl">出现新待办时通知<small>整理出来就提醒；定时群报、周报只走 Bark</small></span><label class="sw"><input type="checkbox" id="s-pushdg"><span></span></label></div>
   </div>
-  <div class="gd">同一件事只提醒一次；「不看」的群不推；免打扰时段攒着，到点合并成一条。主屏幕图标上的数字是还没完成的待办数。</div>
+  <div class="gd">同一件事只提醒一次；「不看」的群不推；免打扰时段攒着合并发。</div>
 
   <div class="gl" id="bark-gl">备用：Bark</div>
   <div class="group card">
     <div class="row"><input type="url" class="left" id="s-bark" placeholder="Bark 地址 https://api.day.app/你的key"><button class="btn ghost" id="s-test">测试</button></div>
   </div>
-  <div class="gd" id="bark-gd">一般用上面的通知就够了。想再加一路、或想要专注模式也响的提醒：iPhone 在 App Store 装 Bark，把它给的地址粘到这里。</div>
+  <div class="gd" id="bark-gd">想让专注模式下也响，就装 Bark，把它的地址粘到这里。</div>
   <div class="gl">自动整理</div>
   <div class="group card">
-    <div class="row"><span class="rl">有新消息自动整理<small>@我、@全体、重点群、查寝点名开会这类事约 3 秒开始整理；其他消息安静 5 秒就整理，最多等 15 秒，任何消息 30 秒内一定整理；纯表情、撤回、明显广告不调模型</small></span><label class="sw"><input type="checkbox" id="s-auto"><span></span></label></div>
+    <div class="row"><span class="rl">有新消息自动整理<small>紧急的事约 3 秒开始整理，其他消息安静 5 秒就整理，最久 30 秒；纯表情、撤回、广告不调模型</small></span><label class="sw"><input type="checkbox" id="s-auto"><span></span></label></div>
   </div>
 
   <div class="gl">关于我</div>
   <div class="group card"><textarea class="area" id="s-profile" placeholder="例：我是大三学生，在计科2201班；最关心作业截止、考试安排、班会和缴费。"></textarea>
     <button class="row nav" data-sub="me"><span class="rl">我的昵称 · 重要的人</span><span class="rv" id="sum-me"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button></div>
-  <div class="gd">写得越具体，整理越准：你的身份、在哪些群、什么事算重要。</div>
+  <div class="gd">写得越具体越准：身份、所在的群、什么事算重要。</div>
 
   <div class="gl">更多</div>
   <div class="group card">
@@ -840,8 +840,9 @@ function skeleton(){  // 和真实首页同样的骨架：一行小字、两行�
 }
 function renderStatus(st){
   const s=st.status||{},l=$("#live");
-  const lv=(id,o)=>{const e=$(id);e.className="lv "+(o?.online?"on":o?.seen?"off":"");e.title=o?.online?"在线":o?.seen?"离线":"未连接"};
-  lv("#lv-qq",s.qq);lv("#lv-wx",s.wx);l.classList.toggle("ok",!!s.online);
+  $$("[data-lv]").forEach(e=>{const o=s[e.dataset.lv];e.className="lv "+(o?.online?"on":o?.seen?"off":"");e.title=o?.online?"在线":o?.seen?"离线":"未连接"});
+  l.classList.toggle("ok",!!s.online);
+  if(s.version)$("#set-ver").textContent="群报 v"+s.version;
   let n="";
   if(!s.llm)n+=`<div class="warn fade">${ICON.warn}<div><b>还没配置大模型</b><span>在服务器 .env 里填上 LLM_API_KEY，重启 qunbao 容器。</span></div></div>`;
   else if(s.llm_err)n+=`<div class="warn fade">${ICON.warn}<div><b>大模型一直调用失败</b><span>${esc(s.llm_err)}</span></div></div>`;
@@ -1587,7 +1588,7 @@ function wpRender(){
   const ins=st==="insecure";row.style.display=ins?"none":"";  // 没有 HTTPS 时网页通知用不了：整行藏起来，Bark 才是正经通知渠道
   const bg=$("#bark-gl"),bd=$("#bark-gd");
   if(bg)bg.textContent=ins?"通知：Bark":"备用：Bark";
-  if(bd)bd.textContent=ins?"手机收通知用 Bark：iPhone 在 App Store 装 Bark，把它给的地址粘到这里，点测试。新待办、@我、重要的人、截止提醒都会推到它。":"一般用上面的通知就够了。想再加一路、或想要专注模式也响的提醒：iPhone 在 App Store 装 Bark，把它给的地址粘到这里。";
+  if(bd)bd.textContent=ins?"手机收通知用 Bark：iPhone 在 App Store 装 Bark，把它给的地址粘到这里，点测试。新待办、@我、重要的人、截止提醒都会推到它。":"想让专注模式下也响，就装 Bark，把它的地址粘到这里。";
   const desc=st==="on"?`这台设备会收到通知${WP.n>1?` · 共 ${WP.n} 台设备`:""} · <button class="plink" id="wp-off">关闭</button>`:esc(d);
   l.innerHTML=(st==="on"?'<i class="ok-dot"></i>':"")+esc(t)+`<small id="wp-d">${desc}</small>`;
   btn.hidden=!b;btn.textContent=WP.busy?"正在开启…":b;btn.disabled=WP.busy;btn.classList.toggle("ghost",st==="on");
