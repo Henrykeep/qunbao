@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.20"
+VERSION = "0.33.21"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -2566,6 +2566,7 @@ def prune_db(now=None):
         c.execute("DELETE FROM sessions WHERE exp<?", (now,))
         c.execute("DELETE FROM digests WHERE ts<?", (now - 90 * 86400,))
         c.execute("DELETE FROM reminded WHERE ts<?", (now - 60 * 86400,))
+        c.execute("DELETE FROM todo_done WHERE ts<?", (now - 90 * 86400,))
         c.execute("DELETE FROM items WHERE status!='open' AND pinned=0 AND updated_ts<?", (now - 90 * 86400,))  # 已完成/过期的旧事项
     with contextlib.suppress(Exception):
         c = db(); c.execute("PRAGMA wal_checkpoint(TRUNCATE)"); c.close()
