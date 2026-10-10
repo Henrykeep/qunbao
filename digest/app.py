@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.18"
+VERSION = "0.34.19"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -1165,10 +1165,10 @@ def _grams(x: str) -> set:
     return {x[i:i + 2] for i in range(len(x) - 1)} or ({x} if x else set())
 
 
-def same_todo(a: dict, b: dict) -> bool:
-    """同一个群里、归一化后标题足够像（或截止时间相同且有共同词）就算同一件事。"""
+def same_todo(a: dict, b: dict, cross_chat: bool = False) -> bool:
+    """同一个群里、归一化后标题足够像（或截止时间相同且有共同词）就算同一件事。cross_chat=True 时不比较群。"""
     ca, cb = _norm_chat(a.get("chat")), _norm_chat(b.get("chat"))
-    if ca and cb and ca != cb and ca not in cb and cb not in ca:
+    if not cross_chat and ca and cb and ca != cb and ca not in cb and cb not in ca:
         return False
     da_, db2 = _day_tokens(a.get("title") or ""), _day_tokens(b.get("title") or "")
     if da_ and db2 and da_ != db2:  # 「明晚8点查寝」≠「今晚八点查寝」
@@ -1239,7 +1239,30 @@ def annotate_todos(body: dict) -> dict:
         t["key"] = todo_key(t)
         t["done"] = bool(find_match(t, done))
         t["pinned"] = bool(find_match(t, pins))
+    if isinstance(body.get("todos"), list):
+        body["todos"] = merge_cross_chat(body["todos"])
     return body
+
+
+def merge_cross_chat(todos: list) -> list:
+    """多个群提到同一件事只留一条（先出现的），其余群名记入 also。已完成的不参与合并。"""
+    out = []
+    for t in todos:
+        if t.get("done"):
+            out.append(t)
+            continue
+        host = next((o for o in out if not o.get("done") and _norm_chat(o.get("chat")) != _norm_chat(t.get("chat"))
+                     and same_todo(o, t, cross_chat=True)), None)
+        if host is None:
+            out.append(t)
+            continue
+        also = host.setdefault("also", [])
+        for c in [t.get("chat")] + (t.get("also") or []):
+            if c and c != host.get("chat") and c not in also:
+                also.append(c)
+        if t.get("pinned"):
+            host["pinned"] = True
+    return out
 
 
 def snooze_until(h, now: datetime) -> datetime:
