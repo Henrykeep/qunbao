@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.19"
+VERSION = "0.34.20"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -3382,6 +3382,10 @@ def cite(answer: str, valid: dict):
     return text, out
 
 
+_ASK_CACHE: dict = {}
+ASK_CACHE_TTL = 600
+
+
 @app.post("/api/ask", dependencies=[Depends(auth)])
 async def ask(req: Request):
     """问答。可限定一个群（chat + source；「不看」的群也能问），也可从上次已读位置起（since_id）。
@@ -3406,6 +3410,10 @@ async def ask(req: Request):
                                             for t in b["todos"][:20] + b["notices"][:10]) or ""
     if not lines:
         return {"a": ("这段时间你没看的部分没有新消息。" if since_id else f"最近{'一周' if since_id else ' 3 天'}{scope}里没有相关消息。"), "citations": []}
+    key = (re.sub(r"\s+", "", q), chat, source, since_id, json.dumps(hist, ensure_ascii=False), hash("\n".join(lines)), bool(extra))
+    hit = _ASK_CACHE.get(key)
+    if hit and time.time() - hit[0] < ASK_CACHE_TTL:  # 同一问题、同样的聊天记录：直接复用，不再花一次模型调用
+        return {**hit[1], "reused": True}
     a = await llm([
         {"role": "system", "content": f"【问答】你是用户的群消息秘书。现在是 {now:%Y-%m-%d %H:%M}。{about_me(s)}\n"
                                       f"只根据下面{scope}的聊天记录回答。像朋友帮忙转述一样说人话、口语、简短，不要报告腔，不要「综上所述」「以下是」：先一句话直接回答，需要时再用「- 」列 2–4 个要点，每点不超过 30 字。"
@@ -3418,7 +3426,11 @@ async def ask(req: Request):
     ids = {int(ln[1:].split(" ", 1)[0]) for ln in lines}
     valid = {r["id"]: r for r in rows if r["id"] in ids}
     text, cites = cite(tidy_bullets(a), valid)
-    return {"a": text, "citations": cites, "scope": {"chat": chat, "source": source}, "used": len(lines)}
+    out = {"a": text, "citations": cites, "scope": {"chat": chat, "source": source}, "used": len(lines)}
+    if len(_ASK_CACHE) > 100:
+        _ASK_CACHE.clear()
+    _ASK_CACHE[key] = (time.time(), out)
+    return out
 
 
 def tidy_bullets(a: str, limit: int = 34) -> str:
