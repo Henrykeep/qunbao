@@ -91,7 +91,7 @@ def test_parse_due_and_reminders(monkeypatch):
         sent.append(title)
         return True
     monkeypatch.setattr(app_mod, "push", fake)
-    due = datetime.now(app_mod.TZ) + timedelta(hours=2)
+    due = __import__("datetime").datetime.now(app_mod.TZ) + timedelta(hours=2)
     body = {"todos": [{"title": "交作业", "chat": "班级群", "due": due.strftime("%m月%d日 %H:%M")}]}
     app_mod.save_settings({"bark_url": "http://x", "remind_hours": 3})
     with app_mod.db() as c:
@@ -118,7 +118,7 @@ def test_quiet_hours(monkeypatch):
         return R()
     monkeypatch.setattr(app_mod.httpx.AsyncClient, "post", fake_post)
     app_mod.kv_set("held", "[]")
-    now_h = datetime.now(app_mod.TZ).hour  # 免打扰设成「当前这个小时」，不受跑测试的时刻影响
+    now_h = __import__("datetime").datetime.now(app_mod.TZ).hour  # 免打扰设成「当前这个小时」，不受跑测试的时刻影响
     app_mod.save_settings({"bark_url": "http://x/k", "quiet_start": now_h, "quiet_end": (now_h + 1) % 24})
     assert asyncio.run(app_mod.push("a", "b")) is False and not sent and len(app_mod._held_get()) == 1
     app_mod.save_settings({"quiet_start": -1})
@@ -1115,7 +1115,7 @@ def test_held_push_survives_restart(monkeypatch):
     import asyncio
     app_mod.kv_set("held", "[]")
     from datetime import datetime
-    h = datetime.now(app_mod.TZ).hour
+    h = __import__("datetime").datetime.now(app_mod.TZ).hour
     app_mod.save_settings({"bark_url": "http://x/k", "quiet_start": h, "quiet_end": (h + 1) % 24})
     try:
         assert asyncio.run(app_mod.push("a", "b")) is False
@@ -1440,6 +1440,10 @@ def test_clean_qq_cache(tmp_path):
     assert (tmp_path / "nt_qq_x" / "nt_data" / "Pic").is_dir()
 
 
+def _today_cn():
+    return __import__("datetime").datetime.now(app_mod.TZ).strftime("%m月%d日")
+
+
 def test_headline_drops_done_item():
     import json as _j
     _fresh()
@@ -1447,9 +1451,9 @@ def test_headline_drops_done_item():
     with app_mod.db() as x:
         x.execute("DELETE FROM digests")
         x.execute("INSERT INTO items(kind,title,status,first_ts,updated_ts,source,chat) VALUES('todo','前往大活3405参加紧急会议','done',?,?,'QQ','g1')", (now, now))
-        x.execute("INSERT INTO items(kind,title,due,status,first_ts,updated_ts,source,chat) VALUES('todo','今晚按时打卡学习','10月09日 今晚','open',?,?,'QQ','g2')", (now, now))
+        x.execute("INSERT INTO items(kind,title,due,status,first_ts,updated_ts,source,chat) VALUES('todo','今晚按时打卡学习','"+_today_cn()+" 今晚','open',?,?,'QQ','g2')", (now, now))
         x.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (now, 24, _j.dumps({"headline": "请即刻前往大活3405参加紧急会议",
-                  "todos": [{"title": "今晚按时打卡学习", "due": "10月09日 今晚", "done": False}], "notices": []}, ensure_ascii=False)))
+                  "todos": [{"title": "今晚按时打卡学习", "due": _today_cn() + " 今晚", "done": False}], "notices": []}, ensure_ascii=False)))
     with TestClient(app_mod.app) as cc:
         h = cc.get("/api/state", headers=AUTH).json()["digest"]["headline"]
     assert "3405" not in h and "打卡" in h
@@ -1682,7 +1686,7 @@ def test_activity_hours_follow_app_tz():
     """活跃时段按 APP_TZ 分，不跟服务器（容器里通常是 UTC）的本地时间。"""
     from datetime import datetime
     now = int(time.time())
-    ts = int(datetime.now(app_mod.TZ).replace(hour=3, minute=30, second=0, microsecond=0).timestamp())
+    ts = int(__import__("datetime").datetime.now(app_mod.TZ).replace(hour=3, minute=30, second=0, microsecond=0).timestamp())
     if ts > now:
         ts -= 86400
     before = app_mod.activity_stats(2, "活跃测试源", now)["hours"][3]
