@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.25"
+VERSION = "0.34.26"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -741,23 +741,14 @@ def kv_add(k, n=1):
         r = c.execute("SELECT v FROM kv WHERE k=?", (k,)).fetchone()
         c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES(?,?)", (k, str(int(float(r["v"]) if r else 0) + n)))
 LLM_RETRY_WAIT = 2
+from llm_errors import is_censored, llm_short, REJECT_CODES, LLM_FATAL_CODES  # noqa: E402
+from llm_errors import llm_err_text as _llm_err_text  # noqa: E402
 
 
 def llm_err_text(code: int, text: str) -> str:
-    """把接口报错翻译成用户看得懂、知道怎么修的话。"""
-    t = (text or "")[:300]
-    low = t.lower()
-    if code == 402 or "insufficient" in low or "balance" in low or "余额" in t or "quota" in low:
-        return "大模型余额不足：去服务商后台充值后，点「整理」即可恢复"
-    if code in (401, 403):
-        return "大模型 API Key 不对或已失效：在服务器 .env 里改 LLM_API_KEY，重启 qunbao 容器"
-    if code == 404:
-        return f"大模型接口地址或模型名不对：检查 .env 里的 LLM_BASE_URL 和 LLM_MODEL（现在是 {LLM_MODEL}）"
-    if code == 429:
-        return "大模型被限流（请求太频繁）：几分钟后会自动重试"
-    if code >= 500:
-        return f"大模型服务商出故障（{code}）：稍后会自动重试"
-    return f"大模型接口报错 {code}：{t[:160]}"
+    return _llm_err_text(code, text, LLM_MODEL)
+
+
 
 
 LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "60"))  # 单次调用最多等这么久（以前 180 秒，超时再重试一次，一个群能「正在整理」6 分钟）
@@ -768,16 +759,6 @@ _CALL_TS: collections.deque = collections.deque(maxlen=2000)   # 最近的模型
 LLM_COOL = [0.0]              # 全局冷却到这个时间点：被限流时所有调用一起等，而不是各自继续撞
 
 
-def is_censored(code: int, text: str) -> bool:
-    low = (text or "").lower()
-    return code == 451 or "censorship" in low or "content_filter" in low or "data_inspection_failed" in low \
-        or "content you provided" in low or "敏感" in (text or "")
-
-
-REJECT_CODES = (451, 400, 413, 422)  # 模型拒收这一块内容（审核拦截 / 请求有问题 / 太长）：拆小跳过，不整个群卡死
-LLM_FATAL_CODES = (401, 402, 403, 404)  # 余额不足 / 密钥错误 / 地址或模型名错误：自动整理不重试，等设置变更或手动整理
-
-
 def llm_err_shown() -> str:
     """首页黄条：要用户动手的错误（余额/密钥/地址）立刻显示；限流、超时这类偶发错误后台自己重试，连续 5 分钟都失败才显示。"""
     if LLM_STATE.get("ok", True) or not LLM_STATE.get("err"):
@@ -785,28 +766,6 @@ def llm_err_shown() -> str:
     if LLM_STATE.get("code") in LLM_FATAL_CODES or time.time() - (LLM_STATE.get("fail_since") or time.time()) >= 300:
         return LLM_STATE["err"]
     return ""
-
-
-def llm_short(code: int, err: str) -> str:
-    """顶部状态用的短原因。"""
-    e = err or ""
-    if code == 402 or "余额" in e:
-        return "余额不足"
-    if code in (401, 403) or "Key" in e:
-        return "API Key 不对"
-    if code == 404:
-        return "接口地址或模型名不对"
-    if code == 429:
-        return "被限流"
-    if code == -1:
-        return "没配置大模型"
-    if "超时" in e:
-        return "接口超时"
-    if "连不上" in e:
-        return "连不上大模型"
-    if code >= 500:
-        return "服务商故障"
-    return "大模型报错"
 
 
 def llm_log(kind: str):
