@@ -1,3 +1,6 @@
+## 0.34.41 — 2026-10-11
+- 重构：首页实时更新的头条决策（要不要重写、规则先拼、模型限流）抽成 headline.live_head_plan 纯函数，refresh_live 只管落库；行为不变。
+
 ## 0.34.40 — 2026-10-11
 
 - 重构：JSON 容错解析 _jparse / _int 收进 textclean.py，app.py 再瘦；行为不变。
