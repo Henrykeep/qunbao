@@ -55,3 +55,18 @@ def _head_score(head, title):
 
 
 HEAD_MATCH = 0.5
+
+
+def live_head_plan(prev_body: dict, body: dict, has_latest: bool, last_model_ts: float, now: float, gap: int, model_head: bool = True):
+    """首页那一期原地更新时的头条决策（纯函数）：返回 (new_items, head, want_model)。
+    出现新的要紧事项（高紧急 / @我）、或头条还是「没事」而现在有事、或没有旧期 → 重写（先用规则拼）；模型头条受 gap 限流。"""
+    old_ids = {(t.get("id"), t.get("title")) for t in (prev_body.get("todos") or []) + (prev_body.get("notices") or [])}
+    new = [t for t in body["todos"] + body["notices"] if (t.get("id"), t.get("title")) not in old_ids and not t.get("done")]
+    hot = [t for t in new if t.get("urgency") == "high" or t.get("at_me")]
+    head = prev_body.get("headline") or ""
+    opens = [t for t in body["todos"] if not t["done"]] + body["notices"]
+    rewrite = bool(hot or (head in QUIET_HEADS and opens) or not has_latest)
+    if rewrite:
+        head = rule_headline(hot or opens) or head
+    want_model = rewrite and model_head and now - float(last_model_ts or 0) >= gap
+    return new, head, opens, want_model
