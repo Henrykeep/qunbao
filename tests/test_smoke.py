@@ -2109,3 +2109,19 @@ def test_export_has_no_secrets():
     app_mod.kv_set("vapid_priv", "SECRETPRIV")
     t = c.get("/api/export", headers=AUTH).text
     assert "SECRETPRIV" not in t
+
+
+def test_design_tokens_0340():
+    """0.34.0 布局重构：样式只从设计变量取值；引用的变量必须都有定义；按钮统一用 .btn。"""
+    import re as _re
+    h = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
+    css = h[h.index("<style>"):h.index("</style>")]
+    for k in ("--s1:", "--s7:", "--t-xs:", "--t-2xl:", "--r-lg:", "--hit:", "--danger:"):
+        assert k in css, k
+    used = set(_re.findall(r"var\((--[\w-]+)", h))
+    assert not [v for v in used if v + ":" not in h], "引用了未定义的 CSS 变量"
+    assert len(set(_re.findall(r"font-size:([\d.]+px)", css))) <= 10           # 字号走 --t-*，裸像素只留少数特例
+    for old in (".more-btn{display:block", ".acts2 button", ".brief .bf button", ".snzmenu button", ".suggest button", ".srcs button", ".sfchip button"):
+        assert old not in css, old                                                 # 旧的各自为政的按钮样式不再回来
+    assert 'class="btn line sm more-btn"' in h and 'class="btn line lg go"' in h
+    assert '[hidden]{display:none!important}' in css
