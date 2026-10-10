@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.25"
+VERSION = "0.33.26"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -475,7 +475,6 @@ def mark_pushed(keys):
     now = int(time.time())
     with db() as c:
         c.executemany("INSERT OR REPLACE INTO pushed(k,ts) VALUES(?,?)", [(k, now) for k in keys if k])
-        c.execute("DELETE FROM pushed WHERE ts<?", (now - 30 * 86400,))
 
 
 async def push_msg(mid: int, *a, **k):
@@ -929,8 +928,6 @@ def llm_log(kind: str):
     now = int(time.time())
     with db() as c:
         c.execute("INSERT INTO llm_log(ts,kind) VALUES(?,?)", (now, kind))
-        if now % 50 == 0:
-            c.execute("DELETE FROM llm_log WHERE ts<?", (now - 3 * 86400,))
 
 
 def llm_calls_since(sec: int = 3600) -> dict:
@@ -2551,26 +2548,35 @@ async def scheduler():
                     await asyncio.to_thread(clean_qq_cache)
             if now.hour == 4 and cleaned != now.date():  # 每天凌晨清理过期消息（不依赖正好 4:00 这一分钟醒着）
                 cleaned = now.date()
-                with db() as c:
-                    c.execute("DELETE FROM msgs WHERE ts<?", (int(time.time()) - max(1, int(settings().get("keep_days") or KEEP_DAYS)) * 86400,))
                 with contextlib.suppress(Exception):
                     await asyncio.to_thread(prune_db)
             await asyncio.sleep(60)
     return asyncio.gather(loop(), auto_loop())
 
 
+# 保留期表：每天凌晨统一清理，新增要清的表只改这里。(表, 时间列, 保留天数, 额外条件)
+RETENTION = [
+    ("sessions", "exp", 0, ""),                  # 已过期的登录会话
+    ("pushed", "ts", 30, ""),                    # 推送去重记录
+    ("llm_log", "ts", 3, ""),                    # 大模型调用统计
+    ("digests", "ts", 90, ""),                   # 历史整理
+    ("reminded", "ts", 60, ""),                  # 提醒记录
+    ("todo_done", "ts", 90, ""),                 # 勾掉记录
+    ("snooze", "until", 30, ""),                 # 早已触发的稍后提醒
+    ("items", "updated_ts", 90, "status!='open' AND pinned=0"),  # 已完成/过期的旧事项
+]
+
+
 def prune_db(now=None):
-    """每天一次：清过期登录会话、90 天前的历史整理、60 天前的提醒记录，并截断 WAL 文件。"""
+    """每天一次：按保留期表清旧记录和过期消息（keep_days 可设置），再刷新索引统计并截断 WAL。"""
     now = int(now or time.time())
+    keep = max(1, int(settings().get("keep_days") or KEEP_DAYS))
     with db() as c:
-        c.execute("DELETE FROM sessions WHERE exp<?", (now,))
-        c.execute("DELETE FROM digests WHERE ts<?", (now - 90 * 86400,))
-        c.execute("DELETE FROM reminded WHERE ts<?", (now - 60 * 86400,))
-        c.execute("DELETE FROM todo_done WHERE ts<?", (now - 90 * 86400,))
-        c.execute("DELETE FROM snooze WHERE until<?", (now - 30 * 86400,))  # 早已触发的稍后提醒记录
-        c.execute("DELETE FROM items WHERE status!='open' AND pinned=0 AND updated_ts<?", (now - 90 * 86400,))  # 已完成/过期的旧事项
+        for table, col, days, cond in RETENTION:
+            c.execute(f"DELETE FROM {table} WHERE {col}<?" + (f" AND {cond}" if cond else ""), (now - days * 86400,))
+        c.execute("DELETE FROM msgs WHERE ts<?", (now - keep * 86400,))
     with contextlib.suppress(Exception):
-        c = db(); c.execute("PRAGMA optimize"); c.execute("PRAGMA wal_checkpoint(TRUNCATE)"); c.close()  # optimize：刷新索引统计，大库查询计划更准
+        c = db(); c.execute("PRAGMA optimize"); c.execute("PRAGMA wal_checkpoint(TRUNCATE)"); c.close()
 
 
 # ---------------- 清 NapCat 里 QQ 的媒体缓存 ----------------
