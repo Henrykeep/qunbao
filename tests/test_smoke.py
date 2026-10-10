@@ -2193,3 +2193,18 @@ def test_merge_cross_chat():
           {"title": "下载反诈APP", "chat": "三班群"}, {"title": "交作业", "chat": "二班群"}]
     out = A.merge_cross_chat(ts)
     assert len(out) == 2 and out[0]["also"] == ["二班群", "三班群"]
+
+
+def test_ask_reuses_repeated_answer():
+    _seed_chat("复用群", ["要交实验报告", "周五截止"])
+    app_mod._ASK_CACHE.clear()
+    calls, fake = _llm_spy(lambda m: "没有新的进展")
+    ol = app_mod.llm
+    app_mod.llm = fake
+    try:
+        b = {"q": "复用测试 要交什么", "chat": "复用群", "source": "QQ"}
+        r1 = c.post("/api/ask", headers=AUTH, json=b).json()
+        r2 = c.post("/api/ask", headers=AUTH, json=b).json()
+    finally:
+        app_mod.llm = ol
+    assert r1.get("used") and r2.get("reused") and len(calls) == 1
