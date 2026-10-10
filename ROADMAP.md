@@ -187,7 +187,7 @@
 - [ ] 第 4 步 设置（0.34.6 已做：报头右侧换成版本 + 连接状态，一级页说明压短；剩：建议卡、批量条统一组件）
 - [x] 0.34.5 第 3 步 原文 / 搜索（0.34.4 挪走活跃时段，0.34.5 搜索结果组件化 + 空状态统一）：搜索结果的群分组标题、时间筛选与列表行完全组件化；「近 7 天活跃时段」挪到设置 → 关于（它是统计，不是找消息要用的）；空状态统一为 `.empty`（大字 + 一句说明 + 一个按钮）。
 - [ ] 第 4 步 设置：报头右侧改成版本 / 连接状态而不是「群报」；一级页 4 个区块的说明文字（.gd）压到 1 行以内，长说明进二级页；群设置的建议卡、批量条用 `.card` / `.btn`。
-- [ ] 第 5 步 JS 结构：render() 280 行拆成 renderHead / renderTodos / renderAts / renderNotices / renderGroups / renderLinks，每段返回带 data-sec 的区块（morph 已按 data-sec 局部更新），模板里的重复片段（来源标签、头像、空状态）收成小函数；index.html 的 JS 按页面分段注释。
+- [x] 0.34.8 第 5 步（首页部分已拆；其他页的 JS 待后续） JS 结构：render() 280 行拆成 renderHead / renderTodos / renderAts / renderNotices / renderGroups / renderLinks，每段返回带 data-sec 的区块（morph 已按 data-sec 局部更新），模板里的重复片段（来源标签、头像、空状态）收成小函数；index.html 的 JS 按页面分段注释。
 - [ ] 第 6 步 iOS 动态字体：字号变量改为 rem，根字号跟随 `-apple-system-body`，真机验证系统大字号（目前只用「显示缩放」模拟）。
 
 **只在模拟环境验证**：以上截图、越界、点击区、对比度、行为检查都在 Chromium（Playwright，iPhone 390×844 / 325×703 模拟）+ 假数据里完成；Safari 真机的字体渲染、安全区、键盘弹起后底栏位置未验证。
