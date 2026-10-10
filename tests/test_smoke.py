@@ -2103,3 +2103,9 @@ def test_healthz_checks_db(monkeypatch):
     def boom(*a, **k): raise RuntimeError("x")
     monkeypatch.setattr(A, "db", boom)
     assert c.get("/healthz").status_code == 503
+
+
+def test_export_has_no_secrets():
+    app_mod.kv_set("vapid_priv", "SECRETPRIV")
+    t = c.get("/api/export", headers=AUTH).text
+    assert "SECRETPRIV" not in t
