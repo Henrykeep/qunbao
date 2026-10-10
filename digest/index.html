@@ -100,6 +100,7 @@ h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
 .tag.s-wx{color:var(--wx);border-color:color-mix(in srgb,var(--wx) 35%,transparent)}
 .tag.at{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 35%,transparent);font-weight:600}
 .badge{flex:none;font-size:var(--t-2xs);font-weight:700;color:#fff;background:var(--accent);border-radius:var(--r-pill);padding:1px 6px}
+.pinic{flex:none;margin-left:4px;color:var(--amber);font-size:var(--t-2xs)}
 .mtag{flex:none;margin-left:6px;padding:0 6px;border-radius:var(--r-xs);background:var(--chip);color:var(--sub);font-size:var(--t-2xs);font-weight:500;line-height:18px}
 .mtag.focus{color:var(--amber)} .mtag.off{color:var(--faint)}
 /* 列表行：@我、通知、链接、搜索结果、往期 共用间距和分隔线 */
@@ -758,6 +759,7 @@ const hlAt=s=>esc(s).replace(/(@我|@全体成员|@所有人)/g,'<em class="at-h
 const hlQ=(s,q)=>{const e=hlAt(s);if(!q)return e;const qq=esc(q).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");return e.split(/(<[^>]*>|&(?:amp|lt|gt|quot|#39);)/).map((x,i)=>i%2?x:x.replace(new RegExp(qq,"gi"),m=>`<mark>${m}</mark>`)).join("")};
 const debounce=(f,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>f(...a),ms)}};
 const ICON={
+  pin:'<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M9 3h6l-1 6 3 3v2h-4v6l-1 1-1-1v-6H7v-2l3-3z"/></svg>',
   clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
   down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
@@ -863,7 +865,9 @@ const MODE={focus:["重点盯","总结加权，要紧消息即时推送"],normal
 /* 群的重要性分档（首页「各群在聊」与原文群列表共用）：0 有待办/未读@我  1 重点盯  2 正常  3 只看@我  4 不看。处理完自动回落到自己的档位。 */
 const TIERS=["待处理","重点盯","正常","只看@我"];
 const chatTier=(mode,open,ats)=>mode==="off"?4:(open>0||ats>0)?0:{focus:1,atonly:3}[mode]??2;
-const byTier=(tier,ts)=>(a,b)=>tier(a)-tier(b)||ts(b)-ts(a);
+/* 置顶（用户手动，只管位置）永远在最前，按置顶先后（新的在上）；其余按档位、再按最新消息时间 */
+const byTier=(tier,ts,pin)=>(a,b)=>{const pa=pin(a),pb=pin(b);return pa||pb?(pb?1:0)-(pa?1:0)||pb-pa:tier(a)-tier(b)||ts(b)-ts(a)};
+const pinOf=(src,chat,pins)=>(pins||{})[(src||"QQ")+"|"+chat]||0;
 /* 首页渲染：数据整理（homeModel）→ 每个区块一个小函数（返回 HTML）→ 统一绑定事件。 */
 function homeModel(st){
   const d=st.digest,done=new Set(st.done||[]),pins=new Set(st.pins||[]),ps=st.per_src||{},per=st.per_chat||{},now=Date.now()/1000;
@@ -873,7 +877,7 @@ function homeModel(st){
   const open=todos.filter(t=>!isDone(t));
   const soon=open.filter(t=>t.due_ts&&t.due_ts-now<48*3600&&t.due_ts>now).length;
   const gN=g=>ps[(g.source||"QQ")+"|"+g.chat]??per[g.chat]??0;
-  const groups=(d.groups||[]).map(g=>({...g,n:gN(g)})).sort(byTier(g=>chatTier(g.focus?"focus":"normal",g.open||0,0),g=>g.n));
+  const groups=(d.groups||[]).map(g=>({...g,n:gN(g)})).sort(byTier(g=>chatTier(g.focus?"focus":"normal",g.open||0,0),g=>g.n,g=>pinOf(g.source,g.chat,st.chat_pins)));
   return {st,d,now,isDone,isPin,todos,notices:d.notices||[],ats,allAts,open,soon,groups,links:st.links||[],atBy:new Set(allAts.filter(a=>a.covered).map(a=>a.by||""))};
 }
 const secHead=(title,n)=>`<h2>${title} <span class="c">${n||""}</span></h2>`;
@@ -1225,8 +1229,18 @@ function modeSheet(src,chat){
   const cur=(CHATS.find(c=>c.chat===chat&&c.source===src)||{}).mode||($("#cmode").dataset.m&&chat===chatName?$("#cmode").dataset.m:"normal");
   $("#modettl").textContent=`怎么盯「${chat.length>12?chat.slice(0,12)+"…":chat}」`;
   $("#modeopts").innerHTML=Object.entries(MODE).map(([k,[n,d]])=>`<button class="modeopt ${k===cur?"on":""}" data-m="${k}"><i></i><div><b>${n}</b><span>${d}</span></div></button>`).join("");
+  const pinned=!!(CHATS.find(c=>c.chat===chat&&c.source===src)||{}).pin||(ST&&pinOf(src,chat,ST.chat_pins)>0);
+  $("#modeopts").insertAdjacentHTML("beforeend",`<button class="modeopt pinopt" id="pinopt"><i></i><div><b>${pinned?"取消置顶":"置顶这个群"}</b><span>只管排在列表哪里，和上面怎么盯互不影响</span></div></button>`);
   const sh=$("#modeSheet");sheetOn(sh);
-  $$("#modeopts .modeopt").forEach(b=>b.onclick=async()=>{tick();const m=b.dataset.m;sheetOff(sh);
+  $("#pinopt").onclick=async()=>{tick();sheetOff(sh);
+    try{await api("/api/chat_pin",{source:src,chat,pin:!pinned});
+      CHATS.forEach(c=>{if(c.chat===chat&&c.source===src)c.pin=pinned?0:Date.now()/1000});
+      if(ST){ST.chat_pins=ST.chat_pins||{};const k=(src||"QQ")+"|"+chat;pinned?delete ST.chat_pins[k]:ST.chat_pins[k]=Date.now()/1000}
+      toast(pinned?"已取消置顶":"已置顶");
+      if(curView==="msgs"&&$("#msgs-chat").hidden)renderChats();
+      if(curView==="home"){ST=null;refreshQuiet()}
+    }catch(e){toast("没改成："+e.message)}};
+  $$("#modeopts .modeopt[data-m]").forEach(b=>b.onclick=async()=>{tick();const m=b.dataset.m;sheetOff(sh);
     try{await api("/api/chat_mode",{chats:[{source:src,chat}],mode:m});
       CHATS.forEach(c=>{if(c.chat===chat&&c.source===src){c.mode=m;c.muted=m==="off"}});
       if(chat===chatName&&src===chatSrc)setCmode(m);
@@ -1267,13 +1281,14 @@ function renderChats(){
   if(!L.length&&SRCF==="QQ"){$("#clist").innerHTML=emptyBox("QQ 还没有消息","登录 NapCat 并设置上报地址后，QQ 群会出现在这里");return}
   const prev=t=>String(t||"").replace(/```\w*/g,"").replace(/\s+/g," ").trim();
   const tr=c=>chatTier(c.mode,c.open||0,unreadAts(c));
-  const S=[...L].sort(byTier(tr,c=>c.last_ts));
+  const S=[...L].sort(byTier(tr,c=>c.last_ts,c=>c.pin||0));
+  const tg=c=>c.pin?-1:tr(c);
   const row=c=>`<button class="crow ${c.mode==="off"?"muted":""}" data-chat="${esc(c.chat)}" data-src="${esc(c.source)}">
     <div class="gav" style="background:hsl(${hue(c.chat)} 26% 46%)">${first(c.chat)}${srcBadge(c.source)}</div>
-    <div class="ci"><div class="cn"><b>${esc(c.chat)}</b>${c.mode&&c.mode!=="normal"?`<span class="mtag ${c.mode}">${MODE[c.mode][0]}</span>`:""}<span style="flex:1"></span><span class="tm">${ago(c.last_ts)}</span></div>
+    <div class="ci"><div class="cn"><b>${esc(c.chat)}</b>${c.pin?`<span class="pinic" title="已置顶">${ICON.pin}</span>`:""}${c.mode&&c.mode!=="normal"?`<span class="mtag ${c.mode}">${MODE[c.mode][0]}</span>`:""}<span style="flex:1"></span><span class="tm">${ago(c.last_ts)}</span></div>
     <div class="cl">${c.mode==="off"?ICON.bell.replace("<svg",'<svg class="mute-ic"'):""}<span>${esc(prev(c.last))}</span>${unreadAts(c)?`<span class="badge">@${unreadAts(c)}</span>`:""}</div></div></button>`;
-  let html="",last=-1;const off=S.filter(c=>tr(c)===4);
-  S.filter(c=>tr(c)<4).forEach(c=>{const t=tr(c);if(t!==last){html+=`<div class="sgh">${TIERS[t]}</div>`;last=t}html+=row(c)});
+  let html="",last=-2;const off=S.filter(c=>tg(c)===4);
+  S.filter(c=>tg(c)<4).forEach(c=>{const t=tg(c);if(t!==last){html+=`<div class="sgh">${t<0?"置顶":TIERS[t]}</div>`;last=t}html+=row(c)});
   if(off.length)html+=`<details class="offgrp"><summary class="sgh">已静音 ${off.length} 个群</summary>${off.map(row).join("")}</details>`;
   $("#clist").innerHTML=S.length?html:emptyBox("还没有消息","连上 QQ 或微信后，这里能翻所有群的原始记录");
   $$(".crow").forEach(b=>{b.onclick=()=>{if(b._sw){b._sw=0;return}tick();openChat(b.dataset.chat,null,b.dataset.src)};swipeRow(b);longPress(b,()=>modeSheet(b.dataset.src,b.dataset.chat))});
