@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.33.19"
+VERSION = "0.33.20"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -69,6 +69,15 @@ async def lifespan(_app):
 
 
 app = FastAPI(docs_url=None, redoc_url=None, lifespan=lifespan)
+
+
+@app.middleware("http")
+async def _sec_headers(request, call_next):
+    r = await call_next(request)
+    r.headers.setdefault("X-Content-Type-Options", "nosniff")
+    r.headers.setdefault("Referrer-Policy", "no-referrer")
+    r.headers.setdefault("X-Frame-Options", "DENY")
+    return r
 ARRIVE: dict[int, float] = {}   # 消息 id → 收到的时间（自动整理防抖用；重启后丢失则退回消息 ts）
 _WAKE: list = []                # 调度器的 asyncio.Event（收到消息 / 改设置时唤醒）
 
