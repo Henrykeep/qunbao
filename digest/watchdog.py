@@ -6,6 +6,11 @@ STALL_S = int(os.getenv("WATCHDOG_STALL_S", "180") or 0)   # 0 = 关闭
 _beat = time.monotonic()
 
 
+def lag_s() -> float:
+    """心跳距今多少秒；正常 ≤5，持续变大说明事件循环被卡住。"""
+    return round(time.monotonic() - _beat, 1)
+
+
 def stalled(last: float, now: float, limit: int = STALL_S) -> bool:
     return limit > 0 and now - last > limit
 
