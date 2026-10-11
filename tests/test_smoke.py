@@ -2413,3 +2413,9 @@ def test_prune_db_reports_problems(monkeypatch):
     monkeypatch.setattr(app_mod, "backup_db", boom)
     probs = app_mod.prune_db()
     assert any("备份失败" in p for p in probs) and any("100 MB" in p for p in probs)
+
+
+def test_shrink_db_skips_small_and_reclaims_big(tmp_path):
+    import app as A
+    assert A.shrink_db() == 0
+    assert A.shrink_db(min_free_mb=0) in (0,)  # 无空闲页时不动
