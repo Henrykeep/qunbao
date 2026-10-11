@@ -2291,3 +2291,9 @@ def test_tidy_title_strips_prefix_and_addressing():
     assert tidy_title("通知：交班费") == "交班费"
     assert tidy_title("麻烦各位同学填问卷") == "填问卷"
     assert tidy_title("大家记得带身份证") == "带身份证"
+
+
+def test_tidy_title_strips_trailing_notice_tail():
+    from textclean import tidy_title
+    assert tidy_title("明早八点主楼集合，请大家注意") == "明早八点主楼集合"
+    assert tidy_title("交班费，请知悉。") == "交班费"
