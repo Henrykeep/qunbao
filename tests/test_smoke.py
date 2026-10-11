@@ -2429,7 +2429,7 @@ def test_watchdog_stall():
 
 
 def test_noise_jielong_variants():
-    from digest.noise import is_noise
+    from noise import is_noise
     for t in ("＋1", "+1+1", "加一", "加 2"):
         assert is_noise(t), t
 
@@ -2440,13 +2440,20 @@ def test_noise_vote_replies():
 
 
 def test_noise_redpacket_sys():
-    from digest.noise import is_noise
+    from noise import is_noise
     assert is_noise("张三领取了你的红包") and is_noise("红包已被领完")
     assert not is_noise("红包发在群文件里，今晚八点前领取")
 
 
 def test_noise_mute_notices():
-    from digest.noise import is_noise
+    from noise import is_noise
     assert is_noise("张三被禁言10分钟")
     assert is_noise("李四被解除禁言")
     assert not is_noise("明天8点开会，被禁言的同学请联系管理员")
+
+
+def test_noise_group_setting_tips():
+    from noise import is_noise
+    assert is_noise("张三更换了群头像")
+    assert is_noise("管理员开启了群聊邀请确认")
+    assert not is_noise("明天群头像统一换成班徽")
