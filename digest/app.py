@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.18"
+VERSION = "0.35.19"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -2376,6 +2376,16 @@ def chat_suggest():
 @app.get("/api/settings", dependencies=[Depends(auth)])
 def get_settings():
     return settings()
+
+
+@app.get("/api/backup.db", dependencies=[Depends(auth)])
+def api_backup_db():
+    """下载数据库快照（原样 sqlite 文件，可直接放回 data/ 还原）；现场生成一份最新的。"""
+    try:
+        path = backup_db()
+    except Exception as e:
+        raise HTTPException(500, "备份失败：%s" % e)
+    return FileResponse(path, media_type="application/octet-stream", filename="qunbao.db")
 
 
 @app.get("/api/export", dependencies=[Depends(auth)])
