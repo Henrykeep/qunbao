@@ -2312,3 +2312,8 @@ def test_tidy_title_strips_urgent_bracket_and_dont_forget():
     from textclean import tidy_title
     assert tidy_title("（紧急）交班费") == "交班费"
     assert tidy_title("交班费，不要忘了哦") == "交班费"
+
+
+def test_tidy_title_strips_reply_request_tail():
+    from textclean import tidy_title
+    assert tidy_title("周五交实验报告，收到请回复") == "周五交实验报告"
