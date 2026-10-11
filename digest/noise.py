@@ -27,6 +27,7 @@ def is_noise(text: str) -> bool:
     if not core:  # 纯 emoji / 标点
         return True
     base = re.sub(r"[啦呀哟噢喔啊哇~]+$", "", core) if len(core) > 2 else core  # 「收到啦」「好的呀」语气尾巴不改变含义
+    base = re.sub(r"(老师|同学|学长|学姐|师兄|师姐|哥|姐)$", "", base) if len(base) > 3 else base  # 「收到老师」「好的学姐」称呼尾巴
     return core in NOISE_WORDS or _all_noise_words(core) or (len(base) >= 2 and (base in NOISE_WORDS or _all_noise_words(base))) or bool(re.fullmatch(r"(哈|呵|嘿|嘻)+|6+|1+|\+1", core))
 
 
