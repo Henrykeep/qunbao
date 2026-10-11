@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.48"
+VERSION = "0.34.49"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
