@@ -463,6 +463,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 #edgeShade{position:fixed;inset:0;z-index:1;display:none;background:#000;opacity:0;pointer-events:none}
 .dragging{position:relative;z-index:2;min-height:100vh;background:var(--bg);box-shadow:-10px 0 28px rgba(0,0,0,.35);will-change:transform}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.gd-top{margin-top:var(--s3)}.ci2.qq{background:var(--qq)}.ci2.wx{background:var(--wx)}.row.last{border:0}
 </style>
 </head>
 <body>
@@ -566,7 +567,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
   </div>
   <div class="sub" id="sub-groups" hidden>
     <div class="chat-head"><button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>设置</button><div class="ttl">群设置</div><div class="sp"></div></div>
-    <div class="gd" style="margin-top:var(--s3)">每个群怎么盯：<b>重点盯</b> 总结加权、要紧消息即时推送；<b>正常</b>；<b>只看@我</b> 不整理，只有 @你/@全体 才提醒；<b>不看</b> 不整理不推送，原文照样能翻、能问助手。</div>
+    <div class="gd gd-top">每个群怎么盯：<b>重点盯</b> 总结加权、要紧消息即时推送；<b>正常</b>；<b>只看@我</b> 不整理，只有 @你/@全体 才提醒；<b>不看</b> 不整理不推送，原文照样能翻、能问助手。</div>
     <div id="g-sugg"></div>
     <div class="gl">新出现的群</div>
     <div class="group card"><div class="row"><span class="rl">默认怎么盯<small>只影响以后新进来的群</small></span><select id="s-defmode"><option value="normal">正常</option><option value="atonly">只看@我</option><option value="off">不看</option></select></div></div>
@@ -601,8 +602,8 @@ details.howto[open] summary svg{transform:rotate(180deg)}
     <div class="chat-head"><button class="back" data-back><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>设置</button><div class="ttl">接入 QQ / 微信</div><div class="sp"></div></div>
     <div class="gl">状态</div>
     <div class="group card">
-      <div class="row"><span class="conn"><span class="ci2" style="background:var(--qq)">QQ</span><span class="rl">QQ<small>NapCat 扫码登录小号</small></span></span><span class="stat-dot" id="st-qq"><i></i><span>—</span></span></div>
-      <div class="row"><span class="conn"><span class="ci2" style="background:var(--wx)">微</span><span class="rl">微信<small>安卓备用机转发通知</small></span></span><span class="stat-dot" id="st-wx"><i></i><span>—</span></span></div>
+      <div class="row"><span class="conn"><span class="ci2 qq">QQ</span><span class="rl">QQ<small>NapCat 扫码登录小号</small></span></span><span class="stat-dot" id="st-qq"><i></i><span>—</span></span></div>
+      <div class="row"><span class="conn"><span class="ci2 wx">微</span><span class="rl">微信<small>安卓备用机转发通知</small></span></span><span class="stat-dot" id="st-wx"><i></i><span>—</span></span></div>
       <div class="row"><span class="rl">最近一条消息</span><span class="stat-dot" id="st-last"><span>—</span></span></div>
     </div>
     <div class="gl">接入 QQ</div>
@@ -618,7 +619,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
     </div>
     <div class="gl" id="wxsec">接入微信</div>
     <div class="group card">
-      <div class="row" style="border:0"><span class="rl">接收地址<small>填进通知转发 App 的 Webhook，口令已包含在里面</small></span></div>
+      <div class="row last"><span class="rl">接收地址<small>填进通知转发 App 的 Webhook，口令已包含在里面</small></span></div>
       <div class="urlbox"><code id="wx-url">—</code><button class="btn ghost" id="wx-copy">复制</button></div>
       <details class="howto" id="wx-how"><summary>怎么接（5 步）<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>
         <ol class="steps">
