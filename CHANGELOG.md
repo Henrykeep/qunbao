@@ -1,3 +1,6 @@
+## 0.34.52 — 2026-10-11
+- 重构：待办匹配（find_match）与跨群合并（merge_cross_chat）从 app.py 并入 todo_match.py，行为不变。
+
 ## 0.34.51 — 2026-10-11
 - 重构：登录相关纯函数（常量时间比较、令牌哈希、Basic 头解析、客户端 IP、会话 Cookie）从 app.py 拆到 authutil.py，行为不变。
 
