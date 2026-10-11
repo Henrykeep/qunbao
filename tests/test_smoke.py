@@ -2228,3 +2228,11 @@ def test_auto_stats_summarize():
            {"ts": now - 9999, "wait": 0, "secs": 1, "ok": True, "calls": 9, "n": 9, "sent": 9, "why": "old"}]
     r = auto_stats.summarize(log, 3600, now)
     assert r["runs"] == 2 and r["calls"] == 3 and r["fails"] == 1 and r["max_latency"] == 3
+
+
+def test_noise_repeated_words():
+    from digest.noise import is_noise
+    for x in ("好的好的", "收到收到收到！", "谢谢老师辛苦了", "好的，谢谢"):
+        assert is_noise(x), x
+    for x in ("好的明天交作业", "收到，几点集合", "明白了吗"):
+        assert not is_noise(x), x
