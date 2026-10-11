@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.19"
+VERSION = "0.35.20"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -27,6 +27,7 @@ INGEST_TOKEN = os.getenv("INGEST_TOKEN", "")
 ONEBOT_TOKEN = os.getenv("ONEBOT_TOKEN", "")
 MAX_CHARS = int(os.getenv("MAX_CHARS", "60000"))
 KEEP_DAYS = int(os.getenv("KEEP_DAYS", "30"))
+BACKUP_KEEP = max(1, int(os.getenv("BACKUP_KEEP", "3")))  # 数据库快照保留份数
 NAPCAT_DATA = os.getenv("NAPCAT_DATA", "/napcat_qq")   # NapCat 的 QQ 数据目录（docker-compose 挂进来），用来清图片缓存
 SESSION_DAYS = int(os.getenv("SESSION_DAYS", "30"))  # 网页登录保持天数
 
@@ -1848,7 +1849,7 @@ RETENTION = [
 ]
 
 
-def backup_db(keep=3):
+def backup_db(keep=None):
     """每天一份数据库快照（sqlite 在线备份，不阻塞写入）放在数据库同目录 backups/，只留最近 keep 份；失败不影响主流程。"""
     import sqlite3 as _sq
     d = os.path.join(os.path.dirname(DB) or ".", "backups")
@@ -1867,7 +1868,7 @@ def backup_db(keep=3):
     if not ok:  # 坏快照不能占名额挤掉好的
         os.remove(dst)
         raise RuntimeError("backup quick_check failed")
-    for f in sorted(x for x in os.listdir(d) if x.startswith("qunbao-") and x.endswith(".db"))[:-keep]:
+    for f in sorted(x for x in os.listdir(d) if x.startswith("qunbao-") and x.endswith(".db"))[:-(keep or BACKUP_KEEP)]:
         os.remove(os.path.join(d, f))
     return dst
 
