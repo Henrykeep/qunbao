@@ -2254,3 +2254,8 @@ def test_suggest_quiet_skips_at_me(monkeypatch):
             c.execute("INSERT INTO msgs(source,chat,sender,text,ts,at_me) VALUES(?,?,?,?,?,?)",
                       ("QQ", "点名测试群", "a", "哈哈哈" if i else "@我 来一下", now - i, 1 if i == 0 else 0))
     assert all(x["chat"] != "点名测试群" for x in app_mod.suggest_quiet())
+
+
+def test_noise_address_suffix():
+    from digest.noise import is_noise
+    assert is_noise("收到老师") and is_noise("好的学姐") and not is_noise("好的老师我明天交材料")
