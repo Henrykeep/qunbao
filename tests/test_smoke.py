@@ -2336,3 +2336,4 @@ def test_tidy_title_leave_tail():
     assert tidy_title("周六开班会，有事提前请假") == "周六开班会"
     assert tidy_title("周六开班会，请带好学生证") == "周六开班会"
     assert tidy_title("周六开班会，大家不要迟到") == "周六开班会"
+    assert tidy_title("周日交材料，请大家互相转告") == "周日交材料"
