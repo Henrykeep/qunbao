@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.24"
+VERSION = "0.35.25"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -2165,7 +2165,7 @@ def state(id: int | None = None, hours: int | None = None):
                    "qq": {"online": qq_on, "seen": hb_ts or last_qq, "last": last_qq},
                    "wx": {"online": wx_on, "seen": wx_ts, "last": last_wx, "ready": bool(INGEST_TOKEN)},
                    "llm": bool(LLM_KEY), "llm_err": llm_err_shown(),
-                   "llm_err_ts": LLM_STATE["ts"], "version": VERSION, "backup_age_h": backup_age_h(), "disk_free_mb": disk_free_mb()},
+                   "llm_err_ts": LLM_STATE["ts"], "version": VERSION, "backup_age_h": backup_age_h(), "disk_free_mb": disk_free_mb(), "loop_lag_s": _watchdog.lag_s()},
     }
 
 
@@ -2720,7 +2720,7 @@ def healthz():
             c.execute("SELECT 1").fetchone()
     except Exception:
         return JSONResponse({"ok": False, "version": VERSION}, status_code=503)
-    return {"ok": True, "version": VERSION, "backup_age_h": backup_age_h(), "disk_free_mb": disk_free_mb()}
+    return {"ok": True, "version": VERSION, "backup_age_h": backup_age_h(), "disk_free_mb": disk_free_mb(), "loop_lag_s": _watchdog.lag_s()}
 
 
 migrate_items()
