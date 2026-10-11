@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.49"
+VERSION = "0.34.50"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -896,6 +896,7 @@ ITEM_FIELDS = ("detail", "due", "urgency", "quote")
 # 0.34：只有「高置信度广告」才不送模型：至少两类强特征同时命中（其中一类是促销/拼团/代取兼职），且不带任何通知类字眼。
 # 拿不准一律送模型（例：「缴费链接今晚截止 https://… ¥50」只命中 链接+金额，照样送）
 from timing import snooze_until, digest_hours, weekly_title  # noqa: E402,F401 (0.34.35 拆出)
+from atme import at_me_view  # noqa: E402 (0.34.50 拆出)
 from textclean import _jparse, _int, AD_CATS, AD_VETO, DATE_IN_TITLE, URL_ONLY_RE, is_ad_sure, tidy_title, same_text  # noqa: E402,F401 (0.34.35 拆出)
 
 
@@ -2097,19 +2098,6 @@ def state(id: int | None = None, hours: int | None = None):
         sf = lambda x: in_digest(x.get("source") or srcs.get(x.get("chat"), "QQ"), x.get("chat") or "", s)
         for k in ("todos", "notices", "groups"):
             body[k] = [x for x in body.get(k) or [] if sf(x)]
-    # @我 的消息已经整理成事项的，首页不再重复列出（前端显示「另有 N 条已在待办里」）
-    covered = set()
-    for t in ((body or {}).get("todos", []) + (body or {}).get("notices", [])):
-        for m in str(t.get("msg_ids") or "").split():
-            if m.isdigit():
-                covered.add(int(m))
-    qs = [(norm_title(t.get("quote") or "")[:16], t.get("key") or "") for t in (body or {}).get("todos", []) if t.get("quote")]
-    mid_key = {}  # 哪条待办「认领」了这条 @我 的消息：前端靠它判断 @我 算不算已处理（待办勾完成就不再算）
-    for t in (body or {}).get("todos", []):
-        for m in str(t.get("msg_ids") or "").split():
-            if m.isdigit():
-                mid_key.setdefault(int(m), t.get("key") or "")
-    at_by = lambda r: mid_key.get(r["id"]) or next((k for q, k in qs if q and q in norm_title(r["text"])), "")
     nowdt = datetime.now(TZ)
     for t in (body or {}).get("todos", []):
         dd = parse_due(t.get("due", ""), nowdt)
@@ -2136,8 +2124,7 @@ def state(id: int | None = None, hours: int | None = None):
         "modes_tip": (not s.get("modes_tip_done")) and nchats >= 8,
         "nchats": nchats,
         "chat_src": srcs,
-        "at_me": [{"id": r["id"], "ts": r["ts"], "chat": r["chat"], "sender": r["sender"], "text": r["text"], "source": r["source"],
-                   "covered": r["id"] in covered or any(q and q in norm_title(r["text"]) for q, _ in qs), "by": at_by(r)} for r in ats],
+        "at_me": at_me_view(ats, body),
         "today": today,
         "links": extract_links(link_rows, s=s),
         "done": done,
