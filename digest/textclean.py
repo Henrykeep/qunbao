@@ -45,6 +45,7 @@ def tidy_title(t: str, limit: int = 22, due: str = "") -> str:
     t = re.sub(r"^(?:(?:温馨)?提醒|通知|紧急通知|重要通知|注意)[：:]\s*", "", t)  # 「通知：」「提醒：」前缀
     t = re.sub(r"^(?:麻烦|请)?(?:各位|大家|全体)(?:同学|小伙伴|老师)?(?:们)?[，,\s]*", "", t) or t
     t = re.sub(r"^(请于|请在|请|麻烦|需要|记得|务必|别忘了|不要忘记)\s*", "", t)
+    t = re.sub(r"^(?:(?:务必|尽快|及时|抓紧|赶紧|千万别?)\s*)+", "", t) or t  # 「请务必/尽快」叠词
     parts = re.split(r"[，,；;]\s*(?:并且|并|还要|另外|以及|同时|还有)|；|;", t)
     t = parts[0].strip(" ，,。") if parts and len(parts[0].strip()) >= 4 else t
     if len(t) <= limit:
