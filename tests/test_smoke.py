@@ -2426,3 +2426,9 @@ def test_shrink_db_skips_small_and_reclaims_big(tmp_path):
 def test_watchdog_stall():
     import watchdog
     assert watchdog.stalled(0, 200, 180) and not watchdog.stalled(0, 100, 180) and not watchdog.stalled(0, 999, 0)
+
+
+def test_noise_jielong_variants():
+    from digest.noise import is_noise
+    for t in ("＋1", "+1+1", "加一", "加 2"):
+        assert is_noise(t), t
