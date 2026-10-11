@@ -169,3 +169,35 @@ def same_todo(a: dict, b: dict, cross_chat: bool = False) -> bool:
         return True
     da, db_ = _norm_due(a.get("due")), _norm_due(b.get("due"))
     return bool(da and da == db_ and (r >= 0.3 or ov >= 0.25))
+
+
+def find_match(t: dict, recs: list):
+    k = todo_key(t)
+    for r in recs:
+        if r["k"] == k:
+            return r
+    for r in recs:
+        if same_todo(t, r):
+            return r
+    return None
+
+
+def merge_cross_chat(todos: list) -> list:
+    """多个群提到同一件事只留一条（先出现的），其余群名记入 also。已完成的不参与合并。"""
+    out = []
+    for t in todos:
+        if t.get("done"):
+            out.append(t)
+            continue
+        host = next((o for o in out if not o.get("done") and _norm_chat(o.get("chat")) != _norm_chat(t.get("chat"))
+                     and same_todo(o, t, cross_chat=True)), None)
+        if host is None:
+            out.append(t)
+            continue
+        also = host.setdefault("also", [])
+        for c in [t.get("chat")] + (t.get("also") or []):
+            if c and c != host.get("chat") and c not in also:
+                also.append(c)
+        if t.get("pinned"):
+            host["pinned"] = True
+    return out
