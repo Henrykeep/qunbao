@@ -2347,7 +2347,7 @@ def test_no_bare_px_font_sizes():
     import re
     src = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
     bad = re.findall(r"[^-]font-size:[0-9.]+px", src)
-    assert len(bad) == 2, bad
+    assert len(bad) == 1, bad
 
 
 def test_tidy_title_strips_consequence_tail():
