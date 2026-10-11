@@ -2352,3 +2352,4 @@ def test_no_bare_px_font_sizes():
 def test_tidy_title_strips_consequence_tail():
     from digest.textclean import tidy_title
     assert tidy_title("周日交材料，逾期后果自负") == "周日交材料"
+    assert tidy_title("周日交材料，请大家抓紧时间") == "周日交材料"
