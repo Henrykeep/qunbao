@@ -26,4 +26,22 @@ def is_noise(text: str) -> bool:
                                      and len(x) <= 4 and not re.search(r"\d", x)) for x in toks)
     if not core:  # 纯 emoji / 标点
         return True
-    return core in NOISE_WORDS or bool(re.fullmatch(r"(哈|呵|嘿|嘻)+|6+|1+|\+1", core))
+    return core in NOISE_WORDS or _all_noise_words(core) or bool(re.fullmatch(r"(哈|呵|嘿|嘻)+|6+|1+|\+1", core))
+
+
+_WORDS_DESC = sorted((w for w in NOISE_WORDS if not w.isascii() or len(w) > 1), key=len, reverse=True)
+
+
+def _all_noise_words(core: str) -> bool:
+    """整条由噪音词连着拼成（「好的好的」「收到谢谢」「谢谢老师辛苦了」）也算噪音；只切中文词，拼不满就不算。"""
+    if len(core) > 16 or len(core) < 4:
+        return False
+    i = 0
+    while i < len(core):
+        for w in _WORDS_DESC:
+            if core.startswith(w, i):
+                i += len(w)
+                break
+        else:
+            return False
+    return True
