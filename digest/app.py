@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.46"
+VERSION = "0.34.47"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -2370,6 +2370,8 @@ def suggest_quiet(s=None, days: int = 3):
     out = []
     for (src, chat), rs in by.items():
         if chat_mode(src, chat, s) not in ("normal", "focus") or chat.startswith("私聊") or len(rs) < 15:
+            continue
+        if any(r["at_me"] for r in rs):  # 有人 @ 过我的群不建议静音，免得漏掉点名
             continue
         ad = sum(1 for r in rs if AD_RE.search(r["text"] or "")) / len(rs)
         noise = sum(1 for r in rs if not r["at_me"] and classify(r, {**s, "modes": {}, "default_mode": "normal"}) == "drop") / len(rs)
