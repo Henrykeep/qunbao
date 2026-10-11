@@ -2419,3 +2419,8 @@ def test_shrink_db_skips_small_and_reclaims_big(tmp_path):
     import app as A
     assert A.shrink_db() == 0
     assert A.shrink_db(min_free_mb=0) in (0,)  # 无空闲页时不动
+
+
+def test_watchdog_stall():
+    import watchdog
+    assert watchdog.stalled(0, 200, 180) and not watchdog.stalled(0, 100, 180) and not watchdog.stalled(0, 999, 0)
