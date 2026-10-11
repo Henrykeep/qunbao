@@ -1,5 +1,5 @@
 """群报：收集 QQ（NapCat / OneBot 11）和微信（通知转发）群消息，用大模型挑出重要的事和待办。"""
-import asyncio, collections, contextlib, hashlib, json, os, re, secrets, sqlite3, time
+import asyncio, collections, contextlib, hashlib, json, os, re, secrets, shutil, sqlite3, time
 from difflib import SequenceMatcher
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, quote
@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.17"
+VERSION = "0.35.18"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -1882,6 +1882,14 @@ def backup_age_h():
     return round((time.time() - t) / 3600, 1)
 
 
+def disk_free_mb():
+    """数据目录所在磁盘剩余空间（MB）；读不到返回 None。小服务器磁盘写满会让数据库写入失败。"""
+    try:
+        return int(shutil.disk_usage(os.path.dirname(DB) or ".").free // 1048576)
+    except OSError:
+        return None
+
+
 def prune_db(now=None):
     """每天一次：按保留期表清旧记录和过期消息（keep_days 可设置），再刷新索引统计并截断 WAL。"""
     now = int(now or time.time())
@@ -2120,7 +2128,7 @@ def state(id: int | None = None, hours: int | None = None):
                    "qq": {"online": qq_on, "seen": hb_ts or last_qq, "last": last_qq},
                    "wx": {"online": wx_on, "seen": wx_ts, "last": last_wx, "ready": bool(INGEST_TOKEN)},
                    "llm": bool(LLM_KEY), "llm_err": llm_err_shown(),
-                   "llm_err_ts": LLM_STATE["ts"], "version": VERSION, "backup_age_h": backup_age_h()},
+                   "llm_err_ts": LLM_STATE["ts"], "version": VERSION, "backup_age_h": backup_age_h(), "disk_free_mb": disk_free_mb()},
     }
 
 
@@ -2665,7 +2673,7 @@ def healthz():
             c.execute("SELECT 1").fetchone()
     except Exception:
         return JSONResponse({"ok": False, "version": VERSION}, status_code=503)
-    return {"ok": True, "version": VERSION, "backup_age_h": backup_age_h()}
+    return {"ok": True, "version": VERSION, "backup_age_h": backup_age_h(), "disk_free_mb": disk_free_mb()}
 
 
 migrate_items()
