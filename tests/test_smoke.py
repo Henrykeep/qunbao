@@ -2437,3 +2437,9 @@ def test_noise_jielong_variants():
 def test_noise_vote_replies():
     from noise import is_noise
     assert is_noise("已投票") and is_noise("已填好") and not is_noise("已投票的同学请留下")
+
+
+def test_noise_redpacket_sys():
+    from digest.noise import is_noise
+    assert is_noise("张三领取了你的红包") and is_noise("红包已被领完")
+    assert not is_noise("红包发在群文件里，今晚八点前领取")
