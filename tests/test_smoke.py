@@ -2443,3 +2443,10 @@ def test_noise_redpacket_sys():
     from digest.noise import is_noise
     assert is_noise("张三领取了你的红包") and is_noise("红包已被领完")
     assert not is_noise("红包发在群文件里，今晚八点前领取")
+
+
+def test_noise_mute_notices():
+    from digest.noise import is_noise
+    assert is_noise("张三被禁言10分钟")
+    assert is_noise("李四被解除禁言")
+    assert not is_noise("明天8点开会，被禁言的同学请联系管理员")
