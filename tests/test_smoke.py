@@ -2392,3 +2392,11 @@ def test_backup_db_keeps_three(tmp_path, monkeypatch):
     dst = A.backup_db()
     assert os.path.exists(dst)
     assert len(os.listdir(d)) == 3
+
+
+def test_healthz_reports_backup_age(tmp_path, monkeypatch):
+    import app as A
+    monkeypatch.setattr(A, "DB", str(tmp_path / "x.db"))
+    assert A.backup_age_h() is None
+    d = tmp_path / "backups"; d.mkdir(); (d / "qunbao-20260101.db").write_bytes(b"x")
+    assert A.backup_age_h() < 1
