@@ -328,6 +328,7 @@ button.cite::after{content:"";position:absolute;inset:-10px -6px}
 .bub .thumbs .imgx{display:grid;place-items:center;color:var(--faint);font-size:var(--t-xs)}
 #imgbox{position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.88)}
 #imgbox img{max-width:96vw;max-height:92vh;border-radius:6px}
+.sk.k-cap{height:12px;width:40%;margin:var(--s5) 0 var(--s2)}.sk.k-h{height:26px;margin-bottom:var(--s2)}.sk.k-h2{height:26px;width:62%;margin-bottom:var(--s3)}.sk.k-box{height:52px;margin-bottom:var(--s6)}.sk.k-card{height:80px;margin-bottom:var(--s2);border-radius:var(--r-lg)}.sk.k-hist{height:60px;margin-top:10px}.sk.k-line{height:15px;margin-top:6px}.sk.k-line2{height:15px;width:82%;margin-top:10px}.sk.k-chat{height:56px;margin-top:12px}.sk.k-msg{height:44px;margin-top:14px;width:70%}
 .brief .sk{height:14px;margin-top:10px}.brief .sk.l1{margin-top:8px}.brief .sk.l2{width:80%}.brief .sk.l3{width:60%}.brief .subtxt{color:var(--sub);font-size:var(--t-sm)}
 .tolatest{position:fixed;right:var(--s4);bottom:calc(var(--dockh) + var(--s3));z-index:4;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 
@@ -842,9 +843,7 @@ $$("#seg button").forEach(b=>b.onclick=()=>{if(+b.dataset.h===hours&&!viewId)ret
 async function showRange(){const m=$("#main");try{const st=await api("/api/state?hours="+hours);m.classList.add("quiet");render(st);setTimeout(()=>m.classList.remove("quiet"),50)}catch(e){toast("没取到："+e.message)}}
 
 function skeleton(){  // 和真实首页同样的骨架：一行小字、两行头条、三格数字、三张卡
-  $("#main").innerHTML=`<div class="sk" style="height:12px;width:40%;margin:var(--s5) 0 var(--s2)"></div><div class="sk" style="height:26px;margin-bottom:var(--s2)"></div>
-  <div class="sk" style="height:26px;width:62%;margin-bottom:var(--s3)"></div><div class="sk" style="height:52px;margin-bottom:var(--s6)"></div>
-  ${'<div class="sk" style="height:80px;margin-bottom:var(--s2);border-radius:var(--r-lg)"></div>'.repeat(3)}`;
+  $("#main").innerHTML=skel("cap")+skel("h")+skel("h2")+skel("box")+skel("card",3);
 }
 function renderStatus(st){
   const s=st.status||{},l=$("#live");
@@ -1014,6 +1013,7 @@ function bindTip(){
 }
 function once(el,fn){if(el&&!el._b){el._b=1;fn(el)}}
 /* 局部更新：只替换变了的区块；待办按 key 对齐，没变的卡片原样保留（展开状态、动画都不动），新出现的轻轻高亮 */
+function skel(k,n=1){return `<div class="sk k-${k}"></div>`.repeat(n)}
 const normH=n=>n.outerHTML.replace(/ style="animation-delay:\d+ms"/g,"").replace(/ data-i="\d+"/g,"")
   .replace(/class="([^"]*)"/g,(m,c)=>'class="'+c.split(/\s+/).filter(x=>x&&!["open","fresh","fade"].includes(x)).join(" ")+'"');
 const secKey=e=>e.dataset.sec||e.className.split(" ")[0]||e.tagName;
@@ -1179,7 +1179,7 @@ setInterval(()=>{if(curView==="home")updLabel()},20000);
 
 /* 往期 */
 $("#histbtn").onclick=async()=>{
-  tick();const sh=$("#histSheet");sheetOn(sh);$("#hist").innerHTML='<div class="sk" style="height:60px;margin-top:10px"></div>'.repeat(3);
+  tick();const sh=$("#histSheet");sheetOn(sh);$("#hist").innerHTML=skel("hist",3);
   try{const list=await api("/api/digests");
     $("#hist").innerHTML=list.length?list.map(x=>`<button class="hrow lrow ${(viewId?x.id===viewId:x===list[0])?"cur":""}" data-id="${x.id}">
       <div class="lh"><b>${ago(x.ts)} · ${{24:"日报",72:"3 天合订",168:"周报"}[x.hours]||x.hours+" 小时"}${x.auto?" · 自动":""}</b><span>${x.count} 条 · ${x.todos} 件待办</span></div><div class="ht">${esc(x.headline)}</div></button>`).join("")
@@ -1214,7 +1214,7 @@ async function ask(q,scope,opts={}){
   q=q.trim();if(!q)return;$("#q").value="";$("#q2").value="";$("#cq").value="";document.activeElement?.blur?.();
   openAsk(scope||ASKSCOPE);
   const qa=document.createElement("div");
-  qa.innerHTML=`<div class="qq fade">${esc(q)}</div><div class="aa"><div class="sk" style="height:15px;margin-top:6px"></div><div class="sk" style="height:15px;width:82%;margin-top:10px"></div></div>`;
+  qa.innerHTML=`<div class="qq fade">${esc(q)}</div><div class="aa">${skel("line")}${skel("line2")}</div>`;
   $("#ti").appendChild(qa);setTimeout(()=>qa.scrollIntoView({behavior:"smooth",block:"start"}),50);
   const a=qa.querySelector(".aa"),hist=histLoad();
   try{const r=await api("/api/ask",{q,chat:ASKSCOPE.chat,source:ASKSCOPE.source,since_id:opts.since||0,
@@ -1272,7 +1272,7 @@ function renderSrcs(){
 }
 async function loadChats(){
   const q=$("#sq").value.trim();if(q)return search(q);
-  if(!CHATS.length)$("#clist").innerHTML='<div class="sk" style="height:56px;margin-top:12px"></div>'.repeat(5);
+  if(!CHATS.length)$("#clist").innerHTML=skel("chat",5);
   try{CHATS=await api("/api/chats");renderChats()}catch(e){$("#clist").innerHTML=`<div class="empty">${esc(e.message)}</div>`}
 }
 async function loadAct(){
@@ -1349,7 +1349,7 @@ async function openChat(chat,focus,src,msgId){
   $("#ctitle").innerHTML=`${esc(chat)}<small>${c?`${c.n} 条 · ${esc(c.source)}`:"聊天记录"}</small>`;
   setCmode(c?.mode||"normal");
   READ0=readGet(RK());
-  const box=$("#cmsgs");box.classList.add("pos");box.innerHTML='<div class="sk" style="height:44px;margin-top:14px;width:70%"></div>'.repeat(4);
+  const box=$("#cmsgs");box.classList.add("pos");box.innerHTML=skel("msg",4);
   const my=++chatSeq;window.scrollTo(0,0);
   loadBrief(my);
   try{const base=`/api/messages?chat=${encodeURIComponent(chat)}${chatSrc?`&source=${encodeURIComponent(chatSrc)}`:""}`;
