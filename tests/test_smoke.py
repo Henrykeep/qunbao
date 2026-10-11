@@ -2259,3 +2259,11 @@ def test_suggest_quiet_skips_at_me(monkeypatch):
 def test_noise_address_suffix():
     from digest.noise import is_noise
     assert is_noise("收到老师") and is_noise("好的学姐") and not is_noise("好的老师我明天交材料")
+
+
+def test_noise_repeated_single_char():
+    from digest.noise import is_noise
+    for x in ["好好好", "嗯嗯嗯嗯", "对对对", "行行行"]:
+        assert is_noise(x), x
+    for x in ["好好学习", "行不行"]:
+        assert not is_noise(x), x
