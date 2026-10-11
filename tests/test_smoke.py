@@ -1902,13 +1902,15 @@ def test_inspection_becomes_todo_even_if_model_only_summarizes():
 
 def test_rule_backfill_recent_inspection():
     _fresh(); _auto_reset()
+    import datetime as _dt
+    now = int(_dt.datetime.now(app_mod.TZ).replace(hour=14, minute=0, second=0, microsecond=0).timestamp())  # 固定在当天 14:00，避免凌晨 5 点换日边界让测试随时刻变化
     with app_mod.db() as x:
-        x.execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me) VALUES(?,?,?,?,?,0)", (int(time.time()) - 1800, "QQ", "补建班群", "况", "今晚导员会来查寝"))
-        x.execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me) VALUES(?,?,?,?,?,0)", (int(time.time()) - 4 * 3600, "QQ", "补建班群", "吴", "下课杨导要点到"))
-    assert app_mod.rule_backfill() >= 1
+        x.execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me) VALUES(?,?,?,?,?,0)", (now - 1800, "QQ", "补建班群", "况", "今晚导员会来查寝"))
+        x.execute("INSERT INTO msgs(ts,source,chat,sender,text,at_me) VALUES(?,?,?,?,?,0)", (now - 4 * 3600, "QQ", "补建班群", "吴", "下课杨导要点到"))
+    assert app_mod.rule_backfill(now=now) >= 1
     with app_mod.db() as x:
         assert [r["title"] for r in x.execute("SELECT title FROM items WHERE chat='补建班群'")] == ["今晚导员查寝：在寝室并收拾好"]
-    assert app_mod.rule_backfill() == 0
+    assert app_mod.rule_backfill(now=now) == 0
     _fresh()
 
 
