@@ -2328,3 +2328,4 @@ def test_tidy_title_strips_cooperate_tail():
     from textclean import tidy_title
     assert tidy_title("周三前交宿舍卫生费，请大家配合一下") == "周三前交宿舍卫生费"
     assert tidy_title("周五前交材料，逾期不候") == "周五前交材料"
+    assert tidy_title("周五前报名篮球赛，名额有限") == "周五前报名篮球赛"
