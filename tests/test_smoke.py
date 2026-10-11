@@ -2380,3 +2380,15 @@ def test_basic_auth_bruteforce_locks():
     assert c.get("/api/state", headers=good).status_code == 401  # 锁住后连对的也先拒
     app_mod._fails.clear()
     assert c.get("/api/state", headers=good).status_code == 200
+
+
+def test_backup_db_keeps_three(tmp_path, monkeypatch):
+    import app as A, os
+    monkeypatch.setattr(A, "DB", str(tmp_path / "q.db"), raising=False)
+    import store; monkeypatch.setattr(store, "DB", str(tmp_path / "q.db"))
+    A.init_db() if hasattr(A, "init_db") else None
+    d = tmp_path / "backups"; d.mkdir()
+    for i in range(1, 5): (d / f"qunbao-2020010{i}.db").write_text("x")
+    dst = A.backup_db()
+    assert os.path.exists(dst)
+    assert len(os.listdir(d)) == 3
