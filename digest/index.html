@@ -1523,8 +1523,9 @@ function drawGroups(){
   });
   drawBatch();
   function drawBatch(){const b=$("#g-batch");b.hidden=!GSEL.size;
-    b.innerHTML=`<span>已选 ${GSEL.size} 个</span>${Object.entries(MODE).map(([m,[n]])=>`<button class="btn sm" data-m="${m}">${n}</button>`).join("")}<button class="btn sm" data-m="">取消</button>`;
+    b.innerHTML=`<span>已选 ${GSEL.size} 个</span>${Object.entries(MODE).map(([m,[n]])=>`<button class="btn sm" data-m="${m}">${n}</button>`).join("")}<button class="btn sm" data-m="*">全选</button><button class="btn sm" data-m="">取消</button>`;
     b.querySelectorAll("button").forEach(x=>x.onclick=async()=>{tick();const m=x.dataset.m;if(!m){GSEL.clear();drawGroups();return}
+      if(m==="*"){$$("#g-list .grow").forEach(r=>GSEL.add(r.dataset.k));drawGroups();return}
       await api("/api/chat_mode",{chats:[...GSEL].map(pair),mode:m});toast(`${GSEL.size} 个群改为${MODE[m][0]}`);GSEL.clear();loadGroups()})}
 }
 $("#g-q").addEventListener("input",debounce(drawGroups,150));
