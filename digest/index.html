@@ -401,6 +401,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .batch .btn{background:color-mix(in srgb,var(--bg) 16%,transparent);color:var(--bg)}
 .sugg{margin-top:var(--s3);padding:var(--s3) var(--s4);border-radius:var(--r-lg);background:color-mix(in srgb,var(--amber) 12%,var(--card));font-size:var(--t-sm)}
 .sugg b{display:block;margin-bottom:var(--s1);font-size:var(--t-md)}
+.sugg .sacts{display:flex;flex-wrap:wrap;gap:var(--s2)}
 .sugg .sl{margin-bottom:var(--s2);color:var(--sub);font-size:var(--t-xs);line-height:1.6}
 
 /* ================= 底栏：提问栏 + 标签栏 ================= */
@@ -1500,7 +1501,7 @@ async function loadGroups(){
     const sb=$("#g-sugg");
     const sk="qb_sugg_skip",skipped=new Set(JSON.parse(localStorage.getItem(sk)||"[]")),sid=x=>x.source+"|"+x.chat;
     for(let i=sugg.length-1;i>=0;i--)if(skipped.has(sid(sugg[i])))sugg.splice(i,1);
-    sb.innerHTML=sugg.length?`<div class="sugg"><b>这 ${sugg.length} 个群很吵，但没什么要紧事</b><div class="sl">${sugg.slice(0,3).map(x=>esc(x.chat.length>12?x.chat.slice(0,12)+"…":x.chat)).join("、")}${sugg.length>3?` 等 ${sugg.length} 个`:""}。${[...new Set(sugg.map(x=>x.why))].map(w=>`${sugg.filter(x=>x.why===w).length} 个${w}`).join("，")}。</div><button class="btn" id="g-sapply">全部设为只看@我</button> <button class="btn ghost" id="g-sskip">不用了</button></div>`:"";
+    sb.innerHTML=sugg.length?`<div class="sugg"><b>这 ${sugg.length} 个群很吵，但没什么要紧事</b><div class="sl">${sugg.slice(0,3).map(x=>esc(x.chat.length>12?x.chat.slice(0,12)+"…":x.chat)).join("、")}${sugg.length>3?` 等 ${sugg.length} 个`:""}。${[...new Set(sugg.map(x=>x.why))].map(w=>`${sugg.filter(x=>x.why===w).length} 个${w}`).join("，")}。</div><div class="sacts"><button class="btn" id="g-sapply">全部设为只看@我</button><button class="btn ghost" id="g-sskip">不用了</button></div></div>`:"";
     $("#g-sskip")?.addEventListener("click",()=>{localStorage.setItem(sk,JSON.stringify([...skipped,...sugg.map(sid)]));sb.innerHTML=""});
     $("#g-sapply")?.addEventListener("click",async()=>{tick();await api("/api/chat_mode",{chats:sugg.map(x=>({source:x.source,chat:x.chat})),mode:"atonly"});toast(`${sugg.length} 个群改为只看@我`);loadGroups()});
     drawGroups();
