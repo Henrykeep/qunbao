@@ -26,7 +26,8 @@ def is_noise(text: str) -> bool:
                                      and len(x) <= 4 and not re.search(r"\d", x)) for x in toks)
     if not core:  # 纯 emoji / 标点
         return True
-    return core in NOISE_WORDS or _all_noise_words(core) or bool(re.fullmatch(r"(哈|呵|嘿|嘻)+|6+|1+|\+1", core))
+    base = re.sub(r"[啦呀哟噢喔啊哇~]+$", "", core) if len(core) > 2 else core  # 「收到啦」「好的呀」语气尾巴不改变含义
+    return core in NOISE_WORDS or _all_noise_words(core) or (len(base) >= 2 and (base in NOISE_WORDS or _all_noise_words(base))) or bool(re.fullmatch(r"(哈|呵|嘿|嘻)+|6+|1+|\+1", core))
 
 
 _WORDS_DESC = sorted((w for w in NOISE_WORDS if not w.isascii() or len(w) > 1), key=len, reverse=True)
