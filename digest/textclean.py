@@ -58,6 +58,7 @@ def tidy_title(t: str, limit: int = 22, due: str = "") -> str:
             break
     t = re.sub(r"(?:[，,]?\s*(?:谢谢|感谢|多谢|辛苦了?|拜托了?)[大家各位！!]*|[哦噢啦呀哈喔]+|~+|～+)+$", "", t).strip() or t  # 结尾客套/语气词
     t = re.sub(r"[，,]\s*(?:请)?(?:大家|各位|同学们?)?(?:注意|知悉|留意|周知|查收|查看|关注|悉知)(?:一下|下)?[！!。]*$", "", t).strip() or t  # 结尾「请大家注意」类
+    t = re.sub(r"\s*[（(](?:详见|详情见|见|附)[^）)]{0,12}[）)]$", "", t).strip() or t  # 结尾「（详见群公告）」类指引
     parts = re.split(r"[，,；;]\s*(?:并且|并|还要|另外|以及|同时|还有)|；|;", t)
     t = parts[0].strip(" ，,。") if parts and len(parts[0].strip()) >= 4 else t
     if len(t) <= limit:
