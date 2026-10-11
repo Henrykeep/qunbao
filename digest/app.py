@@ -11,9 +11,8 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.50"
-def _ceq(a, b):
-    return secrets.compare_digest(str(a).encode(), str(b).encode())
+VERSION = "0.34.51"
+from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
 TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")   # 时间解析/免打扰/每日整理都按这个时区
@@ -30,7 +29,6 @@ MAX_CHARS = int(os.getenv("MAX_CHARS", "60000"))
 KEEP_DAYS = int(os.getenv("KEEP_DAYS", "30"))
 NAPCAT_DATA = os.getenv("NAPCAT_DATA", "/napcat_qq")   # NapCat 的 QQ 数据目录（docker-compose 挂进来），用来清图片缓存
 SESSION_DAYS = int(os.getenv("SESSION_DAYS", "30"))  # 网页登录保持天数
-COOKIE = "qb_session"
 
 # 网页「设置」里可以改的项；.env 里的值只作为第一次启动时的默认值
 DEFAULTS = {
@@ -132,24 +130,13 @@ def save_settings(new: dict):
 _fails: dict[str, list] = {}
 
 
-def _h(tok: str) -> str:
-    return hashlib.sha256(tok.encode()).hexdigest()
-
-
 def _pw_tag() -> str:  # 改了 WEB_PASS 之后，旧会话全部失效
     return _h("pw:" + WEB_USER + ":" + WEB_PASS)[:16]
 
 
 def _basic_ok(req: Request) -> bool:
-    a = req.headers.get("authorization", "")
-    if not a.lower().startswith("basic "):
-        return False
-    try:
-        import base64
-        u, _, p = base64.b64decode(a[6:]).decode().partition(":")
-    except Exception:
-        return False
-    return _ceq(u, WEB_USER) and _ceq(p, WEB_PASS)
+    cr = basic_creds(req.headers.get("authorization", ""))
+    return bool(cr) and _ceq(cr[0], WEB_USER) and _ceq(cr[1], WEB_PASS)
 
 
 def _session_ok(req: Request, resp: Response | None = None) -> bool:
@@ -169,8 +156,7 @@ def _session_ok(req: Request, resp: Response | None = None) -> bool:
 
 
 def _set_cookie(resp: Response, tok: str, req: Request):
-    secure = req.url.scheme == "https" or req.headers.get("x-forwarded-proto") == "https"
-    resp.set_cookie(COOKIE, tok, max_age=SESSION_DAYS * 86400, httponly=True, samesite="lax", secure=secure, path="/")
+    set_session_cookie(resp, tok, req, SESSION_DAYS)
 
 
 def auth(req: Request, resp: Response):
@@ -179,11 +165,6 @@ def auth(req: Request, resp: Response):
     if _session_ok(req, resp) or _basic_ok(req):
         return
     raise HTTPException(401, "未登录")
-
-
-def _client_ip(req: Request) -> str:
-    return (req.headers.get("x-forwarded-for", "").split(",")[0].strip()
-            or (req.client.host if req.client else "?"))
 
 
 # ---------------- 推送（Bark，iPhone 上收通知）----------------
