@@ -2300,3 +2300,9 @@ def test_tidy_title_strips_trailing_notice_tail():
     assert tidy_title("交实验报告，具体如下：") == "交实验报告"
     assert tidy_title("周五交实验报告，望周知") == "周五交实验报告"
     assert tidy_title("交班费，请知悉。") == "交班费"
+
+
+def test_tidy_title_strips_forward_prefix():
+    from textclean import tidy_title
+    assert tidy_title("再次提醒：周五交实验报告") == "周五交实验报告"
+    assert tidy_title("转发：明天带学生证") == "明天带学生证"
