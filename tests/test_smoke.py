@@ -2432,3 +2432,8 @@ def test_noise_jielong_variants():
     from digest.noise import is_noise
     for t in ("＋1", "+1+1", "加一", "加 2"):
         assert is_noise(t), t
+
+
+def test_noise_vote_replies():
+    from noise import is_noise
+    assert is_noise("已投票") and is_noise("已填好") and not is_noise("已投票的同学请留下")
