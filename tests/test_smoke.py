@@ -2366,5 +2366,6 @@ def test_tidy_title_strips_yimian_tail():
     assert tidy_title("周三交材料，以免耽误评奖") == "周三交材料"
     assert tidy_title("周三交材料，请勿外传") == "周三交材料"
     assert tidy_title("周五前报名，逾期视为放弃") == "周五前报名"
+    assert tidy_title("周五前报名，请大家知悉") == "周五前报名"
     assert tidy_title("周三开会，谢绝迟到") == "周三开会"
     assert tidy_title("周五交实验报告，逾期不接受补交") == "周五交实验报告"
