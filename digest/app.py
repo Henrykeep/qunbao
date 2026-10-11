@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.20"
+VERSION = "0.35.21"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -1831,7 +1831,9 @@ async def scheduler():
             if now.hour == 4 and cleaned != now.date():  # 每天凌晨清理过期消息（不依赖正好 4:00 这一分钟醒着）
                 cleaned = now.date()
                 with contextlib.suppress(Exception):
-                    await asyncio.to_thread(prune_db)
+                    probs = await asyncio.to_thread(prune_db)
+                    if probs:  # 备份失败 / 磁盘将满：不再只写日志，Bark 提醒一次（每天凌晨最多一条）
+                        await push("群报需要留意", "；".join(probs), key="sys-health", force=True, level="active", web=False)
             await asyncio.sleep(60)
     return asyncio.gather(loop(), auto_loop())
 
@@ -1901,8 +1903,15 @@ def prune_db(now=None):
         c.execute("DELETE FROM msgs WHERE ts<?", (now - keep * 86400,))
     with contextlib.suppress(Exception):
         c = db(); c.execute("PRAGMA optimize"); c.execute("PRAGMA wal_checkpoint(TRUNCATE)"); c.close()
-    with contextlib.suppress(Exception):
+    probs = []
+    try:
         backup_db()
+    except Exception as e:
+        print("数据库备份失败:", e); probs.append("数据库备份失败（%s）" % str(e)[:60])
+    free = disk_free_mb()
+    if free is not None and free < 500:
+        probs.append("数据盘仅剩 %d MB，快写满了" % free)
+    return probs
 
 
 # ---------------- 清 NapCat 里 QQ 的媒体缓存 ----------------
