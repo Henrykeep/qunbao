@@ -2267,3 +2267,9 @@ def test_noise_repeated_single_char():
         assert is_noise(x), x
     for x in ["好好学习", "行不行"]:
         assert not is_noise(x), x
+
+
+def test_noise_addr_connector():
+    from noise import is_noise
+    assert is_noise("好的老师谢谢") and is_noise("收到老师辛苦了")
+    assert not is_noise("好的老师明天交") and not is_noise("老师明天考试")
