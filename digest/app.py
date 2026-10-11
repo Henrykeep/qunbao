@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.52"
+VERSION = "0.34.53"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -231,25 +231,7 @@ def _held_get() -> list:
         return []
 
 
-def in_quiet(s, now=None) -> bool:
-    a, b = int(s.get("quiet_start", -1)), int(s.get("quiet_end", 7))
-    if a < 0 or a == b:
-        return False
-    h = (now or datetime.now(TZ)).hour
-    return (a <= h < b) if a < b else (h >= a or h < b)
-
-
-def remind_start(due, n, s):
-    """提醒窗口起点：默认截止前 n 小时；若这一刻落在免打扰里（凌晨 7 点的事 3 小时前是半夜 4 点，
-    推了也只会被压到早上），就提前到免打扰开始前 1 小时（前一晚），睡前就知道明早有事。"""
-    st = due - timedelta(hours=n)
-    a = int(s.get("quiet_start", -1))
-    if a >= 0 and in_quiet(s, st):
-        q = due.replace(hour=a, minute=0, second=0, microsecond=0)
-        if q > due:
-            q -= timedelta(days=1)
-        st = min(st, q - timedelta(hours=1))
-    return st
+from quiet import in_quiet, remind_start  # noqa: E402 (0.34.53 拆出)
 
 
 async def flush_held():
