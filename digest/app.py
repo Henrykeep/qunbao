@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.43"
+VERSION = "0.34.44"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -965,35 +965,11 @@ def pend_detail(rows, now=None) -> dict:
     return out
 
 
-def _line(r, cls) -> str:
-    return (f"#{r['id']} [{datetime.fromtimestamp(r['ts'], TZ):%m-%d %H:%M}] {r['sender']}"
-            f"{' (@我)' if r['at_me'] else ''}{' ★' if cls == 'key' else ''}: {(r['text'] or '')[:800]}")
-
-
-BACKLOG_KEEP = int(os.getenv("BACKLOG_KEEP", "240"))   # 单群一次最多整理最近这么多条；更早的直接略过（刚升级/断了很久才会遇到）
-BACKLOG_OLD_KEEP = 30                                  # 略过的旧消息里，@我 / 重点消息最多再保留这么多条
-
-
-def cap_backlog(pairs):
-    """大积压保护：一个群一次攒了几百条（服务器刚升级、断线很久），只整理最近 BACKLOG_KEEP 条，
-    更早的只留 @我 / 重点消息，其余直接推进水位。这样几分钟内能消化完，不会连发十几次模型调用引发限流。返回 (保留的, 略过条数)。"""
-    if len(pairs) <= BACKLOG_KEEP:
-        return pairs, 0
-    old, recent = pairs[:-BACKLOG_KEEP], pairs[-BACKLOG_KEEP:]
-    keep = [(r, c) for r, c in old if r["at_me"] or c == "key"][-BACKLOG_OLD_KEEP:]
-    return keep + recent, len(old) - len(keep)
+from backlog import BACKLOG_KEEP, BACKLOG_OLD_KEEP, _line, cap_backlog, chunked as _chunked  # noqa: F401 (0.34.44 拆出)
 
 
 def chunked(pairs):
-    out, cur, n = [], [], 0
-    for r, cls in pairs:
-        ln = _line(r, cls)
-        if cur and (len(cur) >= CHUNK_MSGS or n + len(ln) > CHUNK_CHARS):
-            out.append(cur); cur, n = [], 0
-        cur.append((r, cls, ln)); n += len(ln) + 1
-    if cur:
-        out.append(cur)
-    return out
+    return _chunked(pairs, CHUNK_MSGS, CHUNK_CHARS)
 
 
 def chat_prompt(s, source, chat):
