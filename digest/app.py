@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.15"
+VERSION = "0.35.16"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -1859,6 +1859,14 @@ def backup_db(keep=3):
         src.backup(out)
     finally:
         out.close(); src.close()
+    chk = _sq.connect(dst)
+    try:
+        ok = chk.execute("PRAGMA quick_check").fetchone()[0] == "ok"
+    finally:
+        chk.close()
+    if not ok:  # 坏快照不能占名额挤掉好的
+        os.remove(dst)
+        raise RuntimeError("backup quick_check failed")
     for f in sorted(x for x in os.listdir(d) if x.startswith("qunbao-") and x.endswith(".db"))[:-keep]:
         os.remove(os.path.join(d, f))
     return dst
