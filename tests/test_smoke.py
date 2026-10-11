@@ -2273,3 +2273,9 @@ def test_noise_addr_connector():
     from noise import is_noise
     assert is_noise("好的老师谢谢") and is_noise("收到老师辛苦了")
     assert not is_noise("好的老师明天交") and not is_noise("老师明天考试")
+
+
+def test_noise_v34_64():
+    from digest.noise import is_noise
+    assert is_noise("有道理") and is_noise("mark") and is_noise("顶上去")
+    assert not is_noise("同意") and not is_noise("没问题")
