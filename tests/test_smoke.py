@@ -2400,3 +2400,8 @@ def test_healthz_reports_backup_age(tmp_path, monkeypatch):
     assert A.backup_age_h() is None
     d = tmp_path / "backups"; d.mkdir(); (d / "qunbao-20260101.db").write_bytes(b"x")
     assert A.backup_age_h() < 1
+
+
+def test_backup_download():
+    r = c.get("/api/backup.db", headers=AUTH)
+    assert r.status_code == 200 and r.content[:6] == b"SQLite"
