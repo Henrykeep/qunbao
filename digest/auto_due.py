@@ -45,3 +45,15 @@ def plan_chats(by, now, auto, arrive, is_urg, busy, **cfg):
             nxt = due if nxt is None else min(nxt, due)
     ready.sort(key=lambda x: (x[0], x[1], x[2]))
     return [(k, rs, why) for _, _, _, k, rs, why in ready], nxt
+
+
+def fail_record(prev, now, code, err, *, backoff0, backoff_max, wall=None):
+    """某群整理失败后的记录：连续次数、首次失败时间、退避到期（指数退避，封顶）。"""
+    n = prev.get("n", 0) + 1
+    return {"n": n, "since": prev.get("since", wall or now), "until": now + min(backoff_max, backoff0 * 2 ** (n - 1)),
+            "err": err, "code": code, "ts": wall or now}
+
+
+def should_give_up(n, age, model_ok, fatal, *, giveup_n, giveup_secs, giveup_hard):
+    """是否放弃这个群这几条：模型是好的但这个群反复失败，或挂得太久（要用户处理的致命错误除外）。"""
+    return bool((model_ok and (n >= giveup_n or (n >= 2 and age >= giveup_secs))) or (not fatal and age >= giveup_hard))
