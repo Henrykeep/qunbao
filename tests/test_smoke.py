@@ -2297,4 +2297,5 @@ def test_tidy_title_strips_trailing_notice_tail():
     from textclean import tidy_title
     assert tidy_title("明早八点主楼集合，请大家注意") == "明早八点主楼集合"
     assert tidy_title("交实验报告（详见群公告）") == "交实验报告"
+    assert tidy_title("交实验报告，具体如下：") == "交实验报告"
     assert tidy_title("交班费，请知悉。") == "交班费"
