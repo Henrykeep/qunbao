@@ -2370,3 +2370,13 @@ def test_tidy_title_strips_yimian_tail():
     assert tidy_title("周五前报名，请大家知悉") == "周五前报名"
     assert tidy_title("周三开会，谢绝迟到") == "周三开会"
     assert tidy_title("周五交实验报告，逾期不接受补交") == "周五交实验报告"
+
+
+def test_basic_auth_bruteforce_locks():
+    bad = {"Authorization": "Basic " + base64.b64encode(b"me:no").decode(), "x-forwarded-for": "9.9.9.9"}
+    good = dict(AUTH, **{"x-forwarded-for": "9.9.9.9"})
+    for _ in range(8):
+        assert c.get("/api/state", headers=bad).status_code == 401
+    assert c.get("/api/state", headers=good).status_code == 401  # 锁住后连对的也先拒
+    app_mod._fails.clear()
+    assert c.get("/api/state", headers=good).status_code == 200
