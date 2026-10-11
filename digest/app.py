@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.53"
+VERSION = "0.34.54"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -231,7 +231,7 @@ def _held_get() -> list:
         return []
 
 
-from quiet import in_quiet, remind_start  # noqa: E402 (0.34.53 拆出)
+from quiet import in_quiet, remind_start  # noqa: E402 (0.34.54 拆出)
 
 
 async def flush_held():
