@@ -1555,7 +1555,7 @@ function setSummary(){
   put("remind",`${pad(s.digest_hour)}:00${h2>=0?" · "+pad(h2)+":00":""} · ${qs<0?"免打扰关":`免打扰 ${pad(qs)}–${pad(s.quiet_end)}`}`);
   const S=(SST&&SST.status)||{},on=o=>o?.online?"在线":o?.seen?"离线":"未接";
   put("conn",`QQ ${on(S.qq)} · 微信 ${on(S.wx)}`);
-  put("data",`保留 ${s.keep_days||30} 天`);
+  put("data",`保留 ${s.keep_days||30} 天${S.backup_age_h==null?" · 暂无备份":` · 备份 ${S.backup_age_h<1?"刚刚":Math.round(S.backup_age_h)+" 小时前"}`}`);
   put("acct","");put("about",S.version?`v${S.version}`:"");
 }
 function tagbox(el){
