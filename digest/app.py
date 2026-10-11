@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.14"
+VERSION = "0.35.15"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -1864,6 +1864,16 @@ def backup_db(keep=3):
     return dst
 
 
+def backup_age_h():
+    """最近一份数据库快照距今多少小时；还没有快照返回 None（healthz 里能看出备份是否在正常运行）。"""
+    d = os.path.join(os.path.dirname(DB) or ".", "backups")
+    try:
+        t = max(os.path.getmtime(os.path.join(d, f)) for f in os.listdir(d) if f.endswith(".db"))
+    except (OSError, ValueError):
+        return None
+    return round((time.time() - t) / 3600, 1)
+
+
 def prune_db(now=None):
     """每天一次：按保留期表清旧记录和过期消息（keep_days 可设置），再刷新索引统计并截断 WAL。"""
     now = int(now or time.time())
@@ -2647,7 +2657,7 @@ def healthz():
             c.execute("SELECT 1").fetchone()
     except Exception:
         return JSONResponse({"ok": False, "version": VERSION}, status_code=503)
-    return {"ok": True, "version": VERSION}
+    return {"ok": True, "version": VERSION, "backup_age_h": backup_age_h()}
 
 
 migrate_items()
