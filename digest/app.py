@@ -7,11 +7,12 @@ from zoneinfo import ZoneInfo
 from inbound import norm_ts, cq_images, clean_cq, parse_wx, CQ, CQ_NAME, WX_COUNT, WX_SKIP, _pick  # noqa: F401 (0.34.37 拆出)
 
 import httpx
+import watchdog as _watchdog
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.23"
+VERSION = "0.35.24"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -62,10 +63,13 @@ MODE_NAME = {"focus": "重点盯", "normal": "正常", "atonly": "只看@我", "
 @contextlib.asynccontextmanager
 async def lifespan(_app):
     task = await scheduler()
+    hb = _watchdog.start()
     try:
         yield
     finally:
         task.cancel()
+        if hb:
+            hb.cancel()
 
 
 app = FastAPI(docs_url=None, redoc_url=None, lifespan=lifespan)
