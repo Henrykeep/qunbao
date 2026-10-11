@@ -2236,3 +2236,11 @@ def test_noise_repeated_words():
         assert is_noise(x), x
     for x in ("好的明天交作业", "收到，几点集合", "明白了吗"):
         assert not is_noise(x), x
+
+
+def test_noise_more_fillers():
+    from digest.noise import is_noise
+    for x in ["拜拜", "好呀好呀", "哦哦", "不客气", "好的拜拜"]:
+        assert is_noise(x), x
+    for x in ["对，几点集合", "好的，明天交"]:
+        assert not is_noise(x), x
