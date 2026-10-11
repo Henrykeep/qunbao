@@ -34,16 +34,29 @@ def is_noise(text: str) -> bool:
 _WORDS_DESC = sorted((w for w in NOISE_WORDS if not w.isascii() or len(w) > 1), key=len, reverse=True)
 
 
+_ADDR = ("老师", "同学", "学长", "学姐", "师兄", "师姐", "大家")
+
+
 def _all_noise_words(core: str) -> bool:
     """整条由噪音词连着拼成（「好的好的」「收到谢谢」「谢谢老师辛苦了」）也算噪音；只切中文词，拼不满就不算。"""
     if len(core) > 16 or len(core) < 4:
         return False
     i = 0
+    hit = False
     while i < len(core):
+        for a in _ADDR:  # 称呼夹在中间（好的老师谢谢）：只当连接，不单独算噪音
+            if core.startswith(a, i) and hit:
+                i += len(a)
+                break
+        else:
+            a = None
+        if a:
+            continue
         for w in _WORDS_DESC:
             if core.startswith(w, i):
                 i += len(w)
+                hit = True
                 break
         else:
             return False
-    return True
+    return hit
