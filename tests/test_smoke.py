@@ -2231,7 +2231,7 @@ def test_auto_stats_summarize():
 
 
 def test_noise_repeated_words():
-    from digest.noise import is_noise
+    from noise import is_noise
     for x in ("好的好的", "收到收到收到！", "谢谢老师辛苦了", "好的，谢谢"):
         assert is_noise(x), x
     for x in ("好的明天交作业", "收到，几点集合", "明白了吗"):
@@ -2239,7 +2239,7 @@ def test_noise_repeated_words():
 
 
 def test_noise_more_fillers():
-    from digest.noise import is_noise
+    from noise import is_noise
     for x in ["拜拜", "好呀好呀", "哦哦", "不客气", "好的拜拜"]:
         assert is_noise(x), x
     for x in ["对，几点集合", "好的，明天交"]:
@@ -2257,12 +2257,12 @@ def test_suggest_quiet_skips_at_me(monkeypatch):
 
 
 def test_noise_address_suffix():
-    from digest.noise import is_noise
+    from noise import is_noise
     assert is_noise("收到老师") and is_noise("好的学姐") and not is_noise("好的老师我明天交材料")
 
 
 def test_noise_repeated_single_char():
-    from digest.noise import is_noise
+    from noise import is_noise
     for x in ["好好好", "嗯嗯嗯嗯", "对对对", "行行行"]:
         assert is_noise(x), x
     for x in ["好好学习", "行不行"]:
@@ -2276,6 +2276,11 @@ def test_noise_addr_connector():
 
 
 def test_noise_v34_64():
-    from digest.noise import is_noise
+    from noise import is_noise
     assert is_noise("有道理") and is_noise("mark") and is_noise("顶上去")
     assert not is_noise("同意") and not is_noise("没问题")
+
+
+def test_noise_read_receipts():
+    from noise import is_noise
+    assert is_noise("已阅") and is_noise("已读") and is_noise("已收到") and not is_noise("已阅，明天交")
