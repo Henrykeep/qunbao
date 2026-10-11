@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.13"
+VERSION = "0.35.14"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -1848,6 +1848,22 @@ RETENTION = [
 ]
 
 
+def backup_db(keep=3):
+    """每天一份数据库快照（sqlite 在线备份，不阻塞写入）放在数据库同目录 backups/，只留最近 keep 份；失败不影响主流程。"""
+    import sqlite3 as _sq
+    d = os.path.join(os.path.dirname(DB) or ".", "backups")
+    os.makedirs(d, exist_ok=True)
+    dst = os.path.join(d, "qunbao-" + time.strftime("%Y%m%d") + ".db")
+    src = db(); out = _sq.connect(dst)
+    try:
+        src.backup(out)
+    finally:
+        out.close(); src.close()
+    for f in sorted(x for x in os.listdir(d) if x.startswith("qunbao-") and x.endswith(".db"))[:-keep]:
+        os.remove(os.path.join(d, f))
+    return dst
+
+
 def prune_db(now=None):
     """每天一次：按保留期表清旧记录和过期消息（keep_days 可设置），再刷新索引统计并截断 WAL。"""
     now = int(now or time.time())
@@ -1858,6 +1874,8 @@ def prune_db(now=None):
         c.execute("DELETE FROM msgs WHERE ts<?", (now - keep * 86400,))
     with contextlib.suppress(Exception):
         c = db(); c.execute("PRAGMA optimize"); c.execute("PRAGMA wal_checkpoint(TRUNCATE)"); c.close()
+    with contextlib.suppress(Exception):
+        backup_db()
 
 
 # ---------------- 清 NapCat 里 QQ 的媒体缓存 ----------------
