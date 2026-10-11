@@ -2347,3 +2347,8 @@ def test_no_bare_px_font_sizes():
     src = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
     bad = re.findall(r"[^-]font-size:[0-9.]+px", src)
     assert len(bad) == 2, bad
+
+
+def test_tidy_title_strips_consequence_tail():
+    from digest.textclean import tidy_title
+    assert tidy_title("周日交材料，逾期后果自负") == "周日交材料"
