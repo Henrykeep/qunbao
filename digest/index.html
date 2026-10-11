@@ -892,9 +892,10 @@ function homeHero(m){
   <button class="stat ${soon?"hot":""}" id="st-soon" data-go="todo"><div class="n">${soon}</div><div class="l">48 小时内截止</div></button>
   <button class="stat" id="st-at" data-go="${ats.length?"at":"todo"}"><div class="n">0</div><div class="l">条 @我 没处理</div></button></div>`;
 }
-function leftTxt(ts,now,dn){// 截止前 48 小时内补一句「还剩 X」，一眼看出紧不紧
-  const d=ts&&!dn?ts-now:0;if(d<=0||d>=48*3600)return "";
-  return " · 还剩"+(d<3600?Math.max(1,Math.round(d/60))+"分钟":d<86400?Math.round(d/3600)+"小时":Math.round(d/86400)+"天");
+function leftTxt(ts,now,dn){// 截止前 48 小时内补「还剩 X」，已过期补「已过 X」，一眼看出紧不紧
+  if(!ts||dn)return "";const d=ts-now,a=Math.abs(d);if(a>=48*3600)return "";
+  const x=a<3600?Math.max(1,Math.round(a/60))+"分钟":a<86400?Math.round(a/3600)+"小时":Math.round(a/86400)+"天";
+  return d>0?" · 还剩"+x:" · 已过"+x;
 }
 function todoCard(m,t,i){
   const {st,now,isDone,isPin,atBy}=m,dn=isDone(t),pin=isPin(t),src=t.source||(st.chat_src||{})[t.chat],late=t.due_ts&&t.due_ts<now&&!dn;
@@ -902,7 +903,7 @@ function todoCard(m,t,i){
   return `<div class="todo card ${esc(t.urgency||"mid")} ${dn?"done":""} ${pin?"pinned":""} fade" style="animation-delay:${i*30}ms" data-i="${i}" data-k="${esc(doneKey(t))}" data-ik="${esc(t.key||"")}" data-due="${t.due_ts||""}" data-first="${t.first_ts||""}" data-chat="${esc(t.chat)}" data-src="${esc(src||"")}" data-mid="${esc(String(t.msg_ids||"").split(" ")[0]||"")}" data-q="${esc(t.quote||"")}">
     <button class="check" aria-label="完成"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i></button>
     <div class="tbody"><div class="t">${pin?'<span class="pinmark">置顶</span>':""}${esc(t.title)}</div>${det?`<div class="d">${esc(det)}</div>`:""}
-    <div class="meta">${t.due?`<span class="chip due ${late?"late":""}">${ICON.clock}${late?"已过 · ":""}${esc(t.due)}${leftTxt(t.due_ts,now,dn)}</span>`:""}<span class="mi" title="${esc(src||"")}">${srcIcon(src)}<span class="cn2">${esc(t.chat)}</span>${(t.also||[]).length?`<span class="tag" title="${esc(t.also.join("、"))}">另 ${t.also.length} 个群也提到</span>`:""}${atBy.has(t.key)?'<span class="tag at">@我</span>':""}</span></div>
+    <div class="meta">${t.due?`<span class="chip due ${late?"late":""}">${ICON.clock}${esc(t.due)}${leftTxt(t.due_ts,now,dn)}</span>`:""}<span class="mi" title="${esc(src||"")}">${srcIcon(src)}<span class="cn2">${esc(t.chat)}</span>${(t.also||[]).length?`<span class="tag" title="${esc(t.also.join("、"))}">另 ${t.also.length} 个群也提到</span>`:""}${atBy.has(t.key)?'<span class="tag at">@我</span>':""}</span></div>
     ${t.quote?`<div class="quote"><div><blockquote>${hlAt(t.quote)}<cite>— ${esc(t.sender||"")}${t.sender?" · ":""}${esc(t.chat)}</cite></blockquote></div></div>`:""}
     <div class="acts2"><button class="btn line lg go">去原文${ICON.arrow}</button><button class="btn line lg pinb">${pin?"取消置顶":"置顶"}</button><button class="btn line lg snz">稍后提醒</button>${t.due?`<a class="btn line lg acc cal" href="/api/ics?${new URLSearchParams({title:t.title,due:t.due,detail:t.detail||"",chat:t.chat||""})}">加到日历</a>`:""}</div></div>${ICON.down.replace("<svg",'<svg class="more" aria-hidden="true"')}</div>`;
 }
