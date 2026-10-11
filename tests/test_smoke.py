@@ -2364,4 +2364,5 @@ def test_tidy_title_strips_jielong_tail():
 def test_tidy_title_strips_yimian_tail():
     from textclean import tidy_title
     assert tidy_title("周三交材料，以免耽误评奖") == "周三交材料"
+    assert tidy_title("周三交材料，请勿外传") == "周三交材料"
     assert tidy_title("周五交实验报告，逾期不接受补交") == "周五交实验报告"
