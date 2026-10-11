@@ -26,7 +26,7 @@ def is_noise(text: str) -> bool:
                                      and len(x) <= 4 and not re.search(r"\d", x)) for x in toks)
     if not core:  # 纯 emoji / 标点
         return True
-    if re.fullmatch(r"\s*\+\d{1,2}\s*", t):  # 接龙加数「+2」
+    if re.fullmatch(r"\s*[+＋]\s*\d{1,2}\s*(?:[+＋]\s*\d{1,2}\s*)*|\s*加\s*[一二三四五六七八九\d]{1,2}\s*", t):  # 接龙加数「+2」「＋1」「加一」
         return True
     base = re.sub(r"[啦呀哟噢喔啊哇~]+$", "", core) if len(core) > 2 else core  # 「收到啦」「好的呀」语气尾巴不改变含义
     base = re.sub(r"(老师|同学|学长|学姐|师兄|师姐|哥|姐)$", "", base) if len(base) > 3 else base  # 「收到老师」「好的学姐」称呼尾巴
