@@ -1,3 +1,6 @@
+## 0.34.44 — 2026-10-11
+- 重构：大积压保护 cap_backlog 与消息分块 chunked 拆到 digest/backlog.py（纯函数），app.py 再瘦；行为不变。
+
 ## 0.34.43 — 2026-10-11
 - 重构：自动整理的失败退避记录 fail_record 与放弃判定 should_give_up 抽进 auto_due.py 纯函数，auto_run_chat 变短；行为不变。
 
