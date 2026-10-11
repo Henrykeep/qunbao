@@ -2405,3 +2405,11 @@ def test_healthz_reports_backup_age(tmp_path, monkeypatch):
 def test_backup_download():
     r = c.get("/api/backup.db", headers=AUTH)
     assert r.status_code == 200 and r.content[:6] == b"SQLite"
+
+
+def test_prune_db_reports_problems(monkeypatch):
+    monkeypatch.setattr(app_mod, "disk_free_mb", lambda: 100)
+    def boom(*a, **k): raise RuntimeError("disk full")
+    monkeypatch.setattr(app_mod, "backup_db", boom)
+    probs = app_mod.prune_db()
+    assert any("备份失败" in p for p in probs) and any("100 MB" in p for p in probs)
