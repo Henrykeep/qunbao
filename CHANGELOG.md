@@ -1,3 +1,6 @@
+## 0.34.43 — 2026-10-11
+- 重构：自动整理的失败退避记录 fail_record 与放弃判定 should_give_up 抽进 auto_due.py 纯函数，auto_run_chat 变短；行为不变。
+
 ## 0.34.42 — 2026-10-11
 - 重构：头条校验规则（只留未完成的事）拆成 headline.check_headline 纯函数，app.py 只负责查库；行为不变。
 
