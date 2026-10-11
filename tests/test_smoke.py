@@ -2317,3 +2317,8 @@ def test_tidy_title_strips_urgent_bracket_and_dont_forget():
 def test_tidy_title_strips_reply_request_tail():
     from textclean import tidy_title
     assert tidy_title("周五交实验报告，收到请回复") == "周五交实验报告"
+
+
+def test_tidy_title_strips_punctual_tail():
+    from textclean import tidy_title
+    assert tidy_title("周三下午开班会，请大家准时参加") == "周三下午开班会"
