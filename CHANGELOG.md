@@ -1,3 +1,6 @@
+## 0.34.53 — 2026-10-11
+- 重构：免打扰判断与提醒窗口（in_quiet / remind_start）从 app.py 拆到 quiet.py，行为不变。
+
 ## 0.34.52 — 2026-10-11
 - 重构：待办匹配（find_match）与跨群合并（merge_cross_chat）从 app.py 并入 todo_match.py，行为不变。
 
