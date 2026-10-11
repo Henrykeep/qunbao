@@ -2284,3 +2284,10 @@ def test_noise_v34_64():
 def test_noise_read_receipts():
     from noise import is_noise
     assert is_noise("已阅") and is_noise("已读") and is_noise("已收到") and not is_noise("已阅，明天交")
+
+
+def test_tidy_title_strips_prefix_and_addressing():
+    from textclean import tidy_title
+    assert tidy_title("通知：交班费") == "交班费"
+    assert tidy_title("麻烦各位同学填问卷") == "填问卷"
+    assert tidy_title("大家记得带身份证") == "带身份证"
