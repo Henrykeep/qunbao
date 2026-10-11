@@ -2338,3 +2338,11 @@ def test_tidy_title_leave_tail():
     assert tidy_title("周六开班会，大家不要迟到") == "周六开班会"
     assert tidy_title("周日交材料，请大家互相转告") == "周日交材料"
     assert tidy_title("周五前交表，逾期不候") == "周五前交表"
+
+
+def test_no_bare_px_font_sizes():
+    """字号只能来自 --t-* 变量（跟随系统字号）；仅 html 基准和输入框 16px（防 iOS 缩放）例外。"""
+    import re
+    src = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
+    bad = re.findall(r"[^-]font-size:[0-9.]+px", src)
+    assert len(bad) == 2, bad
