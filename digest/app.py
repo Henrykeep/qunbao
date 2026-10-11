@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.21"
+VERSION = "0.35.22"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -1893,6 +1893,28 @@ def disk_free_mb():
         return None
 
 
+def shrink_db(min_free_mb=100):
+    """清理后空闲页占文件 1/4 以上且超过 min_free_mb 时 VACUUM 回收磁盘（备份之后做，磁盘不够就不做）。返回回收的 MB。"""
+    try:
+        c = db()
+        try:
+            ps = c.execute("PRAGMA page_size").fetchone()[0]
+            fl = c.execute("PRAGMA freelist_count").fetchone()[0] * ps
+            total = c.execute("PRAGMA page_count").fetchone()[0] * ps
+            if fl < min_free_mb * 1048576 or fl * 4 < total:
+                return 0
+            free = disk_free_mb()
+            if free is not None and free * 1048576 < total * 1.2:
+                return 0
+            c.execute("VACUUM")
+            return fl // 1048576
+        finally:
+            c.close()
+    except Exception as e:
+        print("数据库瘦身失败:", e)
+        return 0
+
+
 def prune_db(now=None):
     """每天一次：按保留期表清旧记录和过期消息（keep_days 可设置），再刷新索引统计并截断 WAL。"""
     now = int(now or time.time())
@@ -1908,6 +1930,7 @@ def prune_db(now=None):
         backup_db()
     except Exception as e:
         print("数据库备份失败:", e); probs.append("数据库备份失败（%s）" % str(e)[:60])
+    shrink_db()
     free = disk_free_mb()
     if free is not None and free < 500:
         probs.append("数据盘仅剩 %d MB，快写满了" % free)
