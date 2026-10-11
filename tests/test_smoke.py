@@ -2244,3 +2244,13 @@ def test_noise_more_fillers():
         assert is_noise(x), x
     for x in ["对，几点集合", "好的，明天交"]:
         assert not is_noise(x), x
+
+
+def test_suggest_quiet_skips_at_me(monkeypatch):
+    import time as _t
+    now = int(_t.time())
+    with app_mod.db() as c:
+        for i in range(40):
+            c.execute("INSERT INTO msgs(source,chat,sender,text,ts,at_me) VALUES(?,?,?,?,?,?)",
+                      ("QQ", "点名测试群", "a", "哈哈哈" if i else "@我 来一下", now - i, 1 if i == 0 else 0))
+    assert all(x["chat"] != "点名测试群" for x in app_mod.suggest_quiet())
