@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.42"
+VERSION = "0.34.43"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -884,7 +884,7 @@ LLM_PARALLEL = 4             # 手动/定时整理时同时整理的群数
 from auto_stats import summarize  # noqa: E402
 from auto_due import plan_chats  # noqa: E402
 from headline import check_headline, live_head_plan, tidy_headline, rule_headline, QUIET_HEADS, _head_score, HEAD_MATCH  # noqa: E402,F401 (0.34.31 拆出)
-from auto_due import chat_due  # noqa: E402 (0.34.29 拆出)
+from auto_due import chat_due, fail_record, should_give_up  # noqa: E402 (0.34.29 拆出)
 from noise import is_noise, NOISE_WORDS, NOISE_PH, PLACEHOLDER_RE, RECALL_RE, SYS_RE  # noqa: E402 (0.34.28 拆出)
 
 
@@ -1562,10 +1562,8 @@ async def auto_run_chat(k, rows, s, now: float | None = None, why: str = ""):
     except Exception as ex:
         code = _llm_code(ex)
         err = str(getattr(ex, "detail", "") or ex)[:300]
-        prev = AUTO["fail"].get(k, {})
-        n = prev.get("n", 0) + 1
-        AUTO["fail"][k] = {"n": n, "since": prev.get("since", time.time()), "until": now + min(AUTO_BACKOFF_MAX, AUTO_BACKOFF0 * 2 ** (n - 1)), "err": err,
-                           "code": code, "ts": time.time()}
+        AUTO["fail"][k] = fail_record(AUTO["fail"].get(k, {}), now, code, err, backoff0=AUTO_BACKOFF0, backoff_max=AUTO_BACKOFF_MAX, wall=time.time())
+        n = AUTO["fail"][k]["n"]
         if code in LLM_FATAL_CODES or code == -1:
             AUTO["fatal"] = {"err": err, "short": llm_short(code, err), "hash": _shash(s), "ts": time.time()}
         print(f"自动整理失败 {k[1]}（第 {n} 次）:", err)
@@ -1578,7 +1576,7 @@ async def auto_run_chat(k, rows, s, now: float | None = None, why: str = ""):
         model_ok = LLM_LAST_OK[0] > AUTO["fail"][k]["since"] and code not in LLM_FATAL_CODES and code != -1
         fatal = code in LLM_FATAL_CODES or code == -1
         age = time.time() - oldest
-        if (model_ok and (n >= AUTO_GIVEUP_N or (n >= 2 and age >= AUTO_GIVEUP_SECS))) or (not fatal and age >= AUTO_GIVEUP_HARD):
+        if should_give_up(n, age, model_ok, fatal, giveup_n=AUTO_GIVEUP_N, giveup_secs=AUTO_GIVEUP_SECS, giveup_hard=AUTO_GIVEUP_HARD):
             give_up_chat(k, rows, err)
         return None
     finally:
