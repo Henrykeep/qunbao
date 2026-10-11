@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.34.44"
+VERSION = "0.34.45"
 def _ceq(a, b):
     return secrets.compare_digest(str(a).encode(), str(b).encode())
 
@@ -965,7 +965,7 @@ def pend_detail(rows, now=None) -> dict:
     return out
 
 
-from backlog import BACKLOG_KEEP, BACKLOG_OLD_KEEP, _line, cap_backlog, chunked as _chunked  # noqa: F401 (0.34.44 拆出)
+from backlog import BACKLOG_KEEP, BACKLOG_OLD_KEEP, _line, cap_backlog, chunked as _chunked  # noqa: F401 (0.34.45 拆出)
 
 
 def chunked(pairs):
