@@ -328,6 +328,7 @@ button.cite::after{content:"";position:absolute;inset:-10px -6px}
 .bub .thumbs .imgx{display:grid;place-items:center;color:var(--faint);font-size:var(--t-xs)}
 #imgbox{position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.88)}
 #imgbox img{max-width:96vw;max-height:92vh;border-radius:6px}
+.sp{flex:1}
 .sk.k-cap{height:12px;width:40%;margin:var(--s5) 0 var(--s2)}.sk.k-h{height:26px;margin-bottom:var(--s2)}.sk.k-h2{height:26px;width:62%;margin-bottom:var(--s3)}.sk.k-box{height:52px;margin-bottom:var(--s6)}.sk.k-card{height:80px;margin-bottom:var(--s2);border-radius:var(--r-lg)}.sk.k-hist{height:60px;margin-top:10px}.sk.k-line{height:15px;margin-top:6px}.sk.k-line2{height:15px;width:82%;margin-top:10px}.sk.k-chat{height:56px;margin-top:12px}.sk.k-msg{height:44px;margin-top:14px;width:70%}
 .brief .sk{height:14px;margin-top:10px}.brief .sk.l1{margin-top:8px}.brief .sk.l2{width:80%}.brief .sk.l3{width:60%}.brief .subtxt{color:var(--sub);font-size:var(--t-sm)}
 .tolatest{position:fixed;right:var(--s4);bottom:calc(var(--dockh) + var(--s3));z-index:4;box-shadow:0 4px 14px rgba(0,0,0,.18)}
@@ -1296,7 +1297,7 @@ function renderChats(){
   const tg=c=>c.pin?-1:tr(c);
   const row=c=>`<button class="crow ${c.mode==="off"?"muted":""}" data-chat="${esc(c.chat)}" data-src="${esc(c.source)}">
     <div class="gav" style="background:hsl(${hue(c.chat)} 26% 46%)">${first(c.chat)}${srcBadge(c.source)}</div>
-    <div class="ci"><div class="cn"><b>${esc(c.chat)}</b>${c.pin?`<span class="pinic" title="已置顶">${ICON.pin}</span>`:""}${c.mode&&c.mode!=="normal"?`<span class="mtag ${c.mode}">${MODE[c.mode][0]}</span>`:""}<span style="flex:1"></span><span class="tm">${ago(c.last_ts)}</span></div>
+    <div class="ci"><div class="cn"><b>${esc(c.chat)}</b>${c.pin?`<span class="pinic" title="已置顶">${ICON.pin}</span>`:""}${c.mode&&c.mode!=="normal"?`<span class="mtag ${c.mode}">${MODE[c.mode][0]}</span>`:""}<span class="sp"></span><span class="tm">${ago(c.last_ts)}</span></div>
     <div class="cl">${c.mode==="off"?ICON.bell.replace("<svg",'<svg class="mute-ic"'):""}<span>${esc(prev(c.last))}</span>${unreadAts(c)?`<span class="badge">@${unreadAts(c)}</span>`:""}</div></div></button>`;
   let html="",last=-2;const off=S.filter(c=>tg(c)===4);
   S.filter(c=>tg(c)<4).forEach(c=>{const t=tg(c);if(t!==last){html+=`<div class="sgh">${t<0?"置顶":TIERS[t]}</div>`;last=t}html+=row(c)});
