@@ -1,8 +1,13 @@
+x-log: &log
+  driver: json-file
+  options: {max-size: "10m", max-file: "3"}
+
 services:
   napcat:
     image: mlikiowa/napcat-docker:latest
     container_name: napcat
     restart: always
+    logging: *log
     environment:
       - NAPCAT_UID=${NAPCAT_UID:-1000}
       - NAPCAT_GID=${NAPCAT_GID:-1000}
@@ -16,6 +21,7 @@ services:
     build: ./digest
     container_name: qunbao
     restart: always
+    logging: *log
     env_file: .env
     ports:
       - "8000:8000"          # 群报网页
