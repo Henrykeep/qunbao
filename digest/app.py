@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.6"
+VERSION = "0.35.7"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -134,9 +134,28 @@ def _pw_tag() -> str:  # 改了 WEB_PASS 之后，旧会话全部失效
     return _h("pw:" + WEB_USER + ":" + WEB_PASS)[:16]
 
 
+def _locked(ip: str) -> bool:
+    """10 分钟内密码错 8 次就先锁住（登录页和 Basic 共用一本账，防脚本暴力猜）。"""
+    now = time.time()
+    fails = [t for t in _fails.get(ip, []) if now - t < 600]
+    if fails:
+        _fails[ip] = fails
+    else:
+        _fails.pop(ip, None)  # 过期的记录顺手清掉，不让字典越长越大
+    return len(fails) >= 8
+
+
 def _basic_ok(req: Request) -> bool:
     cr = basic_creds(req.headers.get("authorization", ""))
-    return bool(cr) and _ceq(cr[0], WEB_USER) and _ceq(cr[1], WEB_PASS)
+    if not cr:
+        return False
+    ip = _client_ip(req)
+    if _locked(ip):
+        return False
+    if _ceq(cr[0], WEB_USER) and _ceq(cr[1], WEB_PASS):
+        return True
+    _fails[ip] = _fails.get(ip, []) + [time.time()]
+    return False
 
 
 def _session_ok(req: Request, resp: Response | None = None) -> bool:
@@ -2555,13 +2574,12 @@ async def login(req: Request):
     if not WEB_PASS:
         raise HTTPException(500, "请先在 .env 里设置 WEB_PASS")
     ip, now = _client_ip(req), time.time()
-    fails = [t for t in _fails.get(ip, []) if now - t < 600]
-    if len(fails) >= 8:  # 10 分钟内错 8 次就先锁住
+    if _locked(ip):
         raise HTTPException(429, "错太多次了，10 分钟后再试")
     d = await req.json()
     u, p = str(d.get("user") or WEB_USER), str(d.get("password") or "")
     if not (_ceq(u, WEB_USER) and _ceq(p, WEB_PASS)):
-        _fails[ip] = fails + [now]
+        _fails[ip] = _fails.get(ip, []) + [now]
         await asyncio.sleep(0.6)
         raise HTTPException(401, "用户名或密码不对")
     _fails.pop(ip, None)
