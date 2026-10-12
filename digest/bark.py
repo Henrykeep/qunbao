@@ -15,7 +15,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
     burl = (burl or "").rstrip("/")
     if not burl:
         return False
-    payload = {"title": clip(title, 60), "body": clip(body, 300), "group": "群报"}
+    payload = {"title": clip(title, 60), "body": clip(body, 300), "group": "群报", "isArchive": "1"}  # 存进 Bark 历史，手滑划掉还能回看
     if level in ("timeSensitive", "passive"):
         payload["level"] = level
     if site_url:
