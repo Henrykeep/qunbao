@@ -128,7 +128,7 @@ def test_push_sends_web_and_bark_with_same_rules(clean, monkeypatch):
     app_mod.save_settings({"bark_url": "", "quiet_start": h, "quiet_end": (h + 1) % 24})
     n = len(sent)
     assert asyncio.run(app_mod.push("夜里", "x", force=True)) is False and len(sent) == n
-    assert app_mod._held_get()[-1] == ["夜里", "x"]
+    assert app_mod._held_get()[-1] == ["夜里", "x", "active"]
     app_mod.save_settings({"quiet_start": -1})
     assert asyncio.run(app_mod.flush_held()) == 1 and "免打扰期间" in sent[-1][1]["title"]
 
