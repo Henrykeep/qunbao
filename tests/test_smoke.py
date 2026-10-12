@@ -2515,3 +2515,8 @@ def test_noise_peer_hangup():
     from noise import is_noise
     assert is_noise("对方已挂断") and is_noise("对方已取消了视频通话")
     assert not is_noise("对方已取消订单，请重新下单")
+
+
+def test_noise_history_divider():
+    from digest.noise import is_noise
+    assert is_noise("以下为新消息")
