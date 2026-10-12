@@ -20,6 +20,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
         payload["level"] = level
     if level == "timeSensitive":
         payload["sound"] = "alarm"  # 紧急的要和普通提醒听起来不一样
+        payload["volume"] = 8  # 静音键之外音量拉高（Bark 1-10），紧急事不能被忽略
     if badge >= 0:
         payload["badge"] = badge  # 桌面图标角标 = 未完成待办数，和网页 App 一致
     if site_url:
