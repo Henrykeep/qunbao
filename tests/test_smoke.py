@@ -2497,3 +2497,9 @@ def test_noise_call_invite_v35_44():
 def test_noise_call_busy_v03545():
     from digest.noise import is_noise
     assert is_noise("对方忙线") and is_noise("视频通话中断") and not is_noise("对方忙线，明天交材料")
+
+
+def test_noise_more_sys_phrases_v35_46():
+    from digest.noise import is_noise
+    assert is_noise("张三通过扫码加入了群聊") or is_noise("李四退出了群")
+    assert not is_noise("明天8点交作业，退出群的同学请告知")
