@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.64"
+VERSION = "0.35.65"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -264,9 +264,11 @@ async def flush_held():
     if not items or in_quiet(settings()):
         return 0
     kv_set("held", "[]")
+    urgent = any(len(x) > 2 and x[2] == "timeSensitive" for x in items)  # 免打扰期间有紧急的，合并后仍按紧急推（旧数据无此字段按普通）
     items = [tuple(x[:2]) for x in items]
     body = "\n".join(f"· {t}：{b}" for t, b in items)[:300]
-    await push(f"免打扰期间 {len(items)} 条消息", body, force=True, test=True)
+    await push(f"免打扰期间 {len(items)} 条消息", body, force=True, test=True,
+                level="timeSensitive" if urgent else "active")
     return len(items)
 
 
@@ -296,7 +298,7 @@ async def push(title: str, body: str, key: str = "", force=False, test=False, le
     if not test and in_quiet(s):
         held = _held_get()
         if len(held) < 50:
-            held.append([title, body])
+            held.append([title, body, level])
             kv_set("held", json.dumps(held, ensure_ascii=False))
         return False
     if key and not force and time.time() - _last_push.get(key, 0) < gap:  # 同一个群限频
