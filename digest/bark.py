@@ -30,7 +30,8 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
     if not burl:
         return False
     title = (title or "").strip() or "群报"  # 空标题的推送在锁屏上像乱码，兜底成 App 名
-    body = re.sub(r"\n\s*\n+", "\n", (body or "").strip()) or title  # 空行折掉，锁屏上不浪费行数
+    body = re.sub(r"\*\*|__|`", "", body or "")  # Bark 不渲染 Markdown，LLM 带的 ** 会原样露在锁屏上
+    body = re.sub(r"\n\s*\n+", "\n", body.strip()) or title  # 空行折掉，锁屏上不浪费行数
     payload = {"title": clip(title, 60), "body": clip(body, 300), "group": clip(group, 30) or "群报", "isArchive": "1"}  # 存进 Bark 历史，手滑划掉还能回看
     if level in ("timeSensitive", "passive"):
         payload["level"] = level
