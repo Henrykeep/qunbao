@@ -1119,7 +1119,7 @@ def test_held_push_survives_restart(monkeypatch):
     app_mod.save_settings({"bark_url": "http://x/k", "quiet_start": h, "quiet_end": (h + 1) % 24})
     try:
         assert asyncio.run(app_mod.push("a", "b")) is False
-        assert json.loads(app_mod.kv_get("held")) == [["a", "b"]]   # 存在数据库里，重启不丢
+        assert json.loads(app_mod.kv_get("held")) == [["a", "b", "active"]]   # 存在数据库里，重启不丢
     finally:
         app_mod.save_settings({"bark_url": "", "quiet_start": -1})
         app_mod.kv_set("held", "[]")
@@ -2550,3 +2550,18 @@ def test_bark_clip_marks_truncation():
     from bark import clip
     assert clip("abc", 5) == "abc"
     assert clip("a" * 400, 300).endswith("…") and len(clip("a" * 400, 300)) == 300
+
+
+def test_flush_held_keeps_urgency(monkeypatch):
+    import asyncio
+    sent = []
+
+    async def fake_push(title, body, **kw):
+        sent.append(kw)
+    monkeypatch.setattr(app_mod, "push", fake_push)
+    monkeypatch.setattr(app_mod, "in_quiet", lambda s: False)
+    app_mod.kv_set("held", json.dumps([["a", "b", "active"], ["c", "d", "timeSensitive"]]))
+    assert asyncio.run(app_mod.flush_held()) == 2 and sent[0]["level"] == "timeSensitive"
+    app_mod.kv_set("held", json.dumps([["a", "b"]]))
+    asyncio.run(app_mod.flush_held())
+    assert sent[1]["level"] == "active"
