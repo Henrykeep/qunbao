@@ -2712,3 +2712,8 @@ def test_bark_strip_md_italic():
     from bark import strip_md
     assert strip_md("*注意* 周五交") == "注意 周五交"
     assert strip_md("3*4=12") == "3*4=12"
+
+
+def test_bark_wechat_text_emoji_folded():
+    from bark import strip_md
+    assert strip_md("明天交表[捂脸][捂脸][破涕为笑]") == "明天交表[表情]"
