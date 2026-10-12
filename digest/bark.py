@@ -34,7 +34,10 @@ def strip_md(t: str) -> str:
     t = html.unescape(t)  # 转发来的文本偶带 &amp; &lt; 之类，锁屏上原样露出
     t = re.sub(r"(?i)<br\s*/?>", "\n", t)  # 转发文本里的 <br> 换成真换行，其余 <b></b> 之类标签直接去掉
     t = re.sub(r"(?i)</?(?:b|i|u|p|div|span|font|strong|em)\b[^>]*>", "", t)
-    t = re.sub(r"\[CQ:(?:at|face|image|reply)[^\]]*\]", "", t)  # 残留的 QQ 码没有可读信息
+    t = re.sub(r"\[CQ:(?:at|face|image|reply)[^\]]*\]", "", t)
+    t = re.sub(r"\[CQ:(?:record)[^\]]*\]", "[语音]", t)
+    t = re.sub(r"\[CQ:(?:video)[^\]]*\]", "[视频]", t)
+    t = re.sub(r"\[CQ:(?:forward|json|xml)[^\]]*\]", "[卡片]", t)  # 语音/视频/转发卡片留个可读占位，不是一串 CQ 码  # 残留的 QQ 码没有可读信息
     t = re.sub(r"(?m)^\s*(?:#{1,6}|[-*>]|\d{1,2}[.、)])\s+", "", t or "")
     t = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", t)
     t = re.sub(r"https?://[\x21-\x7e]+", "[链接]", t)  # 锁屏上整串长网址没法读，折成占位；只吃 ASCII，网址后紧跟的中文不被一起吞掉
