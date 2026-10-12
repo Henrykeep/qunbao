@@ -29,7 +29,7 @@ def norm_bark_url(u: str) -> str:
 
 
 CQ_LABEL = {"record": "[语音]", "video": "[视频]", "forward": "[卡片]", "json": "[卡片]", "xml": "[卡片]",
-            "file": "[文件]", "music": "[音乐]", "share": "[链接]", "dice": "[骰子]", "rps": "[猜拳]", "image": "[图片]"}
+            "file": "[文件]", "music": "[音乐]", "share": "[链接]", "dice": "[骰子]", "rps": "[猜拳]", "image": "[图片]", "face": "[表情]", "mface": "[表情]", "bface": "[表情]"}
 
 
 def strip_md(t: str) -> str:
@@ -49,6 +49,7 @@ def strip_md(t: str) -> str:
     t = re.sub(r"([哈啊嘿呵])\1{3,}", r"\1\1\1", t)  # “哈哈哈哈哈哈”“啊啊啊啊啊”压成三个字
     t = re.sub(r"([\U0001F300-\U0001FAFF\u2600-\u27BF])\1{2,}", r"\1\1", t)  # 😂😂😂😂 刷屏表情压成两个
     t = re.sub(r"(?:…|\.){4,}", "……", t)  # 省略号刷屏折成一个
+    t = re.sub(r"(\[(图片|表情)\][\s]*){2,}", lambda m: m.group(1).strip() + " ", t)  # 连发多张图/表情只留一个占位
     return re.sub(r"[ \u3000\t]{2,}", " ", t)  # 连续空格/全角空格折成一个，锁屏不出现一大段空白
 
 
