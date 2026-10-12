@@ -28,6 +28,8 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
     burl = norm_bark_url(burl)
     if not burl:
         return False
+    title = (title or "").strip() or "群报"  # 空标题的推送在锁屏上像乱码，兜底成 App 名
+    body = (body or "").strip() or title
     payload = {"title": clip(title, 60), "body": clip(body, 300), "group": clip(group, 30) or "群报", "isArchive": "1"}  # 存进 Bark 历史，手滑划掉还能回看
     if level in ("timeSensitive", "passive"):
         payload["level"] = level
