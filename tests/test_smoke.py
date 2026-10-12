@@ -2626,3 +2626,23 @@ def test_bark_title_strips_markdown():
     finally:
         httpx.AsyncClient = orig
     assert sent["title"] == "急 交表" and sent["body"] == "a"
+
+
+def test_bark_strips_links_and_headings():
+    import asyncio, httpx
+    from digest import bark
+    sent = {}
+    class C:
+        def __init__(s, *a, **k): pass
+        async def __aenter__(s): return s
+        async def __aexit__(s, *a): pass
+        async def post(s, u, json=None):
+            sent.update(json)
+            return httpx.Response(200)
+    orig = httpx.AsyncClient
+    httpx.AsyncClient = C
+    try:
+        asyncio.run(bark.send_bark("https://api.day.app/K", "# 通知", "见[链接](http://x.y/z)"))
+    finally:
+        httpx.AsyncClient = orig
+    assert sent["title"] == "通知" and sent["body"] == "见链接"
