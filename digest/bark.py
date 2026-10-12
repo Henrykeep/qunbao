@@ -10,12 +10,12 @@ def clip(t: str, n: int) -> str:
     return t if len(t) <= n else t[:n - 1] + "…"
 
 
-async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1) -> bool:
+async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> bool:
     """发一条 Bark。level：timeSensitive / active / passive。site_url 给了就带点开地址和图标。"""
     burl = (burl or "").rstrip("/")
     if not burl:
         return False
-    payload = {"title": clip(title, 60), "body": clip(body, 300), "group": "群报", "isArchive": "1"}  # 存进 Bark 历史，手滑划掉还能回看
+    payload = {"title": clip(title, 60), "body": clip(body, 300), "group": clip(group, 30) or "群报", "isArchive": "1"}  # 存进 Bark 历史，手滑划掉还能回看
     if level in ("timeSensitive", "passive"):
         payload["level"] = level
     if level == "timeSensitive":
