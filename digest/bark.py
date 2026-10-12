@@ -16,7 +16,10 @@ def norm_bark_url(u: str) -> str:
     from urllib.parse import urlsplit
     u = (u or "").strip()
     if u and "://" not in u and "." in u.split("/")[0]:
-        u = "https://" + u  # 漏写 https:// 的（api.day.app/KEY）补上
+        h = u.split("/")[0]
+        # 漏写协议：域名补 https（api.day.app/KEY）；IP 或带端口的自建服务多半没证书，补 http
+        selfhost = ":" in h or re.fullmatch(r"[\d.]+", h)
+        u = ("http://" if selfhost else "https://") + u
     sp = urlsplit(u)
     if not sp.scheme or not sp.netloc:
         return u.rstrip("/")
