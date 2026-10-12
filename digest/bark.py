@@ -10,9 +10,20 @@ def clip(t: str, n: int) -> str:
     return t if len(t) <= n else t[:n - 1] + "…"
 
 
+def norm_bark_url(u: str) -> str:
+    """用户常把 Bark App 里的示例整条粘进来（…/KEY/内容?group=x），只留 服务器/KEY。"""
+    from urllib.parse import urlsplit
+    u = (u or "").strip()
+    sp = urlsplit(u)
+    if not sp.scheme or not sp.netloc:
+        return u.rstrip("/")
+    seg = [x for x in sp.path.split("/") if x]
+    return f"{sp.scheme}://{sp.netloc}" + ("/" + seg[0] if seg else "")
+
+
 async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> bool:
     """发一条 Bark。level：timeSensitive / active / passive。site_url 给了就带点开地址和图标。"""
-    burl = (burl or "").rstrip("/")
+    burl = norm_bark_url(burl)
     if not burl:
         return False
     payload = {"title": clip(title, 60), "body": clip(body, 300), "group": clip(group, 30) or "群报", "isArchive": "1"}  # 存进 Bark 历史，手滑划掉还能回看
