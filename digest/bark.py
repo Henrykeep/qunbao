@@ -54,8 +54,8 @@ def strip_md(t: str) -> str:
     return re.sub(r"[ \u3000\t]{2,}", " ", t)  # 连续空格/全角空格折成一个，锁屏不出现一大段空白
 
 
-CODE_AFTER = re.compile(r"(?:取件码|验证码|提取码|邀请码|口令|暗号|密码|签到码)\D{0,4}([A-Za-z0-9-]{4,10})")
-CODE_BEFORE = re.compile(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|为)?(?:你的|您的)?(?:取件码|验证码|提取码|邀请码|签到码)")  # 码在前（“123456 为您的验证码”）也认
+CODE_AFTER = re.compile(r"(?:取件码|验证码|提取码|邀请码|兑换码|核销码|领取码|报名码|口令|暗号|密码|签到码)[^A-Za-z0-9]{0,4}([A-Za-z0-9-]{4,10})")
+CODE_BEFORE = re.compile(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|为)?(?:你的|您的)?(?:取件码|验证码|提取码|邀请码|兑换码|核销码|领取码|报名码|签到码)")  # 码在前（“123456 为您的验证码”）也认
 
 
 def build_payload(title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> dict:
