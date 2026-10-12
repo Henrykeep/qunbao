@@ -2651,3 +2651,10 @@ def test_bark_strips_links_and_headings():
 def test_bark_strip_md_numbered_and_quote():
     from bark import strip_md
     assert strip_md("1. 交作业\n> 周五前\n**重要**") == "交作业\n周五前\n重要"
+
+
+def test_bark_url_selfhost_defaults_http():
+    from bark import norm_bark_url
+    assert norm_bark_url("192.168.1.5:8080/KEY") == "http://192.168.1.5:8080/KEY"
+    assert norm_bark_url("1.2.3.4/KEY") == "http://1.2.3.4/KEY"
+    assert norm_bark_url("api.day.app/KEY") == "https://api.day.app/KEY"
