@@ -2589,7 +2589,7 @@ def test_bark_empty_title_falls_back(monkeypatch):
 
 def test_bark_strips_markdown():
     import asyncio, httpx
-    from digest import bark
+    import bark
     sent = {}
     class C:
         def __init__(s, **k): pass
@@ -2608,7 +2608,7 @@ def test_bark_strips_markdown():
 
 def test_bark_title_strips_markdown():
     import asyncio, httpx
-    from digest import bark
+    import bark
     sent = {}
     class R:
         status_code = 200
@@ -2630,7 +2630,7 @@ def test_bark_title_strips_markdown():
 
 def test_bark_strips_links_and_headings():
     import asyncio, httpx
-    from digest import bark
+    import bark
     sent = {}
     class C:
         def __init__(s, *a, **k): pass
@@ -2658,3 +2658,8 @@ def test_bark_url_selfhost_defaults_http():
     assert norm_bark_url("192.168.1.5:8080/KEY") == "http://192.168.1.5:8080/KEY"
     assert norm_bark_url("1.2.3.4/KEY") == "http://1.2.3.4/KEY"
     assert norm_bark_url("api.day.app/KEY") == "https://api.day.app/KEY"
+
+
+def test_bark_url_fold_keeps_chinese_tail():
+    import bark
+    assert bark.strip_md("报名见http://a.cn/x?y=1请尽快") == "报名见[链接]请尽快"
