@@ -2503,3 +2503,9 @@ def test_noise_more_sys_phrases_v35_46():
     from digest.noise import is_noise
     assert is_noise("张三通过扫码加入了群聊") or is_noise("李四退出了群")
     assert not is_noise("明天8点交作业，退出群的同学请告知")
+
+
+def test_noise_money_file_expiry_v35_48():
+    from digest.noise import is_noise
+    assert is_noise("红包已过期") and is_noise("转账已被接收") and is_noise("群文件已过期")
+    assert not is_noise("群文件已过期的同学请重新上传，周五截止")
