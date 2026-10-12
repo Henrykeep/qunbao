@@ -2685,3 +2685,8 @@ def test_bark_face_labels():
     from digest.bark import strip_md
     assert strip_md("好[CQ:face,id=1][CQ:face,id=2]") .strip() == "好[表情]"
     assert strip_md("[CQ:image,file=a][CQ:image,file=b]").strip() == "[图片]"
+
+
+def test_bark_repeated_lines_folded():
+    from bark import strip_md
+    assert strip_md("收到\n收到\n明天交").count("收到") == 1
