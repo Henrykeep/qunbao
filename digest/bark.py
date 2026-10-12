@@ -54,33 +54,39 @@ def strip_md(t: str) -> str:
     return re.sub(r"[ \u3000\t]{2,}", " ", t)  # 连续空格/全角空格折成一个，锁屏不出现一大段空白
 
 
-async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> bool:
-    """发一条 Bark。level：timeSensitive / active / passive。site_url 给了就带点开地址和图标。"""
-    burl = norm_bark_url(burl)
-    if not burl:
-        return False
-    md = strip_md
-    title = md(title).strip() or "群报"  # 空标题的推送在锁屏上像乱码，兜底成 App 名
-    body = md(body)
-    body = re.sub(r"\n\s*\n+", "\n", body.strip()) or title  # 空行折掉，锁屏上不浪费行数
+CODE_AFTER = re.compile(r"(?:取件码|验证码|提取码|邀请码|口令|暗号|密码|签到码)\D{0,4}([A-Za-z0-9-]{4,10})")
+CODE_BEFORE = re.compile(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|为)?(?:你的|您的)?(?:取件码|验证码|提取码|邀请码|签到码)")  # 码在前（“123456 为您的验证码”）也认
+
+
+def build_payload(title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> dict:
+    """纯函数：把标题/正文整理成 Bark 请求体（清理、去重、级别、复制内容、点开地址）。发送与重试在 send_bark。"""
+    title = strip_md(title).strip() or "群报"  # 空标题的推送在锁屏上像乱码，兜底成 App 名
+    body = re.sub(r"\n\s*\n+", "\n", strip_md(body).strip()) or title  # 空行折掉
     if body != title and body.startswith(title) and len(body) > len(title) + 2:
-        body = body[len(title):].lstrip("：:，,。 \n") or body  # 正文以标题开头时去掉重复，锁屏不读两遍
-    payload = {"title": clip(title, 60), "body": clip(body, 300), "group": clip(group, 30) or "群报", "isArchive": "1"}  # 存进 Bark 历史，手滑划掉还能回看
+        body = body[len(title):].lstrip("：:，,。 \n") or body  # 正文以标题开头时去掉重复
+    payload = {"title": clip(title, 60), "body": clip(body, 300), "group": clip(group, 30) or "群报", "isArchive": "1"}  # 存进 Bark 历史
     if level in ("timeSensitive", "passive"):
         payload["level"] = level
     if level == "timeSensitive":
-        payload["sound"] = "alarm"  # 紧急的要和普通提醒听起来不一样
-        payload["volume"] = 8  # 静音键之外音量拉高（Bark 1-10），紧急事不能被忽略
-        payload["call"] = "1"  # 紧急的循环响铃约 30 秒，睡着/静音时也不错过
+        payload.update(sound="alarm", volume=8, call="1")  # 紧急：不同铃声、拉高音量、循环响铃
     txt = title + " " + body
-    code = re.search(r"(?:取件码|验证码|提取码|邀请码|口令|暗号|密码|签到码)\D{0,4}([A-Za-z0-9-]{4,10})", txt) or re.search(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|为)?(?:你的|您的)?(?:取件码|验证码|提取码|邀请码|签到码)", txt)  # 码在前（“123456 为您的验证码”）也认
-    payload["copy"] = code.group(1) if code else clip(title, 60)  # 长按/下拉复制：有取件码/验证码就复制码本身，否则复制标题；不开 autoCopy，不悄悄覆盖剪贴板
+    code = CODE_AFTER.search(txt) or CODE_BEFORE.search(txt)
+    payload["copy"] = code.group(1) if code else clip(title, 60)  # 有码复制码，否则复制标题；不开 autoCopy
     if badge >= 0:
-        payload["badge"] = badge  # 桌面图标角标 = 未完成待办数，和网页 App 一致
+        payload["badge"] = badge  # 角标 = 未完成待办数
     if site_url:
         site = site_url.rstrip("/")
         payload["url"] = site + path if path != "/" else site_url
         payload["icon"] = site + "/icon.png"
+    return payload
+
+
+async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> bool:
+    """发一条 Bark。level：timeSensitive / active / passive。"""
+    burl = norm_bark_url(burl)
+    if not burl:
+        return False
+    payload = build_payload(title, body, level, site_url, path, badge, group)
     # 大陆服务器连 Bark 偶发超时：失败（网络错/5xx）自动再试两次，4xx（地址错）不重试
     for i in range(3):
         try:
