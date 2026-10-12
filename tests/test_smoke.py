@@ -2717,3 +2717,8 @@ def test_bark_strip_md_italic():
 def test_bark_wechat_text_emoji_folded():
     from bark import strip_md
     assert strip_md("明天交表[捂脸][捂脸][破涕为笑]") == "明天交表[表情]"
+
+
+def test_bark_strips_wechat_quote_block():
+    from digest.bark import strip_md
+    assert strip_md("「小王：明天开会」\n- - - - - - - - - - - - - - -\n收到，我会去") == "收到，我会去"
