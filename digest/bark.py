@@ -14,6 +14,8 @@ def norm_bark_url(u: str) -> str:
     """用户常把 Bark App 里的示例整条粘进来（…/KEY/内容?group=x），只留 服务器/KEY。"""
     from urllib.parse import urlsplit
     u = (u or "").strip()
+    if u and "://" not in u and "." in u.split("/")[0]:
+        u = "https://" + u  # 漏写 https:// 的（api.day.app/KEY）补上
     sp = urlsplit(u)
     if not sp.scheme or not sp.netloc:
         return u.rstrip("/")
