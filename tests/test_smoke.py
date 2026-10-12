@@ -2544,3 +2544,9 @@ def test_bark_retries_on_5xx(monkeypatch):
     monkeypatch.setattr(bark.asyncio, "sleep", nosleep)
     assert asyncio.run(bark.send_bark("http://x/k", "t", "b")) is True
     assert len(calls) == 3
+
+
+def test_bark_clip_marks_truncation():
+    from bark import clip
+    assert clip("abc", 5) == "abc"
+    assert clip("a" * 400, 300).endswith("…") and len(clip("a" * 400, 300)) == 300
