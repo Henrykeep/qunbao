@@ -22,6 +22,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
         payload["sound"] = "alarm"  # 紧急的要和普通提醒听起来不一样
         payload["volume"] = 8  # 静音键之外音量拉高（Bark 1-10），紧急事不能被忽略
         payload["call"] = "1"  # 紧急的循环响铃约 30 秒，睡着/静音时也不错过
+    payload["autoCopy"] = "1"; payload["copy"] = clip(title, 60)  # 长按/下拉即复制标题，抄进日历或备忘录不用手打
     if badge >= 0:
         payload["badge"] = badge  # 桌面图标角标 = 未完成待办数，和网页 App 一致
     if site_url:
