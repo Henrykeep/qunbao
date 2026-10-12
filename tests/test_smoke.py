@@ -2706,3 +2706,9 @@ def test_bark_strips_leading_at_all():
 def test_bark_strips_strikethrough():
     from bark import strip_md
     assert strip_md("~~取消~~ 改到周五") == "取消 改到周五"
+
+
+def test_bark_strip_md_italic():
+    from bark import strip_md
+    assert strip_md("*注意* 周五交") == "注意 周五交"
+    assert strip_md("3*4=12") == "3*4=12"
