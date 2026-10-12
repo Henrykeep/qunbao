@@ -4,12 +4,18 @@ import asyncio
 import httpx
 
 
+def clip(t: str, n: int) -> str:
+    """超长截断并补省略号，让人看出被截了而不是话没说完。"""
+    t = t or ""
+    return t if len(t) <= n else t[:n - 1] + "…"
+
+
 async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/") -> bool:
     """发一条 Bark。level：timeSensitive / active / passive。site_url 给了就带点开地址和图标。"""
     burl = (burl or "").rstrip("/")
     if not burl:
         return False
-    payload = {"title": title[:60], "body": body[:300], "group": "群报"}
+    payload = {"title": clip(title, 60), "body": clip(body, 300), "group": "群报"}
     if level in ("timeSensitive", "passive"):
         payload["level"] = level
     if site_url:
