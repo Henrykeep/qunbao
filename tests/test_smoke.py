@@ -2520,3 +2520,27 @@ def test_noise_peer_hangup():
 def test_noise_history_divider():
     from digest.noise import is_noise
     assert is_noise("以下为新消息")
+
+
+def test_bark_retries_on_5xx(monkeypatch):
+    import asyncio, sys
+    sys.path.insert(0, "digest")
+    import bark
+    calls = []
+
+    class R:
+        def __init__(s, c): s.status_code = c
+
+    class C:
+        def __init__(s, **k): pass
+        async def __aenter__(s): return s
+        async def __aexit__(s, *a): return False
+        async def post(s, u, json=None):
+            calls.append(1)
+            return R(500 if len(calls) < 3 else 200)
+
+    async def nosleep(x): pass
+    monkeypatch.setattr(bark.httpx, "AsyncClient", C)
+    monkeypatch.setattr(bark.asyncio, "sleep", nosleep)
+    assert asyncio.run(bark.send_bark("http://x/k", "t", "b")) is True
+    assert len(calls) == 3
