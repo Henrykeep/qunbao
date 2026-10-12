@@ -44,6 +44,8 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
     title = md(title).strip() or "群报"  # 空标题的推送在锁屏上像乱码，兜底成 App 名
     body = md(body)
     body = re.sub(r"\n\s*\n+", "\n", body.strip()) or title  # 空行折掉，锁屏上不浪费行数
+    if body != title and body.startswith(title) and len(body) > len(title) + 2:
+        body = body[len(title):].lstrip("：:，,。 \n") or body  # 正文以标题开头时去掉重复，锁屏不读两遍
     payload = {"title": clip(title, 60), "body": clip(body, 300), "group": clip(group, 30) or "群报", "isArchive": "1"}  # 存进 Bark 历史，手滑划掉还能回看
     if level in ("timeSensitive", "passive"):
         payload["level"] = level
