@@ -32,7 +32,8 @@ def strip_md(t: str) -> str:
     t = re.sub(r"(?m)^\s*(?:#{1,6}|[-*>]|\d{1,2}[.、)])\s+", "", t or "")
     t = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", t)
     t = re.sub(r"https?://[\x21-\x7e]+", "[链接]", t)  # 锁屏上整串长网址没法读，折成占位；只吃 ASCII，网址后紧跟的中文不被一起吞掉
-    return re.sub(r"\*\*|__|`", "", t)
+    t = re.sub(r"\*\*|__|`", "", t)
+    return re.sub(r"[ \u3000\t]{2,}", " ", t)  # 连续空格/全角空格折成一个，锁屏不出现一大段空白
 
 
 async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> bool:
