@@ -10,7 +10,7 @@ def clip(t: str, n: int) -> str:
     return t if len(t) <= n else t[:n - 1] + "…"
 
 
-async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/") -> bool:
+async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1) -> bool:
     """发一条 Bark。level：timeSensitive / active / passive。site_url 给了就带点开地址和图标。"""
     burl = (burl or "").rstrip("/")
     if not burl:
@@ -20,6 +20,8 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
         payload["level"] = level
     if level == "timeSensitive":
         payload["sound"] = "alarm"  # 紧急的要和普通提醒听起来不一样
+    if badge >= 0:
+        payload["badge"] = badge  # 桌面图标角标 = 未完成待办数，和网页 App 一致
     if site_url:
         site = site_url.rstrip("/")
         payload["url"] = site + path if path != "/" else site_url
