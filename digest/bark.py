@@ -18,6 +18,8 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
     payload = {"title": clip(title, 60), "body": clip(body, 300), "group": "群报", "isArchive": "1"}  # 存进 Bark 历史，手滑划掉还能回看
     if level in ("timeSensitive", "passive"):
         payload["level"] = level
+    if level == "timeSensitive":
+        payload["sound"] = "alarm"  # 紧急的要和普通提醒听起来不一样
     if site_url:
         site = site_url.rstrip("/")
         payload["url"] = site + path if path != "/" else site_url
