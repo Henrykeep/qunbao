@@ -24,12 +24,19 @@ def norm_bark_url(u: str) -> str:
     return f"{sp.scheme}://{sp.netloc}" + ("/" + seg[0] if seg else "")
 
 
+def strip_md(t: str) -> str:
+    """Bark 不渲染 Markdown，LLM 带的标记会原样露在锁屏上：去标题/列表(含 1.)/引用前缀、链接、粗体、代码。"""
+    t = re.sub(r"(?m)^\s*(?:#{1,6}|[-*>]|\d{1,2}[.、)])\s+", "", t or "")
+    t = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", t)
+    return re.sub(r"\*\*|__|`", "", t)
+
+
 async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> bool:
     """发一条 Bark。level：timeSensitive / active / passive。site_url 给了就带点开地址和图标。"""
     burl = norm_bark_url(burl)
     if not burl:
         return False
-    md = lambda t: re.sub(r"\*\*|__|`", "", re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", re.sub(r"(?m)^\s*(?:#{1,6}|[-*])\s+", "", t or "")))  # Bark 不渲染 Markdown，LLM 带的 ** 会原样露在锁屏上（标题正文同理）
+    md = strip_md
     title = md(title).strip() or "群报"  # 空标题的推送在锁屏上像乱码，兜底成 App 名
     body = md(body)
     body = re.sub(r"\n\s*\n+", "\n", body.strip()) or title  # 空行折掉，锁屏上不浪费行数
