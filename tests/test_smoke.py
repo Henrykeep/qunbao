@@ -2486,3 +2486,9 @@ def test_noise_call_and_admin_tips():
     for t in ("通话时长 00:12", "视频通话已结束", "对方未接听", "你取消了语音通话", "已将小王设为群管理员"):
         assert is_noise(t), t
     assert not is_noise("通话时长太长了，明天开会改线上吗")
+
+
+def test_noise_call_invite_v35_44():
+    from digest.noise import is_noise
+    assert is_noise("视频通话邀请")
+    assert not is_noise("视频通话邀请明天几点开始？")
