@@ -2673,3 +2673,9 @@ def test_bark_strips_html_tags():
 def test_bark_squashes_emoji_spam():
     from digest.bark import strip_md
     assert strip_md("好笑😂😂😂😂😂") == "好笑😂😂"
+
+
+def test_bark_cq_placeholders():
+    from digest.bark import strip_md
+    assert strip_md("[CQ:record,file=a.amr]") == "[语音]"
+    assert strip_md("[CQ:video,file=a.mp4]x") == "[视频]x"
