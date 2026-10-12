@@ -2457,3 +2457,10 @@ def test_noise_group_setting_tips():
     assert is_noise("张三更换了群头像")
     assert is_noise("管理员开启了群聊邀请确认")
     assert not is_noise("明天群头像统一换成班徽")
+
+
+def test_noise_greeting_system_tip():
+    from noise import is_noise
+    assert is_noise("以上是打招呼的内容")
+    assert is_noise("你已添加了小明，现在可以开始聊天了")
+    assert not is_noise("明天8点开会")
