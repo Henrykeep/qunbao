@@ -34,6 +34,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 r = await cl.post(burl, json=payload)
             if r.status_code < 300:
                 return True
+            print(f"Bark 返回 {r.status_code}：{r.text[:80]}")  # 写进 docker logs，地址/Key 填错一眼能看出
             if r.status_code < 500:
                 return False
         except Exception as ex:
