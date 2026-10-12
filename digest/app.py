@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.57"
+VERSION = "0.35.58"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -305,7 +305,7 @@ async def push(title: str, body: str, key: str = "", force=False, test=False, le
     path = url or chat_path(key)
     ok_b = ok_w = False
     if bark:
-        ok_b = await send_bark(s.get("bark_url"), title, body, level, s.get("site_url") or "", path)
+        ok_b = await send_bark(s.get("bark_url"), title, body, level, s.get("site_url") or "", path, open_todo_count(s))
     if web and level != "passive":
         ok_w = await webpush_all({"title": title[:60], "body": body[:300], "url": path, "tag": tag or key or "",
                                   "badge": open_todo_count(s)}) > 0
