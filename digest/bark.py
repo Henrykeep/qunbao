@@ -67,7 +67,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
         payload["volume"] = 8  # 静音键之外音量拉高（Bark 1-10），紧急事不能被忽略
         payload["call"] = "1"  # 紧急的循环响铃约 30 秒，睡着/静音时也不错过
     txt = title + " " + body
-    code = re.search(r"(?:取件码|验证码|口令|暗号|密码|签到码)\D{0,4}([A-Za-z0-9-]{4,10})", txt) or re.search(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|为)?(?:你的|您的)?(?:取件码|验证码|签到码)", txt)  # 码在前（“123456 为您的验证码”）也认
+    code = re.search(r"(?:取件码|验证码|提取码|邀请码|口令|暗号|密码|签到码)\D{0,4}([A-Za-z0-9-]{4,10})", txt) or re.search(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|为)?(?:你的|您的)?(?:取件码|验证码|提取码|邀请码|签到码)", txt)  # 码在前（“123456 为您的验证码”）也认
     payload["copy"] = code.group(1) if code else clip(title, 60)  # 长按/下拉复制：有取件码/验证码就复制码本身，否则复制标题；不开 autoCopy，不悄悄覆盖剪贴板
     if badge >= 0:
         payload["badge"] = badge  # 桌面图标角标 = 未完成待办数，和网页 App 一致
