@@ -2679,3 +2679,9 @@ def test_bark_cq_placeholders():
     from digest.bark import strip_md
     assert strip_md("[CQ:record,file=a.amr]") == "[语音]"
     assert strip_md("[CQ:video,file=a.mp4]x") == "[视频]x"
+
+
+def test_bark_face_labels():
+    from digest.bark import strip_md
+    assert strip_md("好[CQ:face,id=1][CQ:face,id=2]") .strip() == "好[表情]"
+    assert strip_md("[CQ:image,file=a][CQ:image,file=b]").strip() == "[图片]"
