@@ -1,5 +1,6 @@
 """Bark 传输层（0.34.24 从 app.py 拆出）：纯发送，不碰数据库、不 import app。"""
 import asyncio
+import html
 import re
 
 import httpx
@@ -30,6 +31,8 @@ def norm_bark_url(u: str) -> str:
 def strip_md(t: str) -> str:
     """Bark 不渲染 Markdown，LLM 带的标记会原样露在锁屏上：去标题/列表(含 1.)/引用前缀、链接、粗体、代码。"""
     t = re.sub(r"[\u200b-\u200d\u2060\ufeff]", "", t or "")  # 微信/QQ 文本常夹零宽字符，锁屏上是看不见的空档，还会让取件码匹配失败
+    t = html.unescape(t)  # 转发来的文本偶带 &amp; &lt; 之类，锁屏上原样露出
+    t = re.sub(r"\[CQ:(?:at|face|image|reply)[^\]]*\]", "", t)  # 残留的 QQ 码没有可读信息
     t = re.sub(r"(?m)^\s*(?:#{1,6}|[-*>]|\d{1,2}[.、)])\s+", "", t or "")
     t = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", t)
     t = re.sub(r"https?://[\x21-\x7e]+", "[链接]", t)  # 锁屏上整串长网址没法读，折成占位；只吃 ASCII，网址后紧跟的中文不被一起吞掉
