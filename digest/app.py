@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.35.37"
+VERSION = "0.35.38"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -821,7 +821,7 @@ async def todo_snooze(req: Request):
         c.execute("INSERT OR REPLACE INTO snooze(k,title,until,chat,due) VALUES(?,?,?,?,?)",
                   (d["key"], d.get("title") or t0, until, d.get("chat") or ch0, due_txt))
     when = ("今天" if at.date() == now.date() else "明天") + f" {at:%H:%M}" if h == "tomorrow" else f"{at:%H:%M}"
-    msg = f"{when} 提醒你" if h == "tomorrow" else f"{int(float(h or 1))} 小时后（{when}）提醒你"
+    msg = f"{when} 提醒你" if h == "tomorrow" else f"{round((at - now).total_seconds() / 3600)} 小时后（{when}）提醒你"
     due = parse_due(due_txt, now) if due_txt else None
     if due and due <= at:  # 提醒晚于截止：提醒就没意义了，说清楚
         msg = f"提醒设在 {when}，但那时已过截止（{due_txt}）"
