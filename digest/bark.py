@@ -29,7 +29,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
     burl = norm_bark_url(burl)
     if not burl:
         return False
-    md = lambda t: re.sub(r"\*\*|__|`", "", re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", re.sub(r"(?m)^\s*#{1,6}\s+", "", t or "")))  # Bark 不渲染 Markdown，LLM 带的 ** 会原样露在锁屏上（标题正文同理）
+    md = lambda t: re.sub(r"\*\*|__|`", "", re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", re.sub(r"(?m)^\s*(?:#{1,6}|[-*])\s+", "", t or "")))  # Bark 不渲染 Markdown，LLM 带的 ** 会原样露在锁屏上（标题正文同理）
     title = md(title).strip() or "群报"  # 空标题的推送在锁屏上像乱码，兜底成 App 名
     body = md(body)
     body = re.sub(r"\n\s*\n+", "\n", body.strip()) or title  # 空行折掉，锁屏上不浪费行数
