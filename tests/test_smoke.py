@@ -2690,3 +2690,9 @@ def test_bark_face_labels():
 def test_bark_repeated_lines_folded():
     from bark import strip_md
     assert strip_md("收到\n收到\n明天交").count("收到") == 1
+
+
+def test_bark_copy_more_codes():
+    import bark
+    assert bark.build_payload("兑换码", "兑换码：AB12CD 今天有效")["copy"] == "AB12CD"
+    assert bark.build_payload("x", "123456 是你的核销码")["copy"] == "123456"
