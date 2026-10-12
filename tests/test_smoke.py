@@ -2663,3 +2663,8 @@ def test_bark_url_selfhost_defaults_http():
 def test_bark_url_fold_keeps_chinese_tail():
     import bark
     assert bark.strip_md("报名见http://a.cn/x?y=1请尽快") == "报名见[链接]请尽快"
+
+
+def test_bark_strips_html_tags():
+    from digest.bark import strip_md
+    assert strip_md("取件码<br>1234 <b>速取</b>") == "取件码\n1234 速取"
