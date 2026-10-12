@@ -7,7 +7,11 @@ def snooze_until(h, now: datetime) -> datetime:
     if h == "tomorrow":
         t = now.replace(hour=9, minute=0, second=0, microsecond=0)
         return t if now.hour < 5 else t + timedelta(days=1)
-    return now + timedelta(hours=float(h or 1))
+    try:
+        hrs = float(h or 1)
+    except (TypeError, ValueError):
+        hrs = 1.0
+    return now + timedelta(hours=min(max(hrs, 0.1), 168))  # 负数/乱填不会设到过去，最长一周
 
 
 
