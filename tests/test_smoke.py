@@ -2666,23 +2666,23 @@ def test_bark_url_fold_keeps_chinese_tail():
 
 
 def test_bark_strips_html_tags():
-    from digest.bark import strip_md
+    from bark import strip_md
     assert strip_md("取件码<br>1234 <b>速取</b>") == "取件码\n1234 速取"
 
 
 def test_bark_squashes_emoji_spam():
-    from digest.bark import strip_md
+    from bark import strip_md
     assert strip_md("好笑😂😂😂😂😂") == "好笑😂😂"
 
 
 def test_bark_cq_placeholders():
-    from digest.bark import strip_md
+    from bark import strip_md
     assert strip_md("[CQ:record,file=a.amr]") == "[语音]"
     assert strip_md("[CQ:video,file=a.mp4]x") == "[视频]x"
 
 
 def test_bark_face_labels():
-    from digest.bark import strip_md
+    from bark import strip_md
     assert strip_md("好[CQ:face,id=1][CQ:face,id=2]") .strip() == "好[表情]"
     assert strip_md("[CQ:image,file=a][CQ:image,file=b]").strip() == "[图片]"
 
@@ -2701,3 +2701,8 @@ def test_bark_copy_more_codes():
 def test_bark_strips_leading_at_all():
     from bark import strip_md
     assert strip_md("@全体成员 明天8点开会").strip() == "明天8点开会"
+
+
+def test_bark_strips_strikethrough():
+    from bark import strip_md
+    assert strip_md("~~取消~~ 改到周五") == "取消 改到周五"
