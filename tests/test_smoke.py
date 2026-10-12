@@ -2470,3 +2470,12 @@ def test_noise_qr_join_tip():
     from digest.noise import is_noise
     assert is_noise("张三通过扫描李四分享的二维码加入群聊")
     assert not is_noise("明天加入群聊后请改备注")
+
+
+def test_snooze_until_clamps_bad_hours():
+    from datetime import datetime
+    from timing import snooze_until
+    now = datetime(2026, 10, 12, 12, 0)
+    assert snooze_until(-5, now) > now
+    assert snooze_until("abc", now) == snooze_until(1, now)
+    assert (snooze_until(9999, now) - now).days == 7
