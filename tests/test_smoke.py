@@ -2479,3 +2479,10 @@ def test_snooze_until_clamps_bad_hours():
     assert snooze_until(-5, now) > now
     assert snooze_until("abc", now) == snooze_until(1, now)
     assert (snooze_until(9999, now) - now).days == 7
+
+
+def test_noise_call_and_admin_tips():
+    from noise import is_noise
+    for t in ("通话时长 00:12", "视频通话已结束", "对方未接听", "你取消了语音通话", "已将小王设为群管理员"):
+        assert is_noise(t), t
+    assert not is_noise("通话时长太长了，明天开会改线上吗")
