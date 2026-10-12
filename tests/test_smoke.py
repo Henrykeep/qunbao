@@ -2668,3 +2668,8 @@ def test_bark_url_fold_keeps_chinese_tail():
 def test_bark_strips_html_tags():
     from digest.bark import strip_md
     assert strip_md("取件码<br>1234 <b>速取</b>") == "取件码\n1234 速取"
+
+
+def test_bark_squashes_emoji_spam():
+    from digest.bark import strip_md
+    assert strip_md("好笑😂😂😂😂😂") == "好笑😂😂"
