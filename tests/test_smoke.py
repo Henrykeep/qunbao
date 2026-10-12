@@ -2509,3 +2509,9 @@ def test_noise_money_file_expiry_v35_48():
     from digest.noise import is_noise
     assert is_noise("红包已过期") and is_noise("转账已被接收") and is_noise("群文件已过期")
     assert not is_noise("群文件已过期的同学请重新上传，周五截止")
+
+
+def test_noise_peer_hangup():
+    from noise import is_noise
+    assert is_noise("对方已挂断") and is_noise("对方已取消了视频通话")
+    assert not is_noise("对方已取消订单，请重新下单")
