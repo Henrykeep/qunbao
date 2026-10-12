@@ -28,16 +28,17 @@ def norm_bark_url(u: str) -> str:
     return f"{sp.scheme}://{sp.netloc}" + ("/" + seg[0] if seg else "")
 
 
+CQ_LABEL = {"record": "[语音]", "video": "[视频]", "forward": "[卡片]", "json": "[卡片]", "xml": "[卡片]",
+            "file": "[文件]", "music": "[音乐]", "share": "[链接]", "dice": "[骰子]", "rps": "[猜拳]"}
+
+
 def strip_md(t: str) -> str:
     """Bark 不渲染 Markdown，LLM 带的标记会原样露在锁屏上：去标题/列表(含 1.)/引用前缀、链接、粗体、代码。"""
     t = re.sub(r"[\u200b-\u200d\u2060\ufeff]", "", t or "")  # 微信/QQ 文本常夹零宽字符，锁屏上是看不见的空档，还会让取件码匹配失败
     t = html.unescape(t)  # 转发来的文本偶带 &amp; &lt; 之类，锁屏上原样露出
     t = re.sub(r"(?i)<br\s*/?>", "\n", t)  # 转发文本里的 <br> 换成真换行，其余 <b></b> 之类标签直接去掉
     t = re.sub(r"(?i)</?(?:b|i|u|p|div|span|font|strong|em)\b[^>]*>", "", t)
-    t = re.sub(r"\[CQ:(?:at|face|image|reply)[^\]]*\]", "", t)
-    t = re.sub(r"\[CQ:(?:record)[^\]]*\]", "[语音]", t)
-    t = re.sub(r"\[CQ:(?:video)[^\]]*\]", "[视频]", t)
-    t = re.sub(r"\[CQ:(?:forward|json|xml)[^\]]*\]", "[卡片]", t)  # 语音/视频/转发卡片留个可读占位，不是一串 CQ 码  # 残留的 QQ 码没有可读信息
+    t = re.sub(r"\[CQ:(\w+)[^\]]*\]", lambda m: CQ_LABEL.get(m.group(1), ""), t)  # QQ 码统一一张表：有可读含义的留占位，其余去掉
     t = re.sub(r"(?m)^\s*(?:#{1,6}|[-*>]|\d{1,2}[.、)])\s+", "", t or "")
     t = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", t)
     t = re.sub(r"https?://[\x21-\x7e]+", "[链接]", t)  # 锁屏上整串长网址没法读，折成占位；只吃 ASCII，网址后紧跟的中文不被一起吞掉
