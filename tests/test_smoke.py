@@ -2646,3 +2646,8 @@ def test_bark_strips_links_and_headings():
     finally:
         httpx.AsyncClient = orig
     assert sent["title"] == "通知" and sent["body"] == "见链接"
+
+
+def test_bark_strip_md_numbered_and_quote():
+    from bark import strip_md
+    assert strip_md("1. 交作业\n> 周五前\n**重要**") == "交作业\n周五前\n重要"
