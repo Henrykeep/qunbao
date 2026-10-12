@@ -2571,3 +2571,17 @@ def test_bark_url_normalized():
     from bark import norm_bark_url
     assert norm_bark_url("https://api.day.app/KEY/测试?group=a") == "https://api.day.app/KEY"
     assert norm_bark_url("http://1.2.3.4:8080/KEY/") == "http://1.2.3.4:8080/KEY"
+
+
+def test_bark_empty_title_falls_back(monkeypatch):
+    import asyncio, bark
+    got = {}
+    class R: status_code = 200; text = ""
+    class C:
+        def __init__(s, **k): pass
+        async def __aenter__(s): return s
+        async def __aexit__(s, *a): pass
+        async def post(s, u, json): got.update(json); return R()
+    monkeypatch.setattr(bark.httpx, "AsyncClient", C)
+    assert asyncio.run(bark.send_bark("https://api.day.app/K", "  ", ""))
+    assert got["title"] == "群报" and got["body"] == "群报"
