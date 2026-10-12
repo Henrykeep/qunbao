@@ -2464,3 +2464,9 @@ def test_noise_greeting_system_tip():
     assert is_noise("以上是打招呼的内容")
     assert is_noise("你已添加了小明，现在可以开始聊天了")
     assert not is_noise("明天8点开会")
+
+
+def test_noise_qr_join_tip():
+    from digest.noise import is_noise
+    assert is_noise("张三通过扫描李四分享的二维码加入群聊")
+    assert not is_noise("明天加入群聊后请改备注")
