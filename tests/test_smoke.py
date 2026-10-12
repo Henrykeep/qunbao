@@ -2585,3 +2585,22 @@ def test_bark_empty_title_falls_back(monkeypatch):
     monkeypatch.setattr(bark.httpx, "AsyncClient", C)
     assert asyncio.run(bark.send_bark("https://api.day.app/K", "  ", ""))
     assert got["title"] == "群报" and got["body"] == "群报"
+
+
+def test_bark_strips_markdown():
+    import asyncio, httpx
+    from digest import bark
+    sent = {}
+    class C:
+        def __init__(s, **k): pass
+        async def __aenter__(s): return s
+        async def __aexit__(s, *a): pass
+        async def post(s, u, json=None):
+            sent.update(json); return httpx.Response(200)
+    orig = bark.httpx.AsyncClient
+    bark.httpx.AsyncClient = C
+    try:
+        asyncio.run(bark.send_bark("https://a.b/K", "t", "**重要** `x`"))
+    finally:
+        bark.httpx.AsyncClient = orig
+    assert sent["body"] == "重要 x"
