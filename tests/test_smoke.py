@@ -2696,3 +2696,8 @@ def test_bark_copy_more_codes():
     import bark
     assert bark.build_payload("兑换码", "兑换码：AB12CD 今天有效")["copy"] == "AB12CD"
     assert bark.build_payload("x", "123456 是你的核销码")["copy"] == "123456"
+
+
+def test_bark_strips_leading_at_all():
+    from bark import strip_md
+    assert strip_md("@全体成员 明天8点开会").strip() == "明天8点开会"
