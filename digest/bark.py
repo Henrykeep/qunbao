@@ -1,4 +1,6 @@
 """Bark 传输层（0.34.24 从 app.py 拆出）：纯发送，不碰数据库、不 import app。"""
+import asyncio
+
 import httpx
 
 
@@ -14,10 +16,17 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
         site = site_url.rstrip("/")
         payload["url"] = site + path if path != "/" else site_url
         payload["icon"] = site + "/icon.png"
-    try:
-        async with httpx.AsyncClient(timeout=8) as cl:
-            r = await cl.post(burl, json=payload)
-            return r.status_code < 300
-    except Exception as ex:
-        print("推送失败:", ex)
-        return False
+    # 大陆服务器连 Bark 偶发超时：失败（网络错/5xx）自动再试两次，4xx（地址错）不重试
+    for i in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=8) as cl:
+                r = await cl.post(burl, json=payload)
+            if r.status_code < 300:
+                return True
+            if r.status_code < 500:
+                return False
+        except Exception as ex:
+            print("推送失败:", ex)
+        if i < 2:
+            await asyncio.sleep(1.5 * (i + 1))
+    return False
