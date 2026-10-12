@@ -2565,3 +2565,9 @@ def test_flush_held_keeps_urgency(monkeypatch):
     app_mod.kv_set("held", json.dumps([["a", "b"]]))
     asyncio.run(app_mod.flush_held())
     assert sent[1]["level"] == "active"
+
+
+def test_bark_url_normalized():
+    from bark import norm_bark_url
+    assert norm_bark_url("https://api.day.app/KEY/测试?group=a") == "https://api.day.app/KEY"
+    assert norm_bark_url("http://1.2.3.4:8080/KEY/") == "http://1.2.3.4:8080/KEY"
