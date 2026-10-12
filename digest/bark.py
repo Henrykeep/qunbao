@@ -53,7 +53,8 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
         payload["sound"] = "alarm"  # 紧急的要和普通提醒听起来不一样
         payload["volume"] = 8  # 静音键之外音量拉高（Bark 1-10），紧急事不能被忽略
         payload["call"] = "1"  # 紧急的循环响铃约 30 秒，睡着/静音时也不错过
-    payload["copy"] = clip(title, 60)  # 长按/下拉复制标题；不开 autoCopy，几十条推送不该悄悄覆盖剪贴板
+    code = re.search(r"(?:取件码|验证码|口令|暗号|密码|签到码)\D{0,4}([A-Za-z0-9-]{4,10})", title + " " + body)
+    payload["copy"] = code.group(1) if code else clip(title, 60)  # 长按/下拉复制：有取件码/验证码就复制码本身，否则复制标题；不开 autoCopy，不悄悄覆盖剪贴板
     if badge >= 0:
         payload["badge"] = badge  # 桌面图标角标 = 未完成待办数，和网页 App 一致
     if site_url:
