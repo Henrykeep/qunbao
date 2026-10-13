@@ -65,7 +65,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"(?m)^\s*[①-⑩⓵-⓾•·▪●○◆◇■□▶►➤➡✔✅☑]\s*", "", 0),  # 圆圈数字/圆点/箭头/对勾列表符
     (r"\[([^\]]+)\]\([^)]*\)", r"\1", 0),
     (r"https?://[\x21-\x7e]*[\x21-\x7e](?<![.,;:!?)\]])", "[链接]", 0),  # 只吃 ASCII，网址后紧跟的中文不被一起吞掉
-    (r"(?<![\w.@/])www\.[\x21-\x7e]+", "[链接]", 0),
+    (r"(?<![A-Za-z0-9_.@/])www\.[\x21-\x7e]+", "[链接]", 0),
     (r"(\[链接\][\s,，、]*){2,}", "[链接] ", 0),  # 多个网址只留一个占位
     (r"(?m)^\s*(?:[-*_=]{3,}|\|?[\s:|-]{3,}\|)\s*$", "", 0),  # 分隔线/表格对齐行
     (r"\*\*|__|~~|`", "", 0),  # 粗体/删除线/代码标记
@@ -108,9 +108,15 @@ CODE_BEFORE = re.compile(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|�
 
 CODE_PINGMA = re.compile(r"[凭憑](?:码)?\s*([A-Za-z0-9-]{3,12})\s*(?:到|去)?(?:取|领|核销|兑换)")  # “凭 8832 取件”
 
-LINK_RX = re.compile(r"https?://[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]*[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef.,;:!?)]")  # 链接末尾的英文标点/右括号不属于链接
+LINK_RX = re.compile(r"(?:https?://|(?<![A-Za-z0-9_.@/])www\.)[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]*[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef.,;:!?)]")  # 链接末尾的英文标点/右括号不属于链接
 
 ID_NUMS = re.compile(r"(?:宿舍|寝室|教室|考场|座位|楼|班|组|床|车|房)[号码]\s*[:：]?\s*[A-Za-z0-9-]+")
+
+
+def _copy_link(u: str) -> str:
+    """复制用的链接：去尾部标点；裸 www 域名补 http://，粘贴到浏览器才能直接打开。"""
+    u = u.rstrip(".,;)，。；）")
+    return u if u.startswith("http") else "http://" + u
 
 
 def build_payload(title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> dict:
@@ -128,7 +134,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     txt = SPLIT_DIGITS.sub(lambda m: m.group(1) + m.group(2).replace(" ", ""), unicodedata.normalize("NFKC", title + " " + body))  # 全角数字/冒号先归一，否则「１２３４５６」认不出
     txt = ID_NUMS.sub(" ", txt)  # 寝室号/考场号等位置类数字不是口令
     code = CODE_AFTER.search(txt) or CODE_SECRET.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt)
-    payload["copy"] = code.group(1) if code else (link.group(0).rstrip(".,;)，。；）") if link else clip(title, 60))  # 有码复制码，否则复制标题；不开 autoCopy
+    payload["copy"] = code.group(1) if code else (_copy_link(link.group(0)) if link else clip(title, 60))  # 有码复制码，否则复制标题；不开 autoCopy
     if badge >= 0:
         payload["badge"] = badge  # 角标 = 未完成待办数
     if site_url:
