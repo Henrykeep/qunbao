@@ -106,6 +106,7 @@ CODE_SECRET = re.compile(r"(?:提取码|密码|口令|暗号)[^A-Za-z0-9]{0,4}([
 SPLIT_DIGITS = re.compile(r"(?<!\d)(\d{3,4})((?: \d{3,4})+)(?!\d)")  # 会议号「123 456 789」分组书写，复制要整串
 CODE_BEFORE = re.compile(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|为)?(?:你的|您的)?(?:" + CODE_WORDS + r")")  # “123456 为您的验证码”
 
+CODE_PINGMA = re.compile(r"[凭憑](?:码)?\s*([A-Za-z0-9-]{3,12})\s*(?:到|去)?(?:取|领|核销|兑换)")  # “凭 8832 取件”
 
 ID_NUMS = re.compile(r"(?:宿舍|寝室|教室|考场|座位|楼|班|组|床|车|房)[号码]\s*[:：]?\s*[A-Za-z0-9-]+")
 
@@ -123,7 +124,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
         payload.update(sound="alarm", volume=8, call="1")  # 紧急：不同铃声、拉高音量、循环响铃
     txt = SPLIT_DIGITS.sub(lambda m: m.group(1) + m.group(2).replace(" ", ""), unicodedata.normalize("NFKC", title + " " + body))  # 全角数字/冒号先归一，否则「１２３４５６」认不出
     txt = ID_NUMS.sub(" ", txt)  # 寝室号/考场号等位置类数字不是口令
-    code = CODE_AFTER.search(txt) or CODE_SECRET.search(txt) or CODE_BEFORE.search(txt)
+    code = CODE_AFTER.search(txt) or CODE_SECRET.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt)
     payload["copy"] = code.group(1) if code else clip(title, 60)  # 有码复制码，否则复制标题；不开 autoCopy
     if badge >= 0:
         payload["badge"] = badge  # 角标 = 未完成待办数
