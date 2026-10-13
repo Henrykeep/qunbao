@@ -2752,3 +2752,8 @@ def test_failed_push_does_not_consume_rate_limit(monkeypatch):
     A._last_push.pop("QQ|g", None)
     assert asyncio.run(A.push("t", "b", key="QQ|g")) is False
     assert "QQ|g" not in A._last_push
+
+
+def test_bark_clip_keeps_codes_whole():
+    from digest.bark import clip
+    assert clip("取件码是 A1234567890 请尽快", 12) == "取件码是…"
