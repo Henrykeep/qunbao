@@ -151,7 +151,9 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
     payload = build_payload(title, body, level, site_url, path, badge, group)
     key = (burl, payload["title"], payload["body"])
     if dedupe and _is_dup(key, time.monotonic()):  # 测试推送不去重：连点两下也要真发
-        return True  # 刚推过一模一样的，视为已送达
+        return True  # 刚推过（或正在推）一模一样的，视为已送达
+    if dedupe:
+        _RECENT[key] = time.monotonic()  # 先占位：多路同时触发同一条时，后到的不再重复发
     # 大陆服务器连 Bark 偶发超时：失败（网络错/5xx）自动再试两次，4xx（地址错）不重试，429 限流除外
     async with httpx.AsyncClient(timeout=httpx.Timeout(8, connect=4)) as cl:  # 三次共用一个连接；连不上 4 秒就重试，不干等 8 秒
         wait = 0.0
@@ -166,6 +168,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 LAST_ERR = f"Bark 返回 {r.status_code}：{r.text[:60]}"
                 print(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
                 if r.status_code < 500 and r.status_code != 429:  # 429 限流也值得再试
+                    _RECENT.pop(key, None)
                     return False
                 if r.status_code == 429 and str(r.headers.get('retry-after', '')).isdigit():
                     wait = min(int(r.headers['retry-after']), 5)  # 服务端说等几秒就等几秒，最多 5 秒
@@ -174,4 +177,5 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 print(f"Bark 推送失败（第{i+1}次）：{type(ex).__name__} {ex}")  # 超时异常 str 为空，带上类型才看得出原因
             if i < tries - 1:
                 await asyncio.sleep(wait)
+    _RECENT.pop(key, None)  # 没送达就释放占位，允许之后重试
     return False
