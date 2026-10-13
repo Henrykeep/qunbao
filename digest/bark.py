@@ -119,6 +119,9 @@ EMAIL_RX = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")  # 邮箱：提交材料�
 PHONE_RX = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")  # 大陆手机号：联系人类通知
 
 
+TRACK_RX = re.compile(r"(?<![A-Za-z0-9])(?:SF|JD|YT|JT|ZT|YD)[A-Z]?\d{10,15}(?!\d)")  # 快递单号常不带「单号」二字：顺丰SF…/京东JD…
+
+
 def _copy_link(u: str) -> str:
     """复制用的链接：去尾部标点；裸 www 域名补 http://，粘贴到浏览器才能直接打开。"""
     u = u.rstrip(".,;)，。；）")
@@ -138,7 +141,7 @@ def pick_copy(txt: str, link, title: str) -> str:
     acc = ACCOUNT_RX.search(txt)
     if acc:
         return acc.group(1)
-    for rx in (EMAIL_RX, PHONE_RX):
+    for rx in (EMAIL_RX, TRACK_RX, PHONE_RX):
         m = rx.search(txt)
         if m:
             return m.group(0)
