@@ -2783,3 +2783,9 @@ def test_bark_copy_spaced_meeting_id_and_letter_code():
     import bark
     assert bark.build_payload("x", "会议号 123 456 789")["copy"] == "123456789"
     assert bark.build_payload("x", "提取码: abcd 链接")["copy"] == "abcd"
+
+
+def test_bark_copy_english_code_words():
+    from digest import bark
+    assert bark.build_payload("t", "pwd: 8832")["copy"] == "8832"
+    assert bark.build_payload("t", "your code 4471")["copy"] == "4471"
