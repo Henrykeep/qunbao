@@ -125,13 +125,19 @@ def _copy_link(u: str) -> str:
     return u if u.startswith("http") else "http://" + u
 
 
+ACCOUNT_RX = re.compile(r"(?:微信号|微信|vx|VX|wx|QQ群号|QQ群|群号|QQ号|QQ)\s*[:：]\s*([A-Za-z][A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})")  # 加好友/入群要抄的号
+
+
 def pick_copy(txt: str, link, title: str) -> str:
-    """一键复制的内容，按优先级：口令/验证码 > 链接 > 邮箱 > 手机号 > 标题。"""
+    """一键复制的内容，按优先级：口令/验证码 > 链接 > 微信/QQ号 > 邮箱 > 手机号 > 标题。"""
     code = CODE_AFTER.search(txt) or CODE_SECRET.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt)
     if code:
         return code.group(1)
     if link:
         return _copy_link(link.group(0))
+    acc = ACCOUNT_RX.search(txt)
+    if acc:
+        return acc.group(1)
     for rx in (EMAIL_RX, PHONE_RX):
         m = rx.search(txt)
         if m:
