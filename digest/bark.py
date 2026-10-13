@@ -137,7 +137,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 if r.status_code < 500:
                     return False
             except Exception as ex:
-                print("推送失败:", ex)
+                print(f"Bark 推送失败（第{i+1}次）：{type(ex).__name__} {ex}")  # 超时异常 str 为空，带上类型才看得出原因
             if i < 2:
                 await asyncio.sleep(1.5 * (i + 1))
     return False
