@@ -2800,3 +2800,9 @@ def test_bark_copy_link_stops_at_fullwidth_brackets():
 def test_bark_copy_bare_www_link():
     from digest import bark
     assert bark.build_payload("报名", "地址 www.baidu.com/abc 截止明天")["copy"] == "http://www.baidu.com/abc"
+
+
+def test_bark_copy_email_when_no_code():
+    import sys; sys.path.insert(0, "digest")
+    import bark
+    assert bark.build_payload("材料提交", "发送至 a.b@school.edu.cn 即可")["copy"] == "a.b@school.edu.cn"
