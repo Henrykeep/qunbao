@@ -127,11 +127,12 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     return payload
 
 
-_RECENT: dict = {}  # (地址, 标题, 正文) → 上次成功时间；同一条 60 秒内不重复推（重试/多路触发时手机不连震）
+DEDUPE_SECS = 60  # 同一条推送的去重窗口
+_RECENT: dict = {}  # (地址, 标题, 正文) → 上次成功时间；同一条 DEDUPE_SECS 秒内不重复推（重试/多路触发时手机不连震）
 
 
 def _is_dup(key: tuple, now: float) -> bool:
-    for k in [k for k, t in _RECENT.items() if now - t > 60]:
+    for k in [k for k, t in _RECENT.items() if now - t > DEDUPE_SECS]:
         del _RECENT[k]
     return key in _RECENT
 
