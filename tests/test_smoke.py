@@ -2795,3 +2795,8 @@ def test_bark_copy_link_stops_at_fullwidth_brackets():
     from bark import build_payload
     p = build_payload("报名", "入口（https://a.cn/x?id=1）截止明天")
     assert p["copy"] == "https://a.cn/x?id=1"
+
+
+def test_bark_copy_bare_www_link():
+    from digest import bark
+    assert bark.build_payload("报名", "地址 www.baidu.com/abc 截止明天")["copy"] == "http://www.baidu.com/abc"
