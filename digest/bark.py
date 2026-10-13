@@ -113,6 +113,9 @@ LINK_RX = re.compile(r"(?:https?://|(?<![A-Za-z0-9_.@/])www\.)[^\s<>\"'\]\u4e00-
 ID_NUMS = re.compile(r"(?:宿舍|寝室|教室|考场|座位|楼|班|组|床|车|房)[号码]\s*[:：]?\s*[A-Za-z0-9-]+")
 
 
+EMAIL_RX = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")  # 邮箱：提交材料的群通知常只给邮箱
+
+
 def _copy_link(u: str) -> str:
     """复制用的链接：去尾部标点；裸 www 域名补 http://，粘贴到浏览器才能直接打开。"""
     u = u.rstrip(".,;)，。；）")
@@ -134,7 +137,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     txt = SPLIT_DIGITS.sub(lambda m: m.group(1) + m.group(2).replace(" ", ""), unicodedata.normalize("NFKC", title + " " + body))  # 全角数字/冒号先归一，否则「１２３４５６」认不出
     txt = ID_NUMS.sub(" ", txt)  # 寝室号/考场号等位置类数字不是口令
     code = CODE_AFTER.search(txt) or CODE_SECRET.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt)
-    payload["copy"] = code.group(1) if code else (_copy_link(link.group(0)) if link else clip(title, 60))  # 有码复制码，否则复制标题；不开 autoCopy
+    payload["copy"] = code.group(1) if code else (_copy_link(link.group(0)) if link else (mail.group(0) if (mail := EMAIL_RX.search(txt)) else clip(title, 60)))  # 有码复制码，否则复制标题；不开 autoCopy
     if badge >= 0:
         payload["badge"] = badge  # 角标 = 未完成待办数
     if site_url:
