@@ -2806,3 +2806,8 @@ def test_bark_copy_email_when_no_code():
     import sys; sys.path.insert(0, "digest")
     import bark
     assert bark.build_payload("材料提交", "发送至 a.b@school.edu.cn 即可")["copy"] == "a.b@school.edu.cn"
+
+
+def test_bark_copy_courier_tracking_no():
+    from digest import bark
+    assert bark.build_payload("快递", "你的顺丰 SF1234567890123 已到驿站")["copy"] == "SF1234567890123"
