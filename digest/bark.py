@@ -93,7 +93,7 @@ def strip_md(t: str) -> str:
 
 
 CODE_WORDS = r"[\u4e00-\u9fff]{1,3}[码号]|快递单号|口令|暗号|密码|会议ID"  # 任何「X码/X号」都算口令，不再一个个枚举（手机号等超 8 位的数字天然匹配不上）
-CODE_AFTER = re.compile(r"(?:" + CODE_WORDS + r")[^A-Za-z0-9]{0,4}([A-Za-z0-9-]{4,10})")
+CODE_AFTER = re.compile(r"(?:" + CODE_WORDS + r")[^A-Za-z0-9]{0,4}((?=[A-Za-z-]*\d)[A-Za-z0-9-]{3,10})")  # 3 位也认但必须含数字：食堂「取餐号 A12」
 CODE_BEFORE = re.compile(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|为)?(?:你的|您的)?(?:" + CODE_WORDS + r")")  # “123456 为您的验证码”
 
 
