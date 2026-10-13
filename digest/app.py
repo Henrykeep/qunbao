@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.36.44"
+VERSION = "0.36.45"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -323,6 +323,7 @@ async def push(title: str, body: str, key: str = "", force=False, test=False, le
 
 # 传输层见 webpush.py / bark.py
 from bark import send_bark
+import bark as bark_mod
 import webpush as _wp
 _wp.bind(lambda: db(), lambda k: kv_get(k))
 from webpush import vapid_keys, webpush_all, VAPID_SUB  # noqa: F401
@@ -2514,7 +2515,7 @@ async def push_test(req: Request):
         raise HTTPException(400, "先填 Bark 推送地址")
     ok = await push("群报", "推送通了。之后有人 @你 或说到关键词，会第一时间提醒你。", force=True, test=True, web=False)
     if not ok:
-        raise HTTPException(502, "推送失败，检查 Bark 地址是否正确")
+        raise HTTPException(502, "推送失败：" + (bark_mod.LAST_ERR or "检查 Bark 地址是否正确"))
     return {"ok": True}
 
 
