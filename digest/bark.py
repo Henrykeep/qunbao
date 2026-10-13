@@ -2,6 +2,7 @@
 import asyncio
 import html
 import re
+import time
 
 import httpx
 
@@ -126,6 +127,15 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     return payload
 
 
+_RECENT: dict = {}  # (地址, 标题, 正文) → 上次成功时间；同一条 60 秒内不重复推（重试/多路触发时手机不连震）
+
+
+def _is_dup(key: tuple, now: float) -> bool:
+    for k in [k for k, t in _RECENT.items() if now - t > 60]:
+        del _RECENT[k]
+    return key in _RECENT
+
+
 LAST_ERR = ""  # 最近一次失败的原因（测试推送时直接告诉用户，不让人猜）
 
 
@@ -138,6 +148,9 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
         LAST_ERR = "地址为空"
         return False
     payload = build_payload(title, body, level, site_url, path, badge, group)
+    key = (burl, payload["title"], payload["body"])
+    if _is_dup(key, time.monotonic()):
+        return True  # 刚推过一模一样的，视为已送达
     # 大陆服务器连 Bark 偶发超时：失败（网络错/5xx）自动再试两次，4xx（地址错）不重试，429 限流除外
     async with httpx.AsyncClient(timeout=httpx.Timeout(8, connect=4)) as cl:  # 三次共用一个连接；连不上 4 秒就重试，不干等 8 秒
         wait = 0.0
@@ -147,6 +160,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
             try:
                 r = await cl.post(burl, json=payload)
                 if r.status_code < 300:
+                    _RECENT[key] = time.monotonic()
                     return True
                 LAST_ERR = f"Bark 返回 {r.status_code}：{r.text[:60]}"
                 print(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
