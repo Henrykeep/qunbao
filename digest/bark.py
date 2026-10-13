@@ -120,10 +120,16 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     return payload
 
 
+LAST_ERR = ""  # 最近一次失败的原因（测试推送时直接告诉用户，不让人猜）
+
+
 async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> bool:
     """发一条 Bark。level：timeSensitive / active / passive。"""
+    global LAST_ERR
+    LAST_ERR = ""
     burl = norm_bark_url(burl)
     if not burl:
+        LAST_ERR = "地址为空"
         return False
     payload = build_payload(title, body, level, site_url, path, badge, group)
     # 大陆服务器连 Bark 偶发超时：失败（网络错/5xx）自动再试两次，4xx（地址错）不重试，429 限流除外
@@ -136,12 +142,14 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 r = await cl.post(burl, json=payload)
                 if r.status_code < 300:
                     return True
-                print(f"Bark 返回 {r.status_code}：{r.text[:80]}")  # 写进 docker logs，地址/Key 填错一眼能看出
+                LAST_ERR = f"Bark 返回 {r.status_code}：{r.text[:60]}"
+                print(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
                 if r.status_code < 500 and r.status_code != 429:  # 429 限流也值得再试
                     return False
                 if r.status_code == 429 and str(r.headers.get('retry-after', '')).isdigit():
                     wait = min(int(r.headers['retry-after']), 5)  # 服务端说等几秒就等几秒，最多 5 秒
             except Exception as ex:
+                LAST_ERR = f"连不上 Bark 服务器（{type(ex).__name__}）"
                 print(f"Bark 推送失败（第{i+1}次）：{type(ex).__name__} {ex}")  # 超时异常 str 为空，带上类型才看得出原因
             if i < tries - 1:
                 await asyncio.sleep(wait)
