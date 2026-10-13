@@ -2732,3 +2732,9 @@ def test_bark_strip_empty_brackets():
 def test_bark_unicode_linebreaks():
     from digest import bark
     assert bark.strip_md("第一行\u2028第二行\u2029第三行") == "第一行\n第二行\n第三行"
+
+
+def test_bark_copy_short_pickup_number():
+    from digest import bark
+    assert bark.build_payload("食堂", "取餐号 A12 请到3号窗口")["copy"] == "A12"
+    assert bark.build_payload("通知", "口令 abc 明天")["copy"] == "通知"
