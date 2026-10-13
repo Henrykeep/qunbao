@@ -2722,3 +2722,8 @@ def test_bark_wechat_text_emoji_folded():
 def test_bark_strips_wechat_quote_block():
     from digest.bark import strip_md
     assert strip_md("「小王：明天开会」\n- - - - - - - - - - - - - - -\n收到，我会去") == "收到，我会去"
+
+
+def test_bark_strip_empty_brackets():
+    from digest import bark
+    assert bark.strip_md("开会【】 改到三点") == "开会 改到三点"
