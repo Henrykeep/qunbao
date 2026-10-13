@@ -9,7 +9,9 @@ import httpx
 def clip(t: str, n: int) -> str:
     """超长截断并补省略号，让人看出被截了而不是话没说完。"""
     t = t or ""
-    return t if len(t) <= n else t[:n - 1].rstrip("，,、：:；; ") + "…"  # 截断处不留悬空标点
+    if len(t) <= n:
+        return t
+    return t[:n - 1].rstrip("，,、：:；;（([【“\"‘ ") + "…"  # 截断处不留悬空标点/半个括号
 
 
 def norm_bark_url(u: str) -> str:
