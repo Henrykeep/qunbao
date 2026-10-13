@@ -125,6 +125,20 @@ def _copy_link(u: str) -> str:
     return u if u.startswith("http") else "http://" + u
 
 
+def pick_copy(txt: str, link, title: str) -> str:
+    """一键复制的内容，按优先级：口令/验证码 > 链接 > 邮箱 > 手机号 > 标题。"""
+    code = CODE_AFTER.search(txt) or CODE_SECRET.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt)
+    if code:
+        return code.group(1)
+    if link:
+        return _copy_link(link.group(0))
+    for rx in (EMAIL_RX, PHONE_RX):
+        m = rx.search(txt)
+        if m:
+            return m.group(0)
+    return clip(title, 60)
+
+
 def build_payload(title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> dict:
     """纯函数：把标题/正文整理成 Bark 请求体（清理、去重、级别、复制内容、点开地址）。发送与重试在 send_bark。"""
     link = LINK_RX.search(body or "")  # 正文里的链接锁屏上折成[链接]，没有口令时改为复制原链接
@@ -139,8 +153,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
         payload.update(sound="alarm", volume=8, call="1")  # 紧急：不同铃声、拉高音量、循环响铃
     txt = SPLIT_DIGITS.sub(lambda m: m.group(1) + m.group(2).replace(" ", ""), unicodedata.normalize("NFKC", title + " " + body))  # 全角数字/冒号先归一，否则「１２３４５６」认不出
     txt = ID_NUMS.sub(" ", txt)  # 寝室号/考场号等位置类数字不是口令
-    code = CODE_AFTER.search(txt) or CODE_SECRET.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt)
-    payload["copy"] = code.group(1) if code else (_copy_link(link.group(0)) if link else (mail.group(0) if (mail := EMAIL_RX.search(txt)) else (ph.group(0) if (ph := PHONE_RX.search(txt)) else clip(title, 60))))  # 有码复制码，否则复制标题；不开 autoCopy
+    payload["copy"] = pick_copy(txt, link, title)  # 不开 autoCopy，用户长按复制
     if badge >= 0:
         payload["badge"] = badge  # 角标 = 未完成待办数
     if site_url:
