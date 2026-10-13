@@ -107,6 +107,9 @@ SPLIT_DIGITS = re.compile(r"(?<!\d)(\d{3,4})((?: \d{3,4})+)(?!\d)")  # 会议号
 CODE_BEFORE = re.compile(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|为)?(?:你的|您的)?(?:" + CODE_WORDS + r")")  # “123456 为您的验证码”
 
 
+ID_NUMS = re.compile(r"(?:宿舍|寝室|教室|考场|座位|楼|班|组|床|车|房)[号码]\s*[:：]?\s*[A-Za-z0-9-]+")
+
+
 def build_payload(title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> dict:
     """纯函数：把标题/正文整理成 Bark 请求体（清理、去重、级别、复制内容、点开地址）。发送与重试在 send_bark。"""
     title = strip_md(title).strip() or "群报"  # 空标题的推送在锁屏上像乱码，兜底成 App 名
@@ -119,6 +122,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     if level == "timeSensitive":
         payload.update(sound="alarm", volume=8, call="1")  # 紧急：不同铃声、拉高音量、循环响铃
     txt = SPLIT_DIGITS.sub(lambda m: m.group(1) + m.group(2).replace(" ", ""), unicodedata.normalize("NFKC", title + " " + body))  # 全角数字/冒号先归一，否则「１２３４５６」认不出
+    txt = ID_NUMS.sub(" ", txt)  # 寝室号/考场号等位置类数字不是口令
     code = CODE_AFTER.search(txt) or CODE_SECRET.search(txt) or CODE_BEFORE.search(txt)
     payload["copy"] = code.group(1) if code else clip(title, 60)  # 有码复制码，否则复制标题；不开 autoCopy
     if badge >= 0:
