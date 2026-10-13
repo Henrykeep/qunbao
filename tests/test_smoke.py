@@ -2811,3 +2811,8 @@ def test_bark_copy_email_when_no_code():
 def test_bark_copy_courier_tracking_no():
     from digest import bark
     assert bark.build_payload("快递", "你的顺丰 SF1234567890123 已到驿站")["copy"] == "SF1234567890123"
+
+
+def test_bark_strip_mid_at_all():
+    from digest import bark
+    assert "@" not in bark.strip_md("请大家 @全体成员 注意明天交表")
