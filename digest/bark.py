@@ -128,7 +128,7 @@ def _copy_link(u: str) -> str:
     return u if u.startswith("http") else "http://" + u
 
 
-ACCOUNT_RX = re.compile(r"(?:微信号|微信|vx|VX|wx|飞书群号|飞书群|钉钉群号|钉钉群|QQ群号|QQ群|群号|QQ号|QQ)\s*[:：]\s*([A-Za-z][A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})")  # 加好友/入群要抄的号
+ACCOUNT_RX = re.compile(r"(?:腾讯会议号|会议号|会议ID|微信号|微信|vx|VX|wx|飞书群号|飞书群|钉钉群号|钉钉群|QQ群号|QQ群|群号|QQ号|QQ)\s*[:：]\s*([A-Za-z][A-Za-z0-9_-]{5,19}|\d{3}[ -]\d{3}[ -]\d{3,4}|[1-9]\d{4,11})")  # 加好友/入群要抄的号
 
 
 def pick_copy(txt: str, link, title: str) -> str:
