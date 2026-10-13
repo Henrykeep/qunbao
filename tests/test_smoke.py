@@ -2789,3 +2789,9 @@ def test_bark_copy_english_code_words():
     from digest import bark
     assert bark.build_payload("t", "pwd: 8832")["copy"] == "8832"
     assert bark.build_payload("t", "your code 4471")["copy"] == "4471"
+
+
+def test_bark_copy_link_stops_at_fullwidth_brackets():
+    from bark import build_payload
+    p = build_payload("报名", "入口（https://a.cn/x?id=1）截止明天")
+    assert p["copy"] == "https://a.cn/x?id=1"
