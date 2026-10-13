@@ -108,7 +108,7 @@ CODE_BEFORE = re.compile(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|�
 
 CODE_PINGMA = re.compile(r"[凭憑](?:码)?\s*([A-Za-z0-9-]{3,12})\s*(?:到|去)?(?:取|领|核销|兑换)")  # “凭 8832 取件”
 
-LINK_RX = re.compile(r"https?://[^\s<>\"'\]\u4e00-\u9fff]+")
+LINK_RX = re.compile(r"https://[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]+|http://[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]+")
 
 ID_NUMS = re.compile(r"(?:宿舍|寝室|教室|考场|座位|楼|班|组|床|车|房)[号码]\s*[:：]?\s*[A-Za-z0-9-]+")
 
