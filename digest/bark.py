@@ -127,7 +127,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
         return False
     payload = build_payload(title, body, level, site_url, path, badge, group)
     # 大陆服务器连 Bark 偶发超时：失败（网络错/5xx）自动再试两次，4xx（地址错）不重试
-    async with httpx.AsyncClient(timeout=8) as cl:  # 三次尝试共用一个连接
+    async with httpx.AsyncClient(timeout=httpx.Timeout(8, connect=4)) as cl:  # 三次共用一个连接；连不上 4 秒就重试，不干等 8 秒
         for i in range(3):
             try:
                 r = await cl.post(burl, json=payload)
