@@ -11,7 +11,11 @@ def clip(t: str, n: int) -> str:
     t = t or ""
     if len(t) <= n:
         return t
-    return t[:n - 1].rstrip("，,、：:；;（([【“\"‘ ") + "…"  # 截断处不留悬空标点/半个括号
+    cut = n - 1
+    m = re.search(r"[A-Za-z0-9\-]+$", t[:cut])
+    if m and t[cut:cut + 1].isascii() and t[cut:cut + 1].isalnum() and m.start() >= 3:
+        cut = m.start()  # 不把取件码/单号/英文单词拦腰截断
+    return t[:cut].rstrip("，,、：:；;（([【“\"‘ ") + "…"  # 截断处不留悬空标点/半个括号
 
 
 def norm_bark_url(u: str) -> str:
