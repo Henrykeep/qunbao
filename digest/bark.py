@@ -129,7 +129,8 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
     # 大陆服务器连 Bark 偶发超时：失败（网络错/5xx）自动再试两次，4xx（地址错）不重试，429 限流除外
     async with httpx.AsyncClient(timeout=httpx.Timeout(8, connect=4)) as cl:  # 三次共用一个连接；连不上 4 秒就重试，不干等 8 秒
         wait = 0.0
-        for i in range(3):
+        tries = 5 if level == "timeSensitive" else 3  # 紧急推送丢了代价最大，多试两次
+        for i in range(tries):
             wait = 1.5 * (i + 1)
             try:
                 r = await cl.post(burl, json=payload)
@@ -142,6 +143,6 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                     wait = min(int(r.headers['retry-after']), 5)  # 服务端说等几秒就等几秒，最多 5 秒
             except Exception as ex:
                 print(f"Bark 推送失败（第{i+1}次）：{type(ex).__name__} {ex}")  # 超时异常 str 为空，带上类型才看得出原因
-            if i < 2:
+            if i < tries - 1:
                 await asyncio.sleep(wait)
     return False
