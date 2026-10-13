@@ -2757,3 +2757,23 @@ def test_failed_push_does_not_consume_rate_limit(monkeypatch):
 def test_bark_clip_keeps_codes_whole():
     from digest.bark import clip
     assert clip("取件码是 A1234567890 请尽快", 12) == "取件码是…"
+
+
+def test_bark_duplicate_within_60s_skipped(monkeypatch):
+    import asyncio, bark, httpx
+    bark._RECENT.clear()
+    calls = []
+    class R:
+        status_code = 200
+        text = ""
+        headers = {}
+    class C:
+        def __init__(self, *a, **k): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): pass
+        async def post(self, u, json=None):
+            calls.append(u); return R()
+    monkeypatch.setattr(httpx, "AsyncClient", C)
+    for _ in range(2):
+        assert asyncio.run(bark.send_bark("http://1.2.3.4:8080/k", "t", "b"))
+    assert len(calls) == 1
