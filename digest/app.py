@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.36.41"
+VERSION = "0.36.42"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -287,7 +287,7 @@ def chat_path(key: str) -> str:
 
 
 async def push(title: str, body: str, key: str = "", force=False, test=False, level: str = "active", gap: int = 60,
-               url: str = "", tag: str = "", web: bool = True, bark: bool = True):
+               url: str = "", tag: str = "", web: bool = True, bark: bool = True, _retrying: bool = False):
     """同时发 Bark 和 Web Push（主屏幕网页 App 的原生通知），哪个配了发哪个。
     level：timeSensitive（@我、快截止，专注模式也能响）/ active / passive（只进通知中心，不响不震；Web Push 不发）。
     url：点开后打开的群报内地址（/#todo/12、/#chat/qq/群名）；不给就按 key 跳到群。
@@ -314,6 +314,9 @@ async def push(title: str, body: str, key: str = "", force=False, test=False, le
                                   "badge": open_todo_count(s)}) > 0
     if not (ok_b or ok_w) and key:
         _last_push.pop(key, None)  # 没送达就不占限频名额，下一条同群消息可以马上再试
+        if level == "timeSensitive" and not test and not _retrying:  # 紧急的 30 秒后再补发一次
+            asyncio.get_running_loop().call_later(30, lambda: asyncio.ensure_future(
+                push(title, body, level, key=key, force=True, url=url, tag=tag, web=web, bark=bark, _retrying=True)))
     return ok_b or ok_w
 
 
