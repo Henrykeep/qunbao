@@ -127,17 +127,17 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
         return False
     payload = build_payload(title, body, level, site_url, path, badge, group)
     # 大陆服务器连 Bark 偶发超时：失败（网络错/5xx）自动再试两次，4xx（地址错）不重试
-    for i in range(3):
-        try:
-            async with httpx.AsyncClient(timeout=8) as cl:
+    async with httpx.AsyncClient(timeout=8) as cl:  # 三次尝试共用一个连接
+        for i in range(3):
+            try:
                 r = await cl.post(burl, json=payload)
-            if r.status_code < 300:
-                return True
-            print(f"Bark 返回 {r.status_code}：{r.text[:80]}")  # 写进 docker logs，地址/Key 填错一眼能看出
-            if r.status_code < 500:
-                return False
-        except Exception as ex:
-            print("推送失败:", ex)
-        if i < 2:
-            await asyncio.sleep(1.5 * (i + 1))
+                if r.status_code < 300:
+                    return True
+                print(f"Bark 返回 {r.status_code}：{r.text[:80]}")  # 写进 docker logs，地址/Key 填错一眼能看出
+                if r.status_code < 500:
+                    return False
+            except Exception as ex:
+                print("推送失败:", ex)
+            if i < 2:
+                await asyncio.sleep(1.5 * (i + 1))
     return False
