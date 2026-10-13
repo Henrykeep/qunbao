@@ -139,7 +139,7 @@ def _is_dup(key: tuple, now: float) -> bool:
 LAST_ERR = ""  # 最近一次失败的原因（测试推送时直接告诉用户，不让人猜）
 
 
-async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> bool:
+async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "", dedupe: bool = True) -> bool:
     """发一条 Bark。level：timeSensitive / active / passive。"""
     global LAST_ERR
     LAST_ERR = ""
@@ -149,7 +149,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
         return False
     payload = build_payload(title, body, level, site_url, path, badge, group)
     key = (burl, payload["title"], payload["body"])
-    if _is_dup(key, time.monotonic()):
+    if dedupe and _is_dup(key, time.monotonic()):  # 测试推送不去重：连点两下也要真发
         return True  # 刚推过一模一样的，视为已送达
     # 大陆服务器连 Bark 偶发超时：失败（网络错/5xx）自动再试两次，4xx（地址错）不重试，429 限流除外
     async with httpx.AsyncClient(timeout=httpx.Timeout(8, connect=4)) as cl:  # 三次共用一个连接；连不上 4 秒就重试，不干等 8 秒
