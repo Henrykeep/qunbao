@@ -2727,3 +2727,8 @@ def test_bark_strips_wechat_quote_block():
 def test_bark_strip_empty_brackets():
     from digest import bark
     assert bark.strip_md("开会【】 改到三点") == "开会 改到三点"
+
+
+def test_bark_unicode_linebreaks():
+    from digest import bark
+    assert bark.strip_md("第一行\u2028第二行\u2029第三行") == "第一行\n第二行\n第三行"
