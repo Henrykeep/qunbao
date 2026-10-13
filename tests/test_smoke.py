@@ -2725,17 +2725,17 @@ def test_bark_strips_wechat_quote_block():
 
 
 def test_bark_strip_empty_brackets():
-    from digest import bark
+    import bark
     assert bark.strip_md("开会【】 改到三点") == "开会 改到三点"
 
 
 def test_bark_unicode_linebreaks():
-    from digest import bark
+    import bark
     assert bark.strip_md("第一行\u2028第二行\u2029第三行") == "第一行\n第二行\n第三行"
 
 
 def test_bark_copy_short_pickup_number():
-    from digest import bark
+    import bark
     assert bark.build_payload("食堂", "取餐号 A12 请到3号窗口")["copy"] == "A12"
     assert bark.build_payload("通知", "口令 abc 明天")["copy"] == "通知"
 
@@ -2777,3 +2777,9 @@ def test_bark_duplicate_within_60s_skipped(monkeypatch):
     for _ in range(2):
         assert asyncio.run(bark.send_bark("http://1.2.3.4:8080/k", "t", "b"))
     assert len(calls) == 1
+
+
+def test_bark_copy_spaced_meeting_id_and_letter_code():
+    import bark
+    assert bark.build_payload("x", "会议号 123 456 789")["copy"] == "123456789"
+    assert bark.build_payload("x", "提取码: abcd 链接")["copy"] == "abcd"
