@@ -131,7 +131,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
         wait = 0.0
         tries = 5 if level == "timeSensitive" else 3  # 紧急推送丢了代价最大，多试两次
         for i in range(tries):
-            wait = 1.5 * (i + 1)
+            wait = (1.0 if level == "timeSensitive" else 1.5) * (i + 1)  # 紧急的间隔更短，5 次总等待也就 10 秒内
             try:
                 r = await cl.post(burl, json=payload)
                 if r.status_code < 300:
