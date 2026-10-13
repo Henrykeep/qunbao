@@ -2738,3 +2738,17 @@ def test_bark_copy_short_pickup_number():
     from digest import bark
     assert bark.build_payload("食堂", "取餐号 A12 请到3号窗口")["copy"] == "A12"
     assert bark.build_payload("通知", "口令 abc 明天")["copy"] == "通知"
+
+
+def test_failed_push_does_not_consume_rate_limit(monkeypatch):
+    import asyncio, app as A
+    async def fail(*a, **k): return False
+    monkeypatch.setattr(A, "send_bark", fail)
+    monkeypatch.setattr(A, "has_push", lambda s: True)
+    monkeypatch.setattr(A, "in_quiet", lambda s: False)
+    monkeypatch.setattr(A, "open_todo_count", lambda s=None: 0)
+    async def nw(*a, **k): return 0
+    monkeypatch.setattr(A, "webpush_all", nw)
+    A._last_push.pop("QQ|g", None)
+    assert asyncio.run(A.push("t", "b", key="QQ|g")) is False
+    assert "QQ|g" not in A._last_push
