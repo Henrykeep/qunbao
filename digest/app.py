@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.36.39"
+VERSION = "0.36.40"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -312,6 +312,8 @@ async def push(title: str, body: str, key: str = "", force=False, test=False, le
     if web and level != "passive":
         ok_w = await webpush_all({"title": title[:60], "body": body[:300], "url": path, "tag": tag or key or "",
                                   "badge": open_todo_count(s)}) > 0
+    if not (ok_b or ok_w) and key:
+        _last_push.pop(key, None)  # 没送达就不占限频名额，下一条同群消息可以马上再试
     return ok_b or ok_w
 
 
