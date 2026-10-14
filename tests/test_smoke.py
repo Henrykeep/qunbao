@@ -2822,3 +2822,8 @@ def test_bark_copy_more_accounts():
     import bark
     assert bark.pick_copy("会议号：8123456789 请准时", None, "t") == "8123456789"
     assert bark.pick_copy("Skype: live_abc123 加我", None, "t") == "live_abc123"
+
+
+def test_bark_strip_md_image():
+    from bark import strip_md
+    assert strip_md("见![海报](http://a.com/x.png)和[文档](http://b.com)") == "见[图片]和文档"
