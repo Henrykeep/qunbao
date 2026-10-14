@@ -2843,3 +2843,9 @@ def test_bark_voice_duration_folded():
     import sys; sys.path.insert(0, "digest")
     import bark
     assert bark.strip_md("[语音 5秒][语音3″]") == "[语音]"
+
+
+def test_bark_clip_prefers_sentence_end():
+    from digest.bark import clip
+    s = "A" * 5 + "明天下午三点交材料。" + "请大家带好学生证并且准时到场不要迟到" * 3
+    assert clip(s, 22) == "AAAAA明天下午三点交材料。…"
