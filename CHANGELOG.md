@@ -1,3 +1,6 @@
+## 0.37.31 — 2026-10-15
+- Bark：[Article]/[公众号文章]/[文章分享] 并入 [链接]（EN_ALIAS 一行）。
+
 ## 0.37.30 — 2026-10-15
 - Bark：[Navigation]/[Shared Location]/[导航分享] 并入 [位置]（EN_ALIAS 一行）。
 
