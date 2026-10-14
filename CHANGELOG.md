@@ -1,3 +1,6 @@
+## 0.37.27 — 2026-10-15
+- Bark：[Zip]/[Archive]/[压缩文件] 并入文件占位（EN_ALIAS 一行）。
+
 ## 0.37.26 — 2026-10-15
 - Bark：[Forwarded Message] 并入 [聊天记录] 占位（EN_ALIAS 一行）。
 
