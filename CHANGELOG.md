@@ -1,3 +1,6 @@
+## 0.36.81 — 2026-10-14
+- Bark：「手机号/电话：1xxxxxxxxxx」也能一键复制，并入账号前缀表。
+
 ## 0.36.80 — 2026-10-14
 - Bark：会议号/Skype/Teams/Slack/Facebook/Twitter/Signal：xxx 也能一键复制，并入账号前缀表。
 
