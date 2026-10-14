@@ -1,3 +1,6 @@
+## 0.37.34 — 2026-10-15
+- Bark：[Screen Recording]/[录屏] 并入 [视频]（EN_ALIAS 一行）。
+
 ## 0.37.33 — 2026-10-15
 - Bark：[Contact Card]/[Shared Contact]/[推荐好友] 并入 [名片]（EN_ALIAS 一行）。
 
