@@ -2837,3 +2837,9 @@ def test_bark_en_sticker_alias():
 def test_bark_link_alias():
     from digest import bark
     assert bark.strip_md("看这个 [网页链接]") == "看这个 [链接]"
+
+
+def test_bark_voice_duration_folded():
+    import sys; sys.path.insert(0, "digest")
+    import bark
+    assert bark.strip_md("[语音 5秒][语音3″]") == "[语音]"
