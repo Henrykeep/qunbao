@@ -48,8 +48,8 @@ def _cq(m) -> str:
     return CQ_LABEL.get(m.group(1), "")  # QQ 码统一一张表：有可读含义的留占位，其余去掉
 
 
-EN_ALIAS = {"[图片]": "Photo|照片|Image|Picture", "[语音]": "Voice(?: Message)?|语音消息|Audio", "[视频]": "Video|小视频|视频号",
-            "[文件]": "File|Document", "[位置]": "Location|Map", "[名片]": "Contact|Business Card|Name Card", "[链接]": "Link|Share", "[表情]": "Sticker|Emoji|Animated Sticker", "[小程序]": "Mini[ -]?Program"}  # 新占位只往这张表加一行
+EN_ALIAS = {"[图片]": "Photo|照片|Image|Picture|闪照|图片消息", "[语音]": "Voice(?: Message)?|语音消息|Audio", "[视频]": "Video|小视频|视频号",
+            "[文件]": "File|Document", "[位置]": "Location|Map", "[名片]": "Contact|Business Card|Name Card", "[链接]": "Link|Share", "[表情]": "Sticker|Emoji|Animated Sticker|动画表情|动态表情|大表情", "[小程序]": "Mini[ -]?Program"}  # 新占位只往这张表加一行
 EN_ALIAS_RX = re.compile(r"\[(?:" + "|".join(f"(?P<g{i}>{v})" for i, v in enumerate(EN_ALIAS.values())) + r")\]")
 
 
