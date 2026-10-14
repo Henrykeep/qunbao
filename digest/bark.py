@@ -44,7 +44,6 @@ CQ_LABEL = {"record": "[语音]", "video": "[视频]", "forward": "[卡片]", "j
 
 
 WX_EMOJI = "微笑|撇嘴|色|发呆|得意|流泪|害羞|闭嘴|睡|大哭|尴尬|发怒|调皮|呲牙|惊讶|难过|酷|冷汗|抓狂|吐|偷笑|愉快|白眼|傲慢|困|惊恐|流汗|憨笑|悠闲|奋斗|咒骂|疑问|嘘|晕|衰|骷髅|敲打|再见|擦汗|抠鼻|鼓掌|坏笑|左哼哼|右哼哼|哈欠|鄙视|委屈|快哭了|阴险|亲亲|可怜|笑脸|生病|脸红|破涕为笑|恐惧|失望|无语|嘿哈|捂脸|奸笑|机智|皱眉|耶|吃瓜|加油|汗|天啊|Emm|社会社会|旺柴|好的|打脸|哇|翻白眼|裂开|苦涩|让我看看|叹气|合十|强|握手|胜利|抱拳|OK|拳头|爱心|心碎|玫瑰|凋谢|赞|踩"
-PLACEHOLDER_ALIAS = re.compile(r"\[(?:动画表情|Sticker|GIF|动图|" + WX_EMOJI + r")\]")  # 微信文字表情名表 + 表情类占位别名
 
 
 def _cq(m) -> str:
@@ -52,7 +51,7 @@ def _cq(m) -> str:
 
 
 EN_ALIAS = {"[图片]": "Photo|照片|Image|Picture|闪照|图片消息|Screenshot|截图|相册|Album|Live Photo|实况照片|群相册|Group Album|Photo Album", "[语音]": "(?:Voice(?: Message)?|语音|语音消息)(?:\\s*\\d+\\s*(?:''|'|″|′|秒|s))?|语音消息|Audio|语音通话|语音条", "[视频]": "Video|Video Clip|Short Video|小视频|视频号|视频消息|短视频|视频通话",
-            "[文件]": "File|Document|Attachment|文件消息|文档|压缩包|附件|Group File|群文件|Folder|文件夹|Spreadsheet|表格文件|PDF|Word|Excel|PPT|Presentation", "[位置]": "Location|Live Location|Map|位置信息|地理位置|实时位置|位置共享", "[名片]": "Contact|Business Card|Name Card|个人名片|联系人名片", "[链接]": "Link|Share|分享链接|网页链接|链接分享", "[表情]": "Sticker|Emoji|Animated Sticker|动画表情|动态表情|大表情|Meme|表情包|斗图|GIF|动图|Emoticon|贴纸", "[小程序]": "Mini[ -]?Program|Mini Game|小游戏|小程序消息|小程序卡片", "[音乐]": "Music|Song|Music Card|音乐分享|音乐消息|歌曲分享", "[红包]": "Red Packet|Lucky Money|Red Envelope|Hongbao|拼手气红包|口令红包|微信红包|QQ红包|红包消息", "[聊天记录]": "合并转发|Chat History|Chat Record|聊天记录转发|转发的聊天记录", "[转账]": "Transfer|Money Transfer|微信转账|转账消息", "[投票]": "Poll|Vote|群投票|投票消息", "[接龙]": "Solitaire|Group Note|群接龙|接龙消息", "[通话]": "Call|Missed Call|Video Call|未接通话|未接来电|通话请求", "[直播]": "Live|Livestream|Live Stream|直播间|直播分享|直播邀请", "[公告]": "Announcement|Group Announcement|群公告|公告消息", "[日程]": "Calendar Event|Group Schedule|群日程|日程提醒"}  # 新占位只往这张表加一行
+            "[文件]": "File|Document|Attachment|文件消息|文档|压缩包|附件|Group File|群文件|Folder|文件夹|Spreadsheet|表格文件|PDF|Word|Excel|PPT|Presentation", "[位置]": "Location|Live Location|Map|位置信息|地理位置|实时位置|位置共享", "[名片]": "Contact|Business Card|Name Card|个人名片|联系人名片", "[链接]": "Link|Share|分享链接|网页链接|链接分享", "[表情]": "Sticker|Emoji|Animated Sticker|动画表情|动态表情|大表情|Meme|表情包|斗图|GIF|动图|Emoticon|贴纸|" + WX_EMOJI + "", "[小程序]": "Mini[ -]?Program|Mini Game|小游戏|小程序消息|小程序卡片", "[音乐]": "Music|Song|Music Card|音乐分享|音乐消息|歌曲分享", "[红包]": "Red Packet|Lucky Money|Red Envelope|Hongbao|拼手气红包|口令红包|微信红包|QQ红包|红包消息", "[聊天记录]": "合并转发|Chat History|Chat Record|聊天记录转发|转发的聊天记录", "[转账]": "Transfer|Money Transfer|微信转账|转账消息", "[投票]": "Poll|Vote|群投票|投票消息", "[接龙]": "Solitaire|Group Note|群接龙|接龙消息", "[通话]": "Call|Missed Call|Video Call|未接通话|未接来电|通话请求", "[直播]": "Live|Livestream|Live Stream|直播间|直播分享|直播邀请", "[公告]": "Announcement|Group Announcement|群公告|公告消息", "[日程]": "Calendar Event|Group Schedule|群日程|日程提醒"}  # 新占位只往这张表加一行
 EN_ALIAS_RX = re.compile(r"\[(?:" + "|".join(f"(?P<g{i}>{v})" for i, v in enumerate(EN_ALIAS.values())) + r")\]")
 
 
@@ -88,7 +87,6 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"([哈啊嘿呵])\1{3,}", r"\1\1\1", 0),
     (r"([\U0001F300-\U0001FAFF\u2600-\u27BF])\1{2,}", r"\1\1", 0),  # 刷屏表情压成两个
     (r"(?:…|\.){4,}", "……", 0),
-    (PLACEHOLDER_ALIAS.pattern, "[表情]", 0),  # 微信文字表情/动画表情/Sticker 并入统一占位
     (EN_ALIAS_RX.pattern, _en_alias, 0),  # 英文/别名占位统一查 EN_ALIAS 表
     (r"(" + _PLACEHOLDERS + r")(?:\s*\1)+", _first, 0),  # 连发同类占位只留一个
     (r"(?m)^(.+)\n(?:\1\n?)+", lambda m: m.group(1) + "\n", 0),  # 复读连着几行一样的只留一行
