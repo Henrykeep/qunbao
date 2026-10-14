@@ -128,8 +128,8 @@ def _copy_link(u: str) -> str:
     return u if u.startswith("http") else "http://" + u
 
 
-ACCOUNT_WORDS = "联系电话|手机号|电话|微信号|微信|企业微信号|企微号|小红书号|抖音号|快手号|知乎号|视频号|公众号|B站号|b站号|微博号|vx|VX|wx|Telegram|TG|Discord|WeChat|Wechat|wechat|Line|LINE|WhatsApp|Instagram|INS|ins|支付宝|Steam|steam|GitHub|Github|腾讯会议号|腾讯会议|Zoom|zoom|会议号|Skype|Teams|Slack|Facebook|Twitter|Signal|闲鱼号|淘宝号|钉钉号|Kakao|KakaoTalk|飞书群号|飞书群|钉钉群号|钉钉群|QQ群号|QQ群|群号|QQ号|QQ"  # 账号类前缀集中一处，新平台只加这里
-ACCOUNT_RX = re.compile(r"(?:" + ACCOUNT_WORDS + r")\s*[:：]\s*([A-Za-z][A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})")  # 加好友/入群要抄的号
+ACCOUNT_WORDS = r"[\u4e00-\u9fffA-Za-z]{0,8}(?:号|账号|ID|id)|联系电话|电话|微信|vx|wx|tg|ins|wechat|telegram|discord|line|whatsapp|instagram|支付宝|steam|github|zoom|skype|teams|slack|facebook|twitter|signal|kakao(?:talk)?|[\u4e00-\u9fff]{2,6}群|QQ|会议号"  # 通用「xxx号/ID」+ 常见平台名，新平台一般无需再改
+ACCOUNT_RX = re.compile(r"(?:" + ACCOUNT_WORDS + r")\s*[:：]\s*([A-Za-z][A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})", re.I)  # 加好友/入群要抄的号
 
 
 def pick_copy(txt: str, link, title: str) -> str:
