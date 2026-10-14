@@ -48,6 +48,15 @@ def _cq(m) -> str:
     return CQ_LABEL.get(m.group(1), "")  # QQ 码统一一张表：有可读含义的留占位，其余去掉
 
 
+EN_ALIAS = {"[图片]": "Photo|照片|Image|Picture", "[语音]": "Voice(?: Message)?|语音消息|Audio", "[视频]": "Video|小视频|视频号",
+            "[文件]": "File|Document", "[位置]": "Location|Map", "[名片]": "Contact|Business Card|Name Card", "[链接]": "Link|Share"}  # 新占位只往这张表加一行
+EN_ALIAS_RX = re.compile(r"\[(?:" + "|".join(f"(?P<g{i}>{v})" for i, v in enumerate(EN_ALIAS.values())) + r")\]")
+
+
+def _en_alias(m) -> str:
+    return list(EN_ALIAS)[int(m.lastgroup[1:])]
+
+
 def _first(m) -> str:
     return m.group(1)
 
@@ -75,12 +84,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"([\U0001F300-\U0001FAFF\u2600-\u27BF])\1{2,}", r"\1\1", 0),  # 刷屏表情压成两个
     (r"(?:…|\.){4,}", "……", 0),
     (PLACEHOLDER_ALIAS.pattern, "[表情]", 0),  # 微信文字表情/动画表情/Sticker 并入统一占位
-    (r"\[(?:Photo|照片|Image|Picture)\]", "[图片]", 0),
-    (r"\[(?:Voice(?: Message)?|语音消息|Audio)\]", "[语音]", 0),
-    (r"\[(?:Video|小视频|视频号)\]", "[视频]", 0),
-    (r"\[(?:File|Document)\]", "[文件]", 0),
-    (r"\[(?:Location|Map)\]", "[位置]", 0),
-    (r"\[(?:Contact|Business Card|Name Card)\]", "[名片]", 0),
+    (EN_ALIAS_RX.pattern, _en_alias, 0),  # 英文/别名占位统一查 EN_ALIAS 表
     (r"(" + _PLACEHOLDERS + r")(?:\s*\1)+", _first, 0),  # 连发同类占位只留一个
     (r"(?m)^(.+)\n(?:\1\n?)+", lambda m: m.group(1) + "\n", 0),  # 复读连着几行一样的只留一行
     (r"@(?:全体成员|所有人)\s*", "", 0),  # 任意位置的 @全体成员/@所有人（紧急度已由级别表达）
