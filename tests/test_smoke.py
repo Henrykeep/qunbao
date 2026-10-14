@@ -2832,3 +2832,8 @@ def test_bark_strip_md_image():
 def test_bark_en_sticker_alias():
     from digest import bark
     assert bark.strip_md("[Sticker]") == "[表情]"
+
+
+def test_bark_link_alias():
+    from digest import bark
+    assert bark.strip_md("看这个 [网页链接]") == "看这个 [链接]"
