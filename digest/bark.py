@@ -49,7 +49,7 @@ def _cq(m) -> str:
 
 
 EN_ALIAS = {"[图片]": "Photo|照片|Image|Picture|闪照|图片消息", "[语音]": "Voice(?: Message)?|语音消息|Audio|语音通话|语音条", "[视频]": "Video|小视频|视频号|视频消息|短视频|视频通话",
-            "[文件]": "File|Document|文件消息|文档|压缩包", "[位置]": "Location|Map|位置信息|地理位置", "[名片]": "Contact|Business Card|Name Card|个人名片|联系人名片", "[链接]": "Link|Share|分享链接|网页链接|链接分享", "[表情]": "Sticker|Emoji|Animated Sticker|动画表情|动态表情|大表情", "[小程序]": "Mini[ -]?Program|小程序消息|小程序卡片", "[音乐]": "Music|音乐分享|音乐消息|歌曲分享"}  # 新占位只往这张表加一行
+            "[文件]": "File|Document|文件消息|文档|压缩包", "[位置]": "Location|Map|位置信息|地理位置", "[名片]": "Contact|Business Card|Name Card|个人名片|联系人名片", "[链接]": "Link|Share|分享链接|网页链接|链接分享", "[表情]": "Sticker|Emoji|Animated Sticker|动画表情|动态表情|大表情", "[小程序]": "Mini[ -]?Program|小程序消息|小程序卡片", "[音乐]": "Music|音乐分享|音乐消息|歌曲分享", "[红包]": "Red Packet|Lucky Money|微信红包|QQ红包|红包消息"}  # 新占位只往这张表加一行
 EN_ALIAS_RX = re.compile(r"\[(?:" + "|".join(f"(?P<g{i}>{v})" for i, v in enumerate(EN_ALIAS.values())) + r")\]")
 
 
