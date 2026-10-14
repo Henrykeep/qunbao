@@ -1,3 +1,6 @@
+## 0.36.90 — 2026-10-14
+- Bark：[Mini Program] 英文占位并入 EN_ALIAS 表，统一成 [小程序]。
+
 ## 0.36.89 — 2026-10-14
 - Bark：[Sticker]/[Emoji] 英文表情占位并入 EN_ALIAS 表，统一成 [表情]。
 
