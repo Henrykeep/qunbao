@@ -61,7 +61,7 @@ def _first(m) -> str:
     return m.group(1)
 
 
-_PLACEHOLDERS = r"\[(?:图片|表情|语音|视频|文件|卡片|音乐)\]"
+_PLACEHOLDERS = r"\[(?:" + "|".join(k[1:-1] for k in EN_ALIAS) + r"|卡片)\]"  # 连发折叠覆盖 EN_ALIAS 全部占位
 # 顺序即语义：先还原/清标记，再折叠占位与重复，最后规整空白。新规则只往表里加一行。
 STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"[\u200b-\u200d\u2060\ufeff\u00ad\u180e\u200e\u200f\u202a-\u202e]", "", 0),  # 零宽字符：锁屏是看不见的空档，还会让取件码匹配失败
