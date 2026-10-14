@@ -2827,3 +2827,8 @@ def test_bark_copy_more_accounts():
 def test_bark_strip_md_image():
     from bark import strip_md
     assert strip_md("见![海报](http://a.com/x.png)和[文档](http://b.com)") == "见[图片]和文档"
+
+
+def test_bark_en_sticker_alias():
+    from digest import bark
+    assert bark.strip_md("[Sticker]") == "[表情]"
