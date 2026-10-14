@@ -1,3 +1,6 @@
+## 0.36.80 — 2026-10-14
+- Bark：会议号/Skype/Teams/Slack/Facebook/Twitter/Signal：xxx 也能一键复制，并入账号前缀表。
+
 ## 0.36.79 — 2026-10-14
 - Bark：Steam/GitHub/腾讯会议号/Zoom：xxx 也能一键复制，并入账号前缀表。
 
