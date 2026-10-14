@@ -1,3 +1,6 @@
+## 0.37.22 — 2026-10-15
+- Bark：[Calendar Event]/[群日程] 等日程分享统一成 [日程]。
+
 ## 0.37.21 — 2026-10-15
 - Bark：[Emoticon]/[贴纸] 并入表情占位，[Video Clip]/[Short Video] 并入视频占位。
 
