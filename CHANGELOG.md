@@ -1,3 +1,6 @@
+## 0.37.21 — 2026-10-15
+- Bark：[Emoticon]/[贴纸] 并入表情占位，[Video Clip]/[Short Video] 并入视频占位。
+
 ## 0.37.20 — 2026-10-15
 - Bark：[群相册]/[Group Album]/[Photo Album] 并入图片占位，统一成 [图片]。
 
