@@ -79,6 +79,8 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"\[(?:Voice(?: Message)?|语音消息|Audio)\]", "[语音]", 0),
     (r"\[(?:Video|小视频|视频号)\]", "[视频]", 0),
     (r"\[(?:File|Document)\]", "[文件]", 0),
+    (r"\[(?:Location|Map)\]", "[位置]", 0),
+    (r"\[(?:Contact|Business Card|Name Card)\]", "[名片]", 0),
     (r"(" + _PLACEHOLDERS + r")(?:\s*\1)+", _first, 0),  # 连发同类占位只留一个
     (r"(?m)^(.+)\n(?:\1\n?)+", lambda m: m.group(1) + "\n", 0),  # 复读连着几行一样的只留一行
     (r"@(?:全体成员|所有人)\s*", "", 0),  # 任意位置的 @全体成员/@所有人（紧急度已由级别表达）
