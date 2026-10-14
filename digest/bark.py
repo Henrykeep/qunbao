@@ -49,7 +49,7 @@ def _cq(m) -> str:
 
 
 EN_ALIAS = {"[图片]": "Photo|照片|Image|Picture|闪照|图片消息", "[语音]": "Voice(?: Message)?|语音消息|Audio|语音通话|语音条", "[视频]": "Video|小视频|视频号",
-            "[文件]": "File|Document|文件消息|文档|压缩包", "[位置]": "Location|Map", "[名片]": "Contact|Business Card|Name Card", "[链接]": "Link|Share", "[表情]": "Sticker|Emoji|Animated Sticker|动画表情|动态表情|大表情", "[小程序]": "Mini[ -]?Program"}  # 新占位只往这张表加一行
+            "[文件]": "File|Document|文件消息|文档|压缩包", "[位置]": "Location|Map|位置信息|地理位置", "[名片]": "Contact|Business Card|Name Card|个人名片|联系人名片", "[链接]": "Link|Share", "[表情]": "Sticker|Emoji|Animated Sticker|动画表情|动态表情|大表情", "[小程序]": "Mini[ -]?Program"}  # 新占位只往这张表加一行
 EN_ALIAS_RX = re.compile(r"\[(?:" + "|".join(f"(?P<g{i}>{v})" for i, v in enumerate(EN_ALIAS.values())) + r")\]")
 
 
