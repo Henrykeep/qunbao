@@ -1,3 +1,6 @@
+## 0.36.79 — 2026-10-14
+- Bark：Steam/GitHub/腾讯会议号/Zoom：xxx 也能一键复制，并入账号前缀表。
+
 ## 0.36.78 — 2026-10-14
 - Bark：WeChat/LINE/WhatsApp：xxx 账号也能一键复制，并入账号前缀表。
 
