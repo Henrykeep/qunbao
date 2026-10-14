@@ -1,3 +1,6 @@
+## 0.37.33 — 2026-10-15
+- Bark：[Contact Card]/[Shared Contact]/[推荐好友] 并入 [名片]（EN_ALIAS 一行）。
+
 ## 0.37.32 — 2026-10-15
 - Bark：[QR Code]/[二维码图片]/[收款码] 统一成 [二维码]（EN_ALIAS 一行）。
 
