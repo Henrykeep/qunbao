@@ -2786,7 +2786,7 @@ def test_bark_copy_spaced_meeting_id_and_letter_code():
 
 
 def test_bark_copy_english_code_words():
-    from digest import bark
+    import bark
     assert bark.build_payload("t", "pwd: 8832")["copy"] == "8832"
     assert bark.build_payload("t", "your code 4471")["copy"] == "4471"
 
@@ -2798,7 +2798,7 @@ def test_bark_copy_link_stops_at_fullwidth_brackets():
 
 
 def test_bark_copy_bare_www_link():
-    from digest import bark
+    import bark
     assert bark.build_payload("报名", "地址 www.baidu.com/abc 截止明天")["copy"] == "http://www.baidu.com/abc"
 
 
@@ -2809,10 +2809,16 @@ def test_bark_copy_email_when_no_code():
 
 
 def test_bark_copy_courier_tracking_no():
-    from digest import bark
+    import bark
     assert bark.build_payload("快递", "你的顺丰 SF1234567890123 已到驿站")["copy"] == "SF1234567890123"
 
 
 def test_bark_strip_mid_at_all():
-    from digest import bark
+    import bark
     assert "@" not in bark.strip_md("请大家 @全体成员 注意明天交表")
+
+
+def test_bark_copy_more_accounts():
+    import bark
+    assert bark.pick_copy("会议号：8123456789 请准时", None, "t") == "8123456789"
+    assert bark.pick_copy("Skype: live_abc123 加我", None, "t") == "live_abc123"
