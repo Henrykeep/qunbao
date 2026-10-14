@@ -1,3 +1,6 @@
+## 0.37.35 — 2026-10-15
+- Bark：[红包封面]/[Red Packet Cover] 并入 [红包]（EN_ALIAS 一行）。
+
 ## 0.37.34 — 2026-10-15
 - Bark：[Screen Recording]/[录屏] 并入 [视频]（EN_ALIAS 一行）。
 
