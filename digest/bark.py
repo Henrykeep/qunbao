@@ -128,7 +128,7 @@ def _copy_link(u: str) -> str:
     return u if u.startswith("http") else "http://" + u
 
 
-ACCOUNT_WORDS = "联系电话|手机号|电话|微信号|微信|企业微信号|企微号|小红书号|抖音号|快手号|知乎号|视频号|公众号|B站号|b站号|微博号|vx|VX|wx|Telegram|TG|Discord|WeChat|Wechat|wechat|Line|LINE|WhatsApp|Instagram|INS|ins|支付宝|Steam|steam|GitHub|Github|腾讯会议号|腾讯会议|Zoom|zoom|会议号|Skype|Teams|Slack|Facebook|Twitter|Signal|飞书群号|飞书群|钉钉群号|钉钉群|QQ群号|QQ群|群号|QQ号|QQ"  # 账号类前缀集中一处，新平台只加这里
+ACCOUNT_WORDS = "联系电话|手机号|电话|微信号|微信|企业微信号|企微号|小红书号|抖音号|快手号|知乎号|视频号|公众号|B站号|b站号|微博号|vx|VX|wx|Telegram|TG|Discord|WeChat|Wechat|wechat|Line|LINE|WhatsApp|Instagram|INS|ins|支付宝|Steam|steam|GitHub|Github|腾讯会议号|腾讯会议|Zoom|zoom|会议号|Skype|Teams|Slack|Facebook|Twitter|Signal|闲鱼号|淘宝号|钉钉号|Kakao|KakaoTalk|飞书群号|飞书群|钉钉群号|钉钉群|QQ群号|QQ群|群号|QQ号|QQ"  # 账号类前缀集中一处，新平台只加这里
 ACCOUNT_RX = re.compile(r"(?:" + ACCOUNT_WORDS + r")\s*[:：]\s*([A-Za-z][A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})")  # 加好友/入群要抄的号
 
 
