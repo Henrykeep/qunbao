@@ -138,6 +138,7 @@ CODE_SECRET = re.compile(r"(?:提取码|密码|口令|暗号)[^A-Za-z0-9]{0,4}([
 SPLIT_DIGITS = re.compile(r"(?<!\d)(\d{3,4})((?:[ -]\d{3,4})+)(?!\d)")  # 会议号「123 456 789」分组书写，复制要整串
 CODE_BEFORE = re.compile(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|为)?(?:你的|您的)?(?:" + CODE_WORDS + r")")  # “123456 为您的验证码”
 
+CODE_PWD = re.compile(r"(?:wifi|WiFi|WIFI|无线网|热点|账号)?密码\s*(?:是|为)?\s*[:：]?\s*([A-Za-z0-9][\x21-\x7e]{5,19})(?![\x21-\x7e])")  # 含符号的密码「Ab@12345」，CODE_AFTER 只认字母数字
 CODE_PINGMA = re.compile(r"[凭憑](?:码)?\s*([A-Za-z0-9-]{3,12})\s*(?:到|去)?(?:取|领|核销|兑换)")  # “凭 8832 取件”
 
 LINK_RX = re.compile(r"(?:https?://|(?<![A-Za-z0-9_.@/])www\.)[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]*[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef.,;:!?)]")  # 链接末尾的英文标点/右括号不属于链接
@@ -166,7 +167,7 @@ ACCOUNT_RX = re.compile(r"(?:" + ACCOUNT_WORDS + r")\s*[:：]\s*([A-Za-z][A-Za-z
 
 def pick_copy(txt: str, link, title: str) -> str:
     """一键复制的内容，按优先级：口令/验证码 > 链接 > 微信/QQ号 > 邮箱 > 手机号 > 标题。"""
-    code = CODE_AFTER.search(txt) or CODE_SECRET.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt)
+    code = CODE_AFTER.search(txt) or CODE_PWD.search(txt) or CODE_SECRET.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt)
     if code:
         return code.group(1)
     if link:
