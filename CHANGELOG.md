@@ -1,3 +1,6 @@
+## 0.37.77 — 2026-10-16
+- Bark：「Webex meeting number 2551 234 5678」「Zoom Meeting number …」英文会议号现在复制整串数字（原先误复制成单词 meeting）。
+
 ## 0.37.76 — 2026-10-16
 - Bark：「Zoom会议 ID 123 4567 8901」（会议和 ID 之间有空格）也能一键复制整串。
 
