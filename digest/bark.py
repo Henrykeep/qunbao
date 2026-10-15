@@ -152,7 +152,7 @@ EMAIL_RX = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")  # 邮箱：提交材料�
 PHONE_RX = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")  # 大陆手机号：联系人类通知
 
 
-TRACK_RX = re.compile(r"(?<![A-Za-z0-9])(?:(?:SF|JD|YT|JT|ZTO|ZT|YD|DPK|DBL|DB|JDV|STO)[A-Z]?\d{10,15}(?!\d)|[A-Z]{2}\d{9}CN(?![A-Za-z]))")  # 快递单号常不带「单号」二字：顺丰SF…/京东JD…
+TRACK_RX = re.compile(r"(?<![A-Za-z0-9])(?:(?:SF|JD|YT|JT|ZTO|ZT|YD|DPK|DBL|DB|JDV|STO|HTKY|UC|ANE)[A-Z]?\d{10,15}(?!\d)|[A-Z]{2}\d{9}CN(?![A-Za-z]))")  # 快递单号常不带「单号」二字：顺丰SF…/京东JD…
 
 
 def _copy_link(u: str) -> str:
