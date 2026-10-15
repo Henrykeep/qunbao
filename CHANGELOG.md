@@ -1,3 +1,6 @@
+## 0.37.80 — 2026-10-16
+- Bark：「Discord Call」「Signal Call」「网络电话」「微信电话」「QQ电话」占位也统一成 [通话]。
+
 ## 0.37.79 — 2026-10-16
 - Bark：「Skype Call」「Telegram Call」「LINE Call」「语音通话」占位也统一成 [通话]。
 
