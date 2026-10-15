@@ -2898,3 +2898,9 @@ def test_bark_copy_grouped_redeem_code():
 def test_bark_copy_survives_title_dedupe():
     from digest import bark
     assert bark.build_payload("取件", "取件码：123456 到菜鸟驿站")["copy"] == "123456"
+
+
+def test_bark_copy_spaced_phone():
+    from digest import bark
+    for t in ("联系 138 0013 8000", "电话138-0013-8000", "+86 13800138000"):
+        assert bark.pick_copy(t, None, "x") == "13800138000"
