@@ -134,7 +134,7 @@ def strip_md(t: str) -> str:
 
 CODE_WORDS = r"(?!(?:群|学|手机|电话|工|QQ|微信|房间|门牌|身份证|邮政|订单)[码号])[\u4e00-\u9fff]{1,3}[码号]|快递单号|口令|暗号|密码|会议ID|腾讯会议|飞书会议|(?i:pwd|passcode|code|otp|pin)(?![A-Za-z])"  # 任何「X码/X号」都算口令，不再一个个枚举（手机号等超 8 位的数字天然匹配不上）
 CODE_AFTER = re.compile(r"(?:" + CODE_WORDS + r")(?:\s+is)?[^A-Za-z0-9]{0,4}((?=[A-Za-z-]*\d)[A-Za-z0-9-]{3,12})")  # 3 位也认但必须含数字：食堂「取餐号 A12」
-CODE_SECRET = re.compile(r"(?:提取码|密码|口令|暗号)[^A-Za-z0-9]{0,4}([A-Za-z]{4,8})(?![A-Za-z])")  # 网盘提取码常是纯字母 abcd
+CODE_SECRET = re.compile(r"(?:提取码|密码|口令|暗号|[?&]pwd)[^A-Za-z0-9]{0,4}([A-Za-z]{4,8})(?![A-Za-z])")  # 网盘提取码常是纯字母 abcd
 SPLIT_DIGITS = re.compile(r"(?<!\d)(\d{3,4})((?:[ -]\d{3,4})+)(?!\d)|(?<![\d.])(\d)((?: \d){3,7})(?![\d.])")  # 会议号「123 456 789」分组书写，复制要整串
 CODE_BEFORE = re.compile(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|为)?(?:你的|您的)?(?:" + CODE_WORDS + r")")  # “123456 为您的验证码”
 
