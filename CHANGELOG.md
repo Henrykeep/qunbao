@@ -1,3 +1,6 @@
+## 0.37.39 — 2026-10-15
+- Bark：[直播] 别名补直播回放/Live Replay/Webinar/网课直播。
+
 ## 0.37.38 — 2026-10-15
 - Bark：[通话] 别名补 Voice Call/Group Video Call/视频会议/Zoom Meeting。
 
