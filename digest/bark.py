@@ -52,16 +52,16 @@ def _cq(m) -> str:
 
 # 占位别名表：每行 = 规范占位: 别名正则（|分隔）。新占位只往这里加一行。
 EN_ALIAS = {
-    "[图片]": 'Photo|照片|Image|Picture|闪照|图片消息|Screenshot|截图|相册|Album|Live Photo|实况照片|群相册|Group Album|Photo Album',
+    "[图片]": 'Photo|照片|Image|Picture|闪照|图片消息|Screenshot|截图|相册|Album|Live Photo|实况照片|群相册|Group Album|Photo Album|Selfie|自拍|Burst Photo|连拍',
     "[语音]": "(?:Voice(?: Message)?|语音|语音消息)(?:\\s*\\d+\\s*(?:''|'|″|′|秒|s))?|语音消息|Audio|语音通话|语音条|Voice Note|Voice Memo|语音留言",
     "[视频]": 'Video|Video Clip|Short Video|小视频|视频号|视频消息|短视频|视频通话|Screen Recording|录屏',
     "[文件]": 'File|Document|Attachment|文件消息|文档|压缩包|附件|Group File|群文件|Folder|文件夹|Spreadsheet|表格文件|PDF|Word|Excel|PPT|Presentation|Zip|Archive|压缩文件',
-    "[位置]": 'Location|Live Location|Map|位置信息|地理位置|实时位置|位置共享|Navigation|导航分享|Shared Location',
+    "[位置]": 'Location|Live Location|Map|位置信息|地理位置|实时位置|位置共享|Navigation|导航分享|Shared Location|Pin|定位|Drop Pin',
     "[名片]": 'Contact|Business Card|Name Card|个人名片|联系人名片|Contact Card|Shared Contact|推荐好友',
     "[链接]": 'Link|Share|分享链接|网页链接|链接分享|Article|Shared Article|公众号文章|文章分享',
     "[表情]": "Sticker|Emoji|Animated Sticker|动画表情|动态表情|大表情|Meme|表情包|斗图|GIF|动图|Emoticon|贴纸|Dice|骰子|猜拳|Rock Paper Scissors|魔法表情|" + WX_EMOJI,
     "[小程序]": 'Mini[ -]?Program|Mini Game|小游戏|小程序消息|小程序卡片',
-    "[音乐]": 'Music|Song|Music Card|音乐分享|音乐消息|歌曲分享',
+    "[音乐]": 'Music|Song|Music Card|音乐分享|音乐消息|歌曲分享|Playlist|歌单|Podcast|播客',
     "[红包]": 'Red Packet|Lucky Money|Red Envelope|Hongbao|拼手气红包|口令红包|微信红包|QQ红包|红包消息|红包封面|Red Packet Cover',
     "[聊天记录]": 'Forwarded Message|Forwarded Messages|合并转发|Chat History|Chat Record|聊天记录转发|转发的聊天记录',
     "[转账]": 'Transfer|Money Transfer|微信转账|转账消息|Payment|付款|收款|Payment Request|AA收款|群收款',
@@ -71,9 +71,9 @@ EN_ALIAS = {
     "[直播]": 'Live|Livestream|Live Stream|直播间|直播分享|直播邀请|直播回放|Live Replay|Webinar|网课直播',
     "[公告]": 'Announcement|Group Announcement|群公告|公告消息',
     "[日程]": 'Calendar Event|Group Schedule|群日程|日程提醒',
-    "[笔记]": 'Note|Notes|Group Note Doc|笔记分享|群笔记|云笔记',
-    "[二维码]": 'QR Code|QR|二维码图片|群二维码|收款码|Payment Code',
-    "[礼物]": 'Gift|Group Gift|礼物|群礼物|礼物消息',
+    "[笔记]": 'Note|Notes|Group Note Doc|笔记分享|群笔记|云笔记|Memo|备忘录|Reminder|提醒事项',
+    "[二维码]": 'QR Code|QR|二维码图片|群二维码|收款码|Payment Code|Barcode|条形码|付款码',
+    "[礼物]": 'Gift|Group Gift|礼物|群礼物|礼物消息|Sticker Gift|表情礼物|Voucher|礼品卡',
 }
 EN_ALIAS_RX = re.compile(r"\[(?:" + "|".join(f"(?P<g{i}>{v})" for i, v in enumerate(EN_ALIAS.values())) + r")\]")
 
