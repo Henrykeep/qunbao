@@ -2909,3 +2909,8 @@ def test_bark_copy_spaced_phone():
 def test_bark_copy_fullwidth_code():
     from digest import bark
     assert bark.pick_copy("验证码：１２３４５６，请勿泄露", None, "t") == "123456"
+
+
+def test_bark_copy_two_digit_groups():
+    from digest import bark
+    assert bark.build_payload("t", "取件码：12 34 56 到驿站")["copy"] == "123456"
