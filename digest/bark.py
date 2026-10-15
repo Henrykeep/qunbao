@@ -68,7 +68,7 @@ EN_ALIAS = {
     "[投票]": 'Poll|Vote|群投票|投票消息|Survey|问卷|Questionnaire|表单|Form|填表',
     "[接龙]": 'Solitaire|Group Note|群接龙|接龙消息',
     "[通话]": 'Call|Missed Call|Video Call|未接通话|未接来电|通话请求|Group Call|群通话|语音聊天|Voice Chat|Meeting|腾讯会议|会议邀请|Voice Call|Group Video Call|视频会议|Zoom Meeting',
-    "[直播]": 'Live|Livestream|Live Stream|直播间|直播分享|直播邀请',
+    "[直播]": 'Live|Livestream|Live Stream|直播间|直播分享|直播邀请|直播回放|Live Replay|Webinar|网课直播',
     "[公告]": 'Announcement|Group Announcement|群公告|公告消息',
     "[日程]": 'Calendar Event|Group Schedule|群日程|日程提醒',
     "[笔记]": 'Note|Notes|Group Note Doc|笔记分享|群笔记|云笔记',
