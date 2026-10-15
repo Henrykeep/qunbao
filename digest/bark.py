@@ -152,7 +152,7 @@ EMAIL_RX = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")  # 邮箱：提交材料�
 PHONE_RX = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")  # 大陆手机号：联系人类通知
 
 
-TRACK_PREFIXES = "SF JD YT JT ZTO ZT YD DPK DBL DB JDV STO HTKY UC ANE FW GT KY YTO JTSD TTKD EMS SXJD JDX JDL".split()  # 快递公司单号前缀，新增只改这里
+TRACK_PREFIXES = "SF JD YT JT ZTO ZT YD DPK DBL DB JDV STO HTKY UC ANE FW GT KY YTO JTSD TTKD EMS SXJD JDX JDL FWX".split()  # 快递公司单号前缀，新增只改这里
 TRACK_RX = re.compile(r"(?<![A-Za-z0-9])(?:(?:" + "|".join(sorted(TRACK_PREFIXES, key=len, reverse=True)) + r")[A-Z]?\d{10,15}(?!\d)|[A-Z]{2}\d{9}CN(?![A-Za-z]))")  # 快递单号常不带「单号」二字
 
 
