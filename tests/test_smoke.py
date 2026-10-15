@@ -2861,3 +2861,11 @@ def test_bark_copy_password_with_symbols():
     sys.path.insert(0, "digest")
     import bark
     assert bark.pick_copy("wifi密码：Ab@12345 欢迎", None, "x") == "Ab@12345"
+
+
+def test_bark_copy_spaced_single_digits():
+    import sys
+    sys.path.insert(0, "digest")
+    import bark
+    p = bark.build_payload("验证码", "您的验证码是 8 6 4 2 1 3，5分钟内有效", "active", "", "/", -1, "")
+    assert p["copy"] == "864213"
