@@ -184,6 +184,7 @@ def pick_copy(txt: str, link, title: str) -> str:
 
 def build_payload(title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> dict:
     """纯函数：把标题/正文整理成 Bark 请求体（清理、去重、级别、复制内容、点开地址）。发送与重试在 send_bark。"""
+    raw_body = body
     link = LINK_RX.search(body or "")  # 正文里的链接锁屏上折成[链接]，没有口令时改为复制原链接
     title = strip_md(title).strip() or "群报"  # 空标题的推送在锁屏上像乱码，兜底成 App 名
     body = re.sub(r"\n\s*\n+", "\n", strip_md(body).strip()) or title  # 空行折掉
@@ -196,7 +197,8 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
         payload.update(sound="alarm", volume=8, call="1")  # 紧急：不同铃声、拉高音量、循环响铃
     txt = SPLIT_DIGITS.sub(lambda m: ((m.group(1) or m.group(3)) + (m.group(2) or m.group(4))).replace(" ", "").replace("-", ""), unicodedata.normalize("NFKC", title + " " + body))  # 全角数字/冒号先归一，否则「１２３４５６」认不出
     txt = ID_NUMS.sub(" ", txt)  # 寝室号/考场号等位置类数字不是口令
-    payload["copy"] = pick_copy(txt, link, title)  # 不开 autoCopy，用户长按复制
+    pwd = re.search(r"[?&]pwd=([A-Za-z0-9]{4,8})", raw_body or "")  # 链接在正文里已折成[链接]，pwd 参数要从原文取
+    payload["copy"] = pwd.group(1) if pwd and not CODE_AFTER.search(txt) else pick_copy(txt, link, title)  # 不开 autoCopy，用户长按复制
     if badge >= 0:
         payload["badge"] = badge  # 角标 = 未完成待办数
     if site_url:
