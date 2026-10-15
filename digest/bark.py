@@ -132,7 +132,7 @@ def strip_md(t: str) -> str:
     return t.strip()
 
 
-CODE_WORDS = r"(?!(?:群|学|手机|电话|工|QQ|微信|房间|门牌|身份证|邮政|订单)[码号])[\u4e00-\u9fff]{1,3}[码号]|快递单号|口令|暗号|密码|会议\s?(?:ID|id)|腾讯会议|飞书会议|钉钉会议|(?i:pwd|passcode|code|otp|pin)(?![A-Za-z])"  # 任何「X码/X号」都算口令，不再一个个枚举（手机号等超 8 位的数字天然匹配不上）
+CODE_WORDS = r"(?!(?:群|学|手机|电话|工|QQ|微信|房间|门牌|身份证|邮政|订单)[码号])[\u4e00-\u9fff]{1,3}[码号]|快递单号|口令|暗号|密码|会议\s?(?:ID|id)|(?i:meeting)\s?(?:ID|number|no\.?)|腾讯会议|飞书会议|钉钉会议|(?i:pwd|passcode|code|otp|pin)(?![A-Za-z])"  # 任何「X码/X号」都算口令，不再一个个枚举（手机号等超 8 位的数字天然匹配不上）
 CODE_AFTER = re.compile(r"(?:" + CODE_WORDS + r")(?:\s+is)?[^A-Za-z0-9]{0,4}((?=[A-Za-z-]*\d)[A-Za-z0-9-]{3,12})")  # 3 位也认但必须含数字：食堂「取餐号 A12」
 CODE_SECRET = re.compile(r"(?:提取码|密码|口令|暗号|兑换码|激活码|邀请码|序列号|[?&]pwd)[^A-Za-z0-9]{0,4}([A-Za-z0-9]{4,6}(?:-[A-Za-z0-9]{4,6}){1,4}|[A-Za-z]{4,8})(?![A-Za-z0-9-])")  # 含 ABCD-EFGH-IJKL 分段码  # 网盘提取码常是纯字母 abcd
 SPLIT_DIGITS = re.compile(r"(?<!\d)(\d{3,4})((?:[ -]\d{3,4})+)(?!\d)|(?<![\d.])(\d{1,2})((?: \d{1,2}){3,7}|(?: \d{2}){2,3})(?![\d.])")  # 会议号「123 456 789」分组书写，复制要整串
@@ -168,7 +168,7 @@ def _copy_link(u: str) -> str:
 
 ACCOUNT_WORDS = r"[\u4e00-\u9fffA-Za-z]{0,8}(?:号|账号|ID|id)|联系电话|电话|微信|vx|wx|tg|ins|wechat|telegram|discord|line|whatsapp|instagram|支付宝|steam|github|zoom|skype|teams|slack|facebook|twitter|signal|kakao(?:talk)?|[\u4e00-\u9fffA-Za-z]{1,6}群|QQ|会议号"  # 通用「xxx号/ID」+ 常见平台名，新平台一般无需再改
 ACCOUNT_RX = re.compile(r"(?:" + ACCOUNT_WORDS + r")\s*[:：]\s*([A-Za-z][A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})", re.I)  # 加好友/入群要抄的号
-ACCOUNT_LOOSE = re.compile(r"(?:群号|(?:QQ|微信|钉钉|飞书|班级|年级|交流|学习)群|微信号?|QQ号?|vx|wx|账号|会议号|腾讯会议|钉钉群|飞书会议|钉钉会议|飞书群|Zoom|zoom|Webex|Teams)\s*(?:[:：]\s*)?([A-Za-z][A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})", re.I)  # 「群号 123456789」不带冒号也常见；只限最明确的几个词，避免误配
+ACCOUNT_LOOSE = re.compile(r"(?:群号|(?:QQ|微信|钉钉|飞书|班级|年级|交流|学习)群|微信号?|QQ号?|vx|wx|账号|会议号|腾讯会议|钉钉群|飞书会议|钉钉会议|飞书群|Zoom|zoom|Webex|Teams)\s*(?:[:：]\s*)?([A-Za-z](?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})", re.I)  # 「群号 123456789」不带冒号也常见；只限最明确的几个词，避免误配
 
 
 FULLWIDTH = {c: c - 0xFEE0 for c in range(0xFF10, 0xFF5B) if chr(c).isalnum()}  # 全角数字/字母「１２３４５６」折成半角，口令才认得出
