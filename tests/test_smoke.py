@@ -2881,3 +2881,9 @@ def test_bark_copy_account_without_colon():
     import bark
     assert bark.pick_copy("群号 123456789 欢迎加入", None, "") == "123456789"
     assert bark.pick_copy("微信号 abc_123 加我", None, "") == "abc_123"
+
+
+def test_bark_copy_full_pure_digit_tracking():
+    from digest import bark
+    p = bark.build_payload("快递到了", "快递单号：4301234567890 请取件")
+    assert p["copy"] == "4301234567890"
