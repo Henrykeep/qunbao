@@ -2887,3 +2887,9 @@ def test_bark_copy_full_pure_digit_tracking():
     from digest import bark
     p = bark.build_payload("快递到了", "快递单号：4301234567890 请取件")
     assert p["copy"] == "4301234567890"
+
+
+def test_bark_copy_grouped_redeem_code():
+    import bark
+    assert bark.build_payload("通知", "激活码：XK29-77AB-QQ10")["copy"] == "XK29-77AB-QQ10"
+    assert bark.build_payload("通知", "兑换码 ABCD-EFGH-IJKL 速领")["copy"] == "ABCD-EFGH-IJKL"
