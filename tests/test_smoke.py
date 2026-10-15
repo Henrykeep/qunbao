@@ -2904,3 +2904,8 @@ def test_bark_copy_spaced_phone():
     from digest import bark
     for t in ("联系 138 0013 8000", "电话138-0013-8000", "+86 13800138000"):
         assert bark.pick_copy(t, None, "x") == "13800138000"
+
+
+def test_bark_copy_fullwidth_code():
+    from digest import bark
+    assert bark.pick_copy("验证码：１２３４５６，请勿泄露", None, "t") == "123456"
