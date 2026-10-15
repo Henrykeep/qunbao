@@ -2830,12 +2830,12 @@ def test_bark_strip_md_image():
 
 
 def test_bark_en_sticker_alias():
-    from digest import bark
+    import bark
     assert bark.strip_md("[Sticker]") == "[表情]"
 
 
 def test_bark_link_alias():
-    from digest import bark
+    import bark
     assert bark.strip_md("看这个 [网页链接]") == "看这个 [链接]"
 
 
@@ -2852,7 +2852,7 @@ def test_bark_clip_prefers_sentence_end():
 
 
 def test_bark_note_alias():
-    from digest import bark
+    import bark
     assert bark.strip_md("[Notes] [群笔记]") == "[笔记]"
 
 
@@ -2872,7 +2872,7 @@ def test_bark_copy_spaced_single_digits():
 
 
 def test_bark_copy_pwd_param_letters():
-    from digest import bark
+    import bark
     p = bark.build_payload("资料", "https://pan.baidu.com/s/1abc?pwd=abcd 进群的同学自取", "active", "", "/", -1, "")
     assert p["copy"] == "abcd"
 
@@ -2884,7 +2884,7 @@ def test_bark_copy_account_without_colon():
 
 
 def test_bark_copy_full_pure_digit_tracking():
-    from digest import bark
+    import bark
     p = bark.build_payload("快递到了", "快递单号：4301234567890 请取件")
     assert p["copy"] == "4301234567890"
 
@@ -2896,21 +2896,27 @@ def test_bark_copy_grouped_redeem_code():
 
 
 def test_bark_copy_survives_title_dedupe():
-    from digest import bark
+    import bark
     assert bark.build_payload("取件", "取件码：123456 到菜鸟驿站")["copy"] == "123456"
 
 
 def test_bark_copy_spaced_phone():
-    from digest import bark
+    import bark
     for t in ("联系 138 0013 8000", "电话138-0013-8000", "+86 13800138000"):
         assert bark.pick_copy(t, None, "x") == "13800138000"
 
 
 def test_bark_copy_fullwidth_code():
-    from digest import bark
+    import bark
     assert bark.pick_copy("验证码：１２３４５６，请勿泄露", None, "t") == "123456"
 
 
 def test_bark_copy_two_digit_groups():
-    from digest import bark
+    import bark
     assert bark.build_payload("t", "取件码：12 34 56 到驿站")["copy"] == "123456"
+
+
+def test_bark_copy_english_code_before():
+    import bark
+    assert bark.build_payload("x", "Use 482913 to verify")["copy"] == "482913"
+    assert bark.build_payload("x", "482913 is your Apple ID code")["copy"] == "482913"
