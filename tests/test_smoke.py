@@ -2893,3 +2893,8 @@ def test_bark_copy_grouped_redeem_code():
     import bark
     assert bark.build_payload("通知", "激活码：XK29-77AB-QQ10")["copy"] == "XK29-77AB-QQ10"
     assert bark.build_payload("通知", "兑换码 ABCD-EFGH-IJKL 速领")["copy"] == "ABCD-EFGH-IJKL"
+
+
+def test_bark_copy_survives_title_dedupe():
+    from digest import bark
+    assert bark.build_payload("取件", "取件码：123456 到菜鸟驿站")["copy"] == "123456"
