@@ -2919,4 +2919,5 @@ def test_bark_copy_two_digit_groups():
 def test_bark_copy_english_code_before():
     import bark
     assert bark.build_payload("x", "Use 482913 to verify")["copy"] == "482913"
+    assert bark.build_payload("x", "Enter 482913 for verification")["copy"] == "482913"
     assert bark.build_payload("x", "482913 is your Apple ID code")["copy"] == "482913"
