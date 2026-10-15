@@ -1,3 +1,6 @@
+## 0.37.73 — 2026-10-16
+- Bark：Google 式「G-482913 is your Google verification code」也能一键复制纯数字。
+
 ## 0.37.72 — 2026-10-16
 - Bark：「482913 for verification / for login」这类英文验证码写法也能一键复制。
 
