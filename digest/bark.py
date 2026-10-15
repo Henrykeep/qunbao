@@ -163,6 +163,7 @@ def _copy_link(u: str) -> str:
 
 ACCOUNT_WORDS = r"[\u4e00-\u9fffA-Za-z]{0,8}(?:号|账号|ID|id)|联系电话|电话|微信|vx|wx|tg|ins|wechat|telegram|discord|line|whatsapp|instagram|支付宝|steam|github|zoom|skype|teams|slack|facebook|twitter|signal|kakao(?:talk)?|[\u4e00-\u9fff]{2,6}群|QQ|会议号"  # 通用「xxx号/ID」+ 常见平台名，新平台一般无需再改
 ACCOUNT_RX = re.compile(r"(?:" + ACCOUNT_WORDS + r")\s*[:：]\s*([A-Za-z][A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})", re.I)  # 加好友/入群要抄的号
+ACCOUNT_LOOSE = re.compile(r"(?:群号|微信号?|QQ号?|vx|wx|账号)\s*(?:[:：]\s*)?([A-Za-z][A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})", re.I)  # 「群号 123456789」不带冒号也常见；只限最明确的几个词，避免误配
 
 
 def pick_copy(txt: str, link, title: str) -> str:
@@ -172,7 +173,7 @@ def pick_copy(txt: str, link, title: str) -> str:
         return code.group(1)
     if link:
         return _copy_link(link.group(0))
-    acc = ACCOUNT_RX.search(txt)
+    acc = ACCOUNT_RX.search(txt) or ACCOUNT_LOOSE.search(txt)
     if acc:
         return acc.group(1)
     for rx in (EMAIL_RX, TRACK_RX, PHONE_RX):
