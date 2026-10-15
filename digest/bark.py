@@ -195,6 +195,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     link = LINK_RX.search(body or "")  # 正文里的链接锁屏上折成[链接]，没有口令时改为复制原链接
     title = strip_md(title).strip() or "群报"  # 空标题的推送在锁屏上像乱码，兜底成 App 名
     body = re.sub(r"\n\s*\n+", "\n", strip_md(body).strip()) or title  # 空行折掉
+    full_body = body  # 去标题前缀前的正文：复制内容要在完整文字里找（「取件」+「取件码：123」去重后只剩「码：123」会认不出）
     if body != title and body.startswith(title) and len(body) > len(title) + 2:
         body = body[len(title):].lstrip("：:，,。 \n") or body  # 正文以标题开头时去掉重复
     payload = {"title": clip(title, 60), "body": clip(body, 300), "group": clip(group, 30) or "群报", "isArchive": "1"}  # 存进 Bark 历史
@@ -202,7 +203,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
         payload["level"] = level
     if level == "timeSensitive":
         payload.update(sound="alarm", volume=8, call="1")  # 紧急：不同铃声、拉高音量、循环响铃
-    txt = SPLIT_DIGITS.sub(lambda m: ((m.group(1) or m.group(3)) + (m.group(2) or m.group(4))).replace(" ", "").replace("-", ""), unicodedata.normalize("NFKC", title + " " + body))  # 全角数字/冒号先归一，否则「１２３４５６」认不出
+    txt = SPLIT_DIGITS.sub(lambda m: ((m.group(1) or m.group(3)) + (m.group(2) or m.group(4))).replace(" ", "").replace("-", ""), unicodedata.normalize("NFKC", title + " " + full_body))  # 全角数字/冒号先归一，否则「１２３４５６」认不出
     txt = ID_NUMS.sub(" ", txt)  # 寝室号/考场号等位置类数字不是口令
     pwd = re.search(r"[?&]pwd=([A-Za-z0-9]{4,8})", raw_body or "")  # 链接在正文里已折成[链接]，pwd 参数要从原文取
     payload["copy"] = pwd.group(1) if pwd and not CODE_AFTER.search(txt) and not TRACK_AFTER.search(txt) else pick_copy(txt, link, title)  # 不开 autoCopy，用户长按复制
