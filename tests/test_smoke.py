@@ -2875,3 +2875,9 @@ def test_bark_copy_pwd_param_letters():
     from digest import bark
     p = bark.build_payload("资料", "https://pan.baidu.com/s/1abc?pwd=abcd 进群的同学自取", "active", "", "/", -1, "")
     assert p["copy"] == "abcd"
+
+
+def test_bark_copy_account_without_colon():
+    import bark
+    assert bark.pick_copy("群号 123456789 欢迎加入", None, "") == "123456789"
+    assert bark.pick_copy("微信号 abc_123 加我", None, "") == "abc_123"
