@@ -152,8 +152,7 @@ EMAIL_RX = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")  # 邮箱：提交材料�
 PHONE_RX = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")  # 大陆手机号：联系人类通知
 
 
-TRACK_PREFIXES = "SF JD YT JT ZTO ZT YD DPK DBL DB JDV STO HTKY UC ANE FW GT KY YTO JTSD TTKD EMS SXJD JDX JDL FWX LP".split()  # 快递公司单号前缀，新增只改这里
-TRACK_RX = re.compile(r"(?<![A-Za-z0-9])(?:(?:" + "|".join(sorted(TRACK_PREFIXES, key=len, reverse=True)) + r")[A-Z]?\d{10,15}(?!\d)|[A-Z]{2}\d{9}CN(?![A-Za-z]))")  # 快递单号常不带「单号」二字
+TRACK_RX = re.compile(r"(?<![A-Za-z0-9])(?:[A-Z]{2,5}[A-Z]?\d{10,15}(?!\d)|[A-Z]{2}\d{9}CN(?![A-Za-z]))")  # 快递单号：2~6 位大写字母前缀 + 10~15 位数字，通吃各家快递，不再逐家加前缀；也含 EMS 式 XX123456789CN
 
 
 TRACK_AFTER = re.compile(r"(?:快递|运单|物流|单号)[^\dA-Za-z]{0,6}((?:[A-Za-z]{1,5})?\d{10,20})(?![\dA-Za-z])")  # 「快递单号：4301234567890」纯数字 13~15 位，CODE_AFTER 只取前 12 位会复制残缺
