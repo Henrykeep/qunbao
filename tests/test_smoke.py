@@ -2869,3 +2869,9 @@ def test_bark_copy_spaced_single_digits():
     import bark
     p = bark.build_payload("验证码", "您的验证码是 8 6 4 2 1 3，5分钟内有效", "active", "", "/", -1, "")
     assert p["copy"] == "864213"
+
+
+def test_bark_copy_pwd_param_letters():
+    from digest import bark
+    p = bark.build_payload("资料", "https://pan.baidu.com/s/1abc?pwd=abcd 进群的同学自取", "active", "", "/", -1, "")
+    assert p["copy"] == "abcd"
