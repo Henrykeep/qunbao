@@ -149,7 +149,7 @@ ID_NUMS = re.compile(r"(?:宿舍|寝室|教室|考场|座位|楼|班|组|床|车
 EMAIL_RX = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")  # 邮箱：提交材料的群通知常只给邮箱
 
 
-PHONE_RX = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")  # 大陆手机号：联系人类通知
+PHONE_RX = re.compile(r"(?<!\d)(?:\+?86[ -]?)?(1[3-9]\d)[ -]?(\d{4})[ -]?(\d{4})(?!\d)")  # 大陆手机号：联系人类通知
 
 
 TRACK_RX = re.compile(r"(?<![A-Za-z0-9])(?:[A-Z]{2,5}[A-Z]?\d{10,15}(?!\d)|[A-Z]{2}\d{9}CN(?![A-Za-z]))")  # 快递单号：2~6 位大写字母前缀 + 10~15 位数字，通吃各家快递，不再逐家加前缀；也含 EMS 式 XX123456789CN
@@ -185,7 +185,7 @@ def pick_copy(txt: str, link, title: str) -> str:
     for rx in (EMAIL_RX, TRACK_RX, PHONE_RX):
         m = rx.search(txt)
         if m:
-            return m.group(0)
+            return "".join(m.groups()) if rx is PHONE_RX else m.group(0)
     return clip(title, 60)
 
 
