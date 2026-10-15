@@ -169,8 +169,12 @@ ACCOUNT_RX = re.compile(r"(?:" + ACCOUNT_WORDS + r")\s*[:：]\s*([A-Za-z][A-Za-z
 ACCOUNT_LOOSE = re.compile(r"(?:群号|微信号?|QQ号?|vx|wx|账号|会议号|腾讯会议|钉钉群|飞书会议|钉钉会议|飞书群|Zoom|zoom|Webex|Teams)\s*(?:[:：]\s*)?([A-Za-z][A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})", re.I)  # 「群号 123456789」不带冒号也常见；只限最明确的几个词，避免误配
 
 
+FULLWIDTH = {c: c - 0xFEE0 for c in range(0xFF10, 0xFF5B) if chr(c).isalnum()}  # 全角数字/字母「１２３４５６」折成半角，口令才认得出
+
+
 def pick_copy(txt: str, link, title: str) -> str:
     """一键复制的内容，按优先级：口令/验证码 > 链接 > 微信/QQ号 > 邮箱 > 手机号 > 标题。"""
+    txt = txt.translate(FULLWIDTH)
     track = TRACK_AFTER.search(txt)
     if track:
         return track.group(1)
