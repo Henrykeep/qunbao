@@ -156,6 +156,9 @@ TRACK_PREFIXES = "SF JD YT JT ZTO ZT YD DPK DBL DB JDV STO HTKY UC ANE FW GT KY 
 TRACK_RX = re.compile(r"(?<![A-Za-z0-9])(?:(?:" + "|".join(sorted(TRACK_PREFIXES, key=len, reverse=True)) + r")[A-Z]?\d{10,15}(?!\d)|[A-Z]{2}\d{9}CN(?![A-Za-z]))")  # 快递单号常不带「单号」二字
 
 
+TRACK_AFTER = re.compile(r"(?:快递|运单|物流|单号)[^\dA-Za-z]{0,6}((?:[A-Za-z]{1,5})?\d{10,20})(?![\dA-Za-z])")  # 「快递单号：4301234567890」纯数字 13~15 位，CODE_AFTER 只取前 12 位会复制残缺
+
+
 def _copy_link(u: str) -> str:
     """复制用的链接：去尾部标点；裸 www 域名补 http://，粘贴到浏览器才能直接打开。"""
     u = u.rstrip(".,;)，。；）")
@@ -169,6 +172,9 @@ ACCOUNT_LOOSE = re.compile(r"(?:群号|微信号?|QQ号?|vx|wx|账号|会议号|
 
 def pick_copy(txt: str, link, title: str) -> str:
     """一键复制的内容，按优先级：口令/验证码 > 链接 > 微信/QQ号 > 邮箱 > 手机号 > 标题。"""
+    track = TRACK_AFTER.search(txt)
+    if track:
+        return track.group(1)
     code = CODE_AFTER.search(txt) or CODE_PWD.search(txt) or CODE_SECRET.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt)
     if code:
         return code.group(1)
@@ -200,7 +206,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     txt = SPLIT_DIGITS.sub(lambda m: ((m.group(1) or m.group(3)) + (m.group(2) or m.group(4))).replace(" ", "").replace("-", ""), unicodedata.normalize("NFKC", title + " " + body))  # 全角数字/冒号先归一，否则「１２３４５６」认不出
     txt = ID_NUMS.sub(" ", txt)  # 寝室号/考场号等位置类数字不是口令
     pwd = re.search(r"[?&]pwd=([A-Za-z0-9]{4,8})", raw_body or "")  # 链接在正文里已折成[链接]，pwd 参数要从原文取
-    payload["copy"] = pwd.group(1) if pwd and not CODE_AFTER.search(txt) else pick_copy(txt, link, title)  # 不开 autoCopy，用户长按复制
+    payload["copy"] = pwd.group(1) if pwd and not CODE_AFTER.search(txt) and not TRACK_AFTER.search(txt) else pick_copy(txt, link, title)  # 不开 autoCopy，用户长按复制
     if badge >= 0:
         payload["badge"] = badge  # 角标 = 未完成待办数
     if site_url:
