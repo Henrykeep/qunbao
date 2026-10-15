@@ -1,3 +1,6 @@
+## 0.37.72 — 2026-10-16
+- Bark：「482913 for verification / for login」这类英文验证码写法也能一键复制。
+
 ## 0.37.71 — 2026-10-16
 - Bark：英文短信验证码（Use 482913 to verify、482913 is your code）现在也能一键复制。
 
