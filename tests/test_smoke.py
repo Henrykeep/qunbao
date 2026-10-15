@@ -2854,3 +2854,10 @@ def test_bark_clip_prefers_sentence_end():
 def test_bark_note_alias():
     from digest import bark
     assert bark.strip_md("[Notes] [群笔记]") == "[笔记]"
+
+
+def test_bark_copy_password_with_symbols():
+    import sys
+    sys.path.insert(0, "digest")
+    import bark
+    assert bark.pick_copy("wifi密码：Ab@12345 欢迎", None, "x") == "Ab@12345"
