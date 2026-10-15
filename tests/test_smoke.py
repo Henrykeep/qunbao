@@ -2921,3 +2921,9 @@ def test_bark_copy_english_code_before():
     assert bark.build_payload("x", "Use 482913 to verify")["copy"] == "482913"
     assert bark.build_payload("x", "Enter 482913 for verification")["copy"] == "482913"
     assert bark.build_payload("x", "482913 is your Apple ID code")["copy"] == "482913"
+
+
+def test_bark_copy_english_meeting_number():
+    import bark
+    for s, want in [("Webex meeting number 2551 234 5678", "25512345678"), ("Join Zoom Meeting number 987 6543 2100", "98765432100")]:
+        assert bark.build_payload("t", s).get("copy") == want
