@@ -67,7 +67,7 @@ EN_ALIAS = {
     "[转账]": 'Transfer|Money Transfer|微信转账|转账消息|Payment|付款|收款|Payment Request|AA收款|群收款',
     "[投票]": 'Poll|Vote|群投票|投票消息|Survey|问卷|Questionnaire|表单|Form|填表',
     "[接龙]": 'Solitaire|Group Note|群接龙|接龙消息',
-    "[通话]": 'Call|Missed Call|Video Call|未接通话|未接来电|通话请求|Group Call|群通话|语音聊天|Voice Chat|Meeting|腾讯会议|会议邀请|Voice Call|Group Video Call|视频会议|Zoom Meeting|Google Meet|Teams Meeting|Webex Meeting|FaceTime|WhatsApp Call|飞书会议|钉钉会议|Skype Call|Telegram Call|LINE Call|语音通话|Discord Call|Signal Call|网络电话|微信电话|QQ电话|Zoom Call|Teams Call|Google Meet Call|会议通话|多人通话|Meet Call',
+    "[通话]": "(?:(?:Zoom|Teams|Skype|Telegram|LINE|Discord|Signal|WhatsApp|Webex|Google Meet|Voice|Video|Group|Group Video|Missed|Meet)\\s*)?(?:Call|Meeting|Chat)|Google Meet|FaceTime|未接通话|未接来电|通话请求|群通话|语音聊天|腾讯会议|会议邀请|视频会议|飞书会议|钉钉会议|语音通话|网络电话|微信电话|QQ电话|会议通话|多人通话",
     "[直播]": 'Live|Livestream|Live Stream|直播间|直播分享|直播邀请|直播回放|Live Replay|Webinar|网课直播',
     "[公告]": 'Announcement|Group Announcement|群公告|公告消息',
     "[日程]": 'Calendar Event|Group Schedule|群日程|日程提醒',
