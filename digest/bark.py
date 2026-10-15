@@ -132,10 +132,10 @@ def strip_md(t: str) -> str:
     return t.strip()
 
 
-CODE_WORDS = r"(?!(?:群|学|手机|电话|工|QQ|微信|房间|门牌|身份证|邮政|订单)[码号])[\u4e00-\u9fff]{1,3}[码号]|快递单号|口令|暗号|密码|会议ID|(?i:pwd|passcode|code)"  # 任何「X码/X号」都算口令，不再一个个枚举（手机号等超 8 位的数字天然匹配不上）
+CODE_WORDS = r"(?!(?:群|学|手机|电话|工|QQ|微信|房间|门牌|身份证|邮政|订单)[码号])[\u4e00-\u9fff]{1,3}[码号]|快递单号|口令|暗号|密码|会议ID|腾讯会议|飞书会议|(?i:pwd|passcode|code)"  # 任何「X码/X号」都算口令，不再一个个枚举（手机号等超 8 位的数字天然匹配不上）
 CODE_AFTER = re.compile(r"(?:" + CODE_WORDS + r")[^A-Za-z0-9]{0,4}((?=[A-Za-z-]*\d)[A-Za-z0-9-]{3,12})")  # 3 位也认但必须含数字：食堂「取餐号 A12」
 CODE_SECRET = re.compile(r"(?:提取码|密码|口令|暗号)[^A-Za-z0-9]{0,4}([A-Za-z]{4,8})(?![A-Za-z])")  # 网盘提取码常是纯字母 abcd
-SPLIT_DIGITS = re.compile(r"(?<!\d)(\d{3,4})((?: \d{3,4})+)(?!\d)")  # 会议号「123 456 789」分组书写，复制要整串
+SPLIT_DIGITS = re.compile(r"(?<!\d)(\d{3,4})((?:[ -]\d{3,4})+)(?!\d)")  # 会议号「123 456 789」分组书写，复制要整串
 CODE_BEFORE = re.compile(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|为)?(?:你的|您的)?(?:" + CODE_WORDS + r")")  # “123456 为您的验证码”
 
 CODE_PINGMA = re.compile(r"[凭憑](?:码)?\s*([A-Za-z0-9-]{3,12})\s*(?:到|去)?(?:取|领|核销|兑换)")  # “凭 8832 取件”
@@ -193,7 +193,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
         payload["level"] = level
     if level == "timeSensitive":
         payload.update(sound="alarm", volume=8, call="1")  # 紧急：不同铃声、拉高音量、循环响铃
-    txt = SPLIT_DIGITS.sub(lambda m: m.group(1) + m.group(2).replace(" ", ""), unicodedata.normalize("NFKC", title + " " + body))  # 全角数字/冒号先归一，否则「１２３４５６」认不出
+    txt = SPLIT_DIGITS.sub(lambda m: m.group(1) + m.group(2).replace(" ", "").replace("-", ""), unicodedata.normalize("NFKC", title + " " + body))  # 全角数字/冒号先归一，否则「１２３４５６」认不出
     txt = ID_NUMS.sub(" ", txt)  # 寝室号/考场号等位置类数字不是口令
     payload["copy"] = pick_copy(txt, link, title)  # 不开 autoCopy，用户长按复制
     if badge >= 0:
