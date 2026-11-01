@@ -36,6 +36,9 @@ LINK_RX = re.compile(r"(?:https?://|(?<![A-Za-z0-9_.@/])www\.)[^\s<>\"'\]\u4e00-
 
 BARE_LINK = re.compile(r"(?<![A-Za-z0-9_.@/-])(?:[A-Za-z0-9-]+\.)+(?:com|cn|net|org|edu\.cn|cc|link|ly|top|me|io)/[A-Za-z0-9_./?=&%#~+-]+[A-Za-z0-9_/=#-]")  # 无协议的短链「wj.qq.com/s/123」「pan.baidu.com/s/1abc」（必须带路径，避免把「qq.com」之类文字当链接）
 
+CODE_SPACED = re.compile(r"(?:" + CODE_WORDS + r")[^A-Za-z0-9]{0,4}(\d(?: \d){3,7})(?!\d)")  # 防抓取的单个数字间隔「验证码 8 8 2 1 3 4」，复制要合成 882134
+
+
 CODE_WRAPPED = re.compile(r"([￥¥$€₤][A-Za-z0-9]{8,20}[￥¥$€₤])")  # 淘宝/拼团式整段口令「￥AbC12dEf3￥」，两端符号也要复制才能被 App 识别
 
 
@@ -88,6 +91,9 @@ def pick_copy(txt: str, link, title: str) -> str:
     wrapped = CODE_WRAPPED.search(txt)
     if wrapped:
         return wrapped.group(1)
+    spaced = CODE_SPACED.search(txt)
+    if spaced:
+        return spaced.group(1).replace(" ", "")
     code = CODE_SECRET.search(txt) or CODE_PHRASE.search(txt) or CODE_AFTER.search(txt) or CODE_PWD.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt) or CODE_EN_BEFORE.search(txt)
     if code:
         c = _whole_digits(txt, code)
