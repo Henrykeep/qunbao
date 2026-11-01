@@ -3021,3 +3021,11 @@ def test_bark_copy_landline():
 def test_bark_copy_keypad_code():
     from bark_copy import pick_copy
     assert pick_copy("门禁卡密码 *1234#", None, "x") == "*1234#"
+
+
+def test_bark_copy_group_password_and_hyphen_code():
+    import sys; sys.path.insert(0, "digest")
+    from bark_copy import pick_copy
+    assert pick_copy("入群密码 学习2024", None, "T") == "学习2024"
+    assert pick_copy("验证码 123-456", None, "T") == "123456"
+    assert pick_copy("取件码 3-2-1508", None, "T") == "3-2-1508"
