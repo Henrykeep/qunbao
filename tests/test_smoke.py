@@ -2993,3 +2993,8 @@ def test_bark_copy_kouling_hongbao():
     import bark
     assert bark.build_payload("通知", "支付宝口令红包 8x9Kd2").get("copy") == "8x9Kd2"
     assert bark.build_payload("通知", "入群口令：芝麻开门").get("copy") == "芝麻开门"
+
+
+def test_bark_copy_fullwidth_email():
+    from bark_copy import pick_copy
+    assert pick_copy("请发到 abc＠qq．com 谢谢", None, "t") == "abc@qq.com"
