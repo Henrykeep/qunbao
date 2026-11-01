@@ -2998,3 +2998,9 @@ def test_bark_copy_kouling_hongbao():
 def test_bark_copy_fullwidth_email():
     from bark_copy import pick_copy
     assert pick_copy("请发到 abc＠qq．com 谢谢", None, "t") == "abc@qq.com"
+
+
+def test_bark_copy_split_meeting_number():
+    import bark_copy
+    t = "腾讯会议号：123 456 789 密码 8899"
+    assert bark_copy.pick_copy(t, "", t) == "123456789"
