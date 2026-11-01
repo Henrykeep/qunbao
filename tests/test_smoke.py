@@ -3004,3 +3004,8 @@ def test_bark_copy_split_meeting_number():
     import bark_copy
     t = "腾讯会议号：123 456 789 密码 8899"
     assert bark_copy.pick_copy(t, "", t) == "123456789"
+
+
+def test_bark_copy_spaced_digits():
+    from bark_copy import pick_copy
+    assert pick_copy("您的验证码为 8 8 2 1 3 4，5分钟内有效", None, "T") == "882134"
