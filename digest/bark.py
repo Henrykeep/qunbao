@@ -200,7 +200,8 @@ def pick_copy(txt: str, link, title: str) -> str:
         return re.sub(r"[ -]", "", track.group(1))  # 「4301 2345 6789 0」分组写法复制整串
     code = CODE_SECRET.search(txt) or CODE_PHRASE.search(txt) or CODE_AFTER.search(txt) or CODE_PWD.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt) or CODE_EN_BEFORE.search(txt)
     if code:
-        return code.group(1)
+        c = code.group(1)
+        return c.replace("-", "") if re.fullmatch(r"\d{3}-\d{3,4}-\d{3,4}", c) else c  # 会议号「123-456-789」粘贴到会议 App 要纯数字
     if link:
         return _copy_link(link.group(0))
     acc = ACCOUNT_RX.search(txt) or ACCOUNT_LOOSE.search(txt)
