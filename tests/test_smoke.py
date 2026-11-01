@@ -2987,3 +2987,9 @@ def test_bark_voice_duration_stripped():
 def test_bark_copy_wrapped_token():
     from digest import bark_copy as bc
     assert bc.pick_copy("复制这条消息 ￥AbC12dEf3￥ 打开淘宝", None, "x") == "￥AbC12dEf3￥"
+
+
+def test_bark_copy_kouling_hongbao():
+    import bark
+    assert bark.build_payload("通知", "支付宝口令红包 8x9Kd2").get("copy") == "8x9Kd2"
+    assert bark.build_payload("通知", "入群口令：芝麻开门").get("copy") == "芝麻开门"
