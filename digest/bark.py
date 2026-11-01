@@ -116,7 +116,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"(?m)^(.+)\n(?:\1\n?)+", lambda m: m.group(1) + "\n", 0),  # 复读连着几行一样的只留一行
     (r"@(?:全体成员|所有人)\s*", "", 0),  # 任意位置的 @全体成员/@所有人（紧急度已由级别表达）
     (r"^\s*(?:(?:[\[【(（]\s*(?:转发|Fwd?|自动回复|Re)\s*[\]】)）]\s*[:：]?|(?:转发|Fwd?|Re)\s*[:：])\s*)+", "", re.I),  # 转发/回复前缀
-    (r"(?m)[\s—-]*(?:发自|来自|发送自|Sent from|Sent via|Get)\s*(?:我的)?\s*(?:iPhone|iPad|Android|微信|QQ|手机|小米|华为|荣耀|OPPO|vivo|三星|Mac|Windows|网易邮箱|QQ邮箱|一加|真我|realme|iQOO|魅族|红米|Redmi|Pixel|Galaxy|Linux|iOS|客户端|Outlook|Gmail|WeChat|钉钉|飞书|Telegram|邮箱大师|Mail)[^\n]{0,20}$", "", 0),  # 签名尾巴
+    (r"(?m)[\s—-]*(?:(?:发自|发送自|Sent from|Sent via)\s*(?:我的)?|(?:来自|Get)\s*我的|Get(?=\s+(?:Outlook|Gmail)))\s*(?:iPhone|iPad|Android|微信|QQ|手机|小米|华为|荣耀|OPPO|vivo|三星|Mac|Windows|网易邮箱|QQ邮箱|一加|真我|realme|iQOO|魅族|红米|Redmi|Pixel|Galaxy|Linux|iOS|客户端|Outlook|Gmail|WeChat|钉钉|飞书|Telegram|邮箱大师|Mail)[^\n]{0,20}$", "", 0),  # 签名尾巴（「来自小米的通知」这类正文不是签名：来自/Get 必须带「我的」或是 Outlook/Gmail）
     (r"[【\[（(]\s*[】\]）)]", "", 0),  # 空括号（图片/表情被剥掉后留下的【】）锁屏上是噪点
     (r"[\u2002-\u200a\u00a0\u202f]", " ", 0),  # 特殊空格统一成普通空格
     (r"[ \u3000\t]{2,}", " ", 0),  # 连续空格折成一个
