@@ -34,6 +34,9 @@ CODE_PINGMA = re.compile(r"[凭憑](?:码)?\s*([A-Za-z0-9-]{3,12})\s*(?:到|去)
 
 LINK_RX = re.compile(r"(?:https?://|(?<![A-Za-z0-9_.@/])www\.)[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]*[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef.,;:!?)]")  # 链接末尾的英文标点/右括号不属于链接
 
+CODE_WRAPPED = re.compile(r"([￥¥$€₤][A-Za-z0-9]{8,20}[￥¥$€₤])")  # 淘宝/拼团式整段口令「￥AbC12dEf3￥」，两端符号也要复制才能被 App 识别
+
+
 ID_NUMS = re.compile(r"(?:宿舍|寝室|教室|考场|座位|楼|班|组|床|车|房)[号码]\s*[:：]?\s*[A-Za-z0-9-]+")
 
 
@@ -69,6 +72,9 @@ def pick_copy(txt: str, link, title: str) -> str:
     track = TRACK_AFTER.search(txt)
     if track:
         return re.sub(r"[ -]", "", track.group(1))  # 「4301 2345 6789 0」分组写法复制整串
+    wrapped = CODE_WRAPPED.search(txt)
+    if wrapped:
+        return wrapped.group(1)
     code = CODE_SECRET.search(txt) or CODE_PHRASE.search(txt) or CODE_AFTER.search(txt) or CODE_PWD.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt) or CODE_EN_BEFORE.search(txt)
     if code:
         c = code.group(1)
