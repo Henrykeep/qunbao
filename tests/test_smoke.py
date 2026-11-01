@@ -2960,3 +2960,8 @@ def test_bark_clip_keeps_placeholder_whole():
 def test_bark_strips_more_edit_markers():
     from digest import bark
     assert "已订正" not in bark.strip_md("明天开会（已订正）") if hasattr(bark, "strip_md") else True
+
+
+def test_bark_no_space_before_cjk_punct():
+    import bark
+    assert "[链接]，" in bark.strip_md("到 https://a.com/x ，逾期不候")
