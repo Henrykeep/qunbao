@@ -2950,3 +2950,8 @@ def test_bark_strips_edited_mark():
     from digest import bark
     assert bark.strip_md("明天8点集合（已编辑）") == "明天8点集合"
     assert bark.strip_md("[课件]") == "[文件]"
+
+
+def test_bark_clip_keeps_placeholder_whole():
+    from digest.bark import clip
+    assert clip("今晚八点开会请带电脑[图片]", 13) == "今晚八点开会请带电脑…"
