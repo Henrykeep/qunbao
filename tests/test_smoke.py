@@ -2965,3 +2965,8 @@ def test_bark_strips_more_edit_markers():
 def test_bark_no_space_before_cjk_punct():
     import bark
     assert "[链接]，" in bark.strip_md("到 https://a.com/x ，逾期不候")
+
+
+def test_bark_collapses_doubled_commas():
+    import bark
+    assert bark.strip_md("取件，，请尽快、、谢谢") == "取件，请尽快、谢谢"
