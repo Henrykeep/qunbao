@@ -3009,3 +3009,10 @@ def test_bark_copy_split_meeting_number():
 def test_bark_copy_spaced_digits():
     from bark_copy import pick_copy
     assert pick_copy("您的验证码为 8 8 2 1 3 4，5分钟内有效", None, "T") == "882134"
+
+
+def test_bark_copy_landline():
+    import sys; sys.path.insert(0, "digest")
+    import bark_copy as b
+    assert b.pick_copy("办公室座机 010-12345678", None, "") == "010-12345678"
+    assert b.pick_copy("辅导员 0571-8765432-801", None, "") == "0571-8765432-801"
