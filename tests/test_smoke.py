@@ -2938,3 +2938,9 @@ def test_bark_signature_not_eat_body():
     import bark
     assert bark.strip_md("来自华为的快递通知") == "来自华为的快递通知"
     assert bark.strip_md("明天开会\n发自我的iPhone") == "明天开会"
+
+
+def test_bark_copy_phrase_passcode():
+    import bark
+    assert bark.build_payload("通知", "入群口令 学习2024").get("copy") == "学习2024"
+    assert bark.build_payload("通知", "暗号：芝麻开门，对上才放行").get("copy") == "芝麻开门"
