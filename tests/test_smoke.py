@@ -3029,3 +3029,8 @@ def test_bark_copy_group_password_and_hyphen_code():
     assert pick_copy("入群密码 学习2024", None, "T") == "学习2024"
     assert pick_copy("验证码 123-456", None, "T") == "123456"
     assert pick_copy("取件码 3-2-1508", None, "T") == "3-2-1508"
+
+
+def test_bark_copy_prefers_password_over_account():
+    import bark
+    assert bark.build_payload("通知", "校园网账号 20231234 密码 Ab123456")["copy"] == "Ab123456"
