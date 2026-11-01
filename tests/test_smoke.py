@@ -2932,3 +2932,9 @@ def test_bark_copy_english_meeting_number():
 def test_bark_strips_brand_signature():
     from digest import bark
     assert bark.strip_md("明天交作业 发自我的小米手机") == "明天交作业"
+
+
+def test_bark_signature_not_eat_body():
+    import bark
+    assert bark.strip_md("来自华为的快递通知") == "来自华为的快递通知"
+    assert bark.strip_md("明天开会\n发自我的iPhone") == "明天开会"
