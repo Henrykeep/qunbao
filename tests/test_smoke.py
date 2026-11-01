@@ -2970,3 +2970,8 @@ def test_bark_no_space_before_cjk_punct():
 def test_bark_collapses_doubled_commas():
     import bark
     assert bark.strip_md("取件，，请尽快、、谢谢") == "取件，请尽快、谢谢"
+
+
+def test_bark_wx_emoji_more_tags():
+    from digest import bark
+    assert "[庆祝]" not in bark.strip_md("[庆祝] 恭喜 [红包]")
