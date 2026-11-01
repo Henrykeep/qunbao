@@ -126,7 +126,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"^\s*(?:(?:[\[【(（]\s*(?:转发|Fwd?|自动回复|Re)\s*[\]】)）]\s*[:：]?|(?:转发|Fwd?|Re)\s*[:：])\s*)+", "", re.I),  # 转发/回复前缀
     (r"(?m)[\s—-]*(?:(?:发自|发送自|Sent from|Sent via)\s*(?:我的)?|(?:来自|Get)\s*我的|Get(?=\s+(?:Outlook|Gmail)))\s*(?:iPhone|iPad|Android|微信|QQ|手机|小米|华为|荣耀|OPPO|vivo|三星|Mac|Windows|网易邮箱|QQ邮箱|一加|真我|realme|iQOO|魅族|红米|Redmi|Pixel|Galaxy|Linux|iOS|客户端|Outlook|Gmail|WeChat|钉钉|飞书|Telegram|邮箱大师|Mail)[^\n]{0,20}$", "", 0),  # 签名尾巴（「来自小米的通知」这类正文不是签名：来自/Get 必须带「我的」或是 Outlook/Gmail）
     (r"(?m)(?:^\s*|\s*)[(（\[【]\s*(?:已(?:" + "|".join(EDIT_MARKS) + r")(?:版)?|编辑过|edited)\s*[)）\]】]\s*(?:$|[:：]\s*)", "", re.I),  # 「（已编辑）」「【已更新】」改动标记放开头或末尾都是噪点，只留正文
-    (r"[【\[（(]\s*[】\]）)]", "", 0),  # 空括号（图片/表情被剥掉后留下的【】）锁屏上是噪点
+    (r"[【\[（(「『《]\s*[】\]）)」』》]", "", 0),  # 空括号/空引号（图片/表情被剥掉后留下的【】）锁屏上是噪点
     (r"[０-９Ａ-Ｚａ-ｚ]+", lambda m: m.group(0).translate({c: c - 0xFEE0 for c in range(0xFF01, 0xFF5F)}), 0),  # 全角数字/字母转半角：「验证码：１２３４５６」才匹配得上复制
     (r"[\u2002-\u200a\u00a0\u202f]", " ", 0),  # 特殊空格统一成普通空格
     (r"[ \u3000\t]{2,}", " ", 0),  # 连续空格折成一个
