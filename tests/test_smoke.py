@@ -2944,3 +2944,8 @@ def test_bark_copy_phrase_passcode():
     import bark
     assert bark.build_payload("通知", "入群口令 学习2024").get("copy") == "学习2024"
     assert bark.build_payload("通知", "暗号：芝麻开门，对上才放行").get("copy") == "芝麻开门"
+
+
+def test_bark_strips_edited_mark():
+    from digest import bark
+    assert bark.strip_md("明天8点集合（已编辑）") == "明天8点集合"
