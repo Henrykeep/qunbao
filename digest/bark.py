@@ -120,7 +120,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (EN_ALIAS_RX.pattern, _en_alias, 0),  # 英文/别名占位统一查 EN_ALIAS 表
     (r"(" + _PLACEHOLDERS + r")(?:\s*\1)+", _first, 0),  # 连发同类占位只留一个
     (r"(?m)^(.+)\n(?:\1\n?)+", lambda m: m.group(1) + "\n", 0),  # 复读连着几行一样的只留一行
-    (r"@(?:全体成员|所有人)\s*", "", 0),  # 任意位置的 @全体成员/@所有人（紧急度已由级别表达）
+    (r"(?i)@(?:全体成员|所有人|everyone|all(?![a-z]))\s*", "", 0),  # 任意位置的 @全体成员/@所有人（紧急度已由级别表达）
     (r"^\s*(?:(?:[\[【(（]\s*(?:转发|Fwd?|自动回复|Re)\s*[\]】)）]\s*[:：]?|(?:转发|Fwd?|Re)\s*[:：])\s*)+", "", re.I),  # 转发/回复前缀
     (r"(?m)[\s—-]*(?:(?:发自|发送自|Sent from|Sent via)\s*(?:我的)?|(?:来自|Get)\s*我的|Get(?=\s+(?:Outlook|Gmail)))\s*(?:iPhone|iPad|Android|微信|QQ|手机|小米|华为|荣耀|OPPO|vivo|三星|Mac|Windows|网易邮箱|QQ邮箱|一加|真我|realme|iQOO|魅族|红米|Redmi|Pixel|Galaxy|Linux|iOS|客户端|Outlook|Gmail|WeChat|钉钉|飞书|Telegram|邮箱大师|Mail)[^\n]{0,20}$", "", 0),  # 签名尾巴（「来自小米的通知」这类正文不是签名：来自/Get 必须带「我的」或是 Outlook/Gmail）
     (r"(?m)\s*[(（\[【]\s*(?:已(?:" + "|".join(EDIT_MARKS) + r")(?:版)?|编辑过|edited)\s*[)）\]】]\s*$", "", re.I),  # 消息末尾的「（已编辑）」标记是噪点
