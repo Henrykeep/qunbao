@@ -2982,3 +2982,8 @@ def test_bark_voice_duration_stripped():
     assert bark.strip_md('[语音] 3"') == '[语音]'
     assert bark.strip_md('[视频] 0:12') == '[视频]'
     assert bark.strip_md('[语音]3个人') == '[语音]3个人'
+
+
+def test_bark_copy_wrapped_token():
+    from digest import bark_copy as bc
+    assert bc.pick_copy("复制这条消息 ￥AbC12dEf3￥ 打开淘宝", None, "x") == "￥AbC12dEf3￥"
