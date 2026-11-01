@@ -86,6 +86,9 @@ def _whole_digits(txt, m):
     return c
 
 
+MEETING_ID = re.compile(r"(?:会议\s?(?:号|ID|id)|(?i:meeting\s?(?:ID|number|no\.?)))\s*[:：是为]?\s*#?(\d{3}[ -]?\d{3,4}[ -]?\d{3,5})(?!\d)")  # 会议号和密码并存：先复制会议号（进会先输号，密码在群里再看）
+
+
 def pick_copy(txt: str, link, title: str) -> str:
     """一键复制的内容，按优先级：口令/验证码 > 链接 > 微信/QQ号 > 邮箱 > 手机号 > 标题。"""
     txt = txt.translate(FULLWIDTH)
@@ -98,6 +101,9 @@ def pick_copy(txt: str, link, title: str) -> str:
     spaced = CODE_SPACED.search(txt)
     if spaced:
         return spaced.group(1).replace(" ", "")
+    mt = MEETING_ID.search(txt)
+    if mt:
+        return re.sub(r"[ -]", "", mt.group(1))
     code = CODE_SECRET.search(txt) or CODE_KEYPAD.search(txt) or CODE_PHRASE.search(txt) or CODE_PWD.search(txt) or CODE_AFTER.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt) or CODE_EN_BEFORE.search(txt)
     if code:
         c = _whole_digits(txt, code)
