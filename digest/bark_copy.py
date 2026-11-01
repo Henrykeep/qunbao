@@ -51,6 +51,9 @@ EMAIL_RX = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")  # 邮箱：提交材料�
 PHONE_RX = re.compile(r"(?<!\d)(?:[(（]?\+?86[)）]?[ -]?)?(1[3-9]\d)[ -]?(\d{4})[ -]?(\d{4})(?!\d)")  # 大陆手机号：联系人类通知
 
 
+LANDLINE_RX = re.compile(r"(?<![\d-])0\d{2,3}-\d{7,8}(?:-\d{1,6})?(?![\d-])")  # 座机/办公室电话「010-12345678」「0571-8765432-801」：保留连字符，拨号可直接用
+
+
 TRACK_RX = re.compile(r"(?<![A-Za-z0-9])(?:[A-Z]{2,5}[A-Z]?\d{10,15}(?!\d)|[A-Z]{2}\d{9}CN(?![A-Za-z]))")  # 快递单号：2~6 位大写字母前缀 + 10~15 位数字，通吃各家快递，不再逐家加前缀；也含 EMS 式 XX123456789CN
 
 
@@ -108,7 +111,7 @@ def pick_copy(txt: str, link, title: str) -> str:
     acc = ACCOUNT_RX.search(txt) or ACCOUNT_LOOSE.search(txt)
     if acc:
         return _whole_digits(txt, acc).replace(" ", "")  # 「群号：123 456 789」分组书写同样整串复制
-    for rx in (EMAIL_RX, TRACK_RX, PHONE_RX):
+    for rx in (EMAIL_RX, TRACK_RX, PHONE_RX, LANDLINE_RX):
         m = rx.search(txt)
         if m:
             return "".join(m.groups()) if rx is PHONE_RX else m.group(0)
