@@ -2927,3 +2927,8 @@ def test_bark_copy_english_meeting_number():
     import bark
     for s, want in [("Webex meeting number 2551 234 5678", "25512345678"), ("Join Zoom Meeting number 987 6543 2100", "98765432100")]:
         assert bark.build_payload("t", s).get("copy") == want
+
+
+def test_bark_strips_brand_signature():
+    from digest import bark
+    assert bark.strip_md("明天交作业 发自我的小米手机") == "明天交作业"
