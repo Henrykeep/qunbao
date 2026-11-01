@@ -78,6 +78,7 @@ EN_ALIAS = {
     "[二维码]": 'QR Code|QR|二维码图片|群二维码|收款码|Payment Code|Barcode|条形码|付款码',
     "[快递]": 'Package|Parcel|Delivery|Express|快递|包裹|快递信息|取件通知',
     "[礼物]": 'Gift|Group Gift|礼物|群礼物|礼物消息|Sticker Gift|表情礼物|Voucher|礼品卡',
+    "[打卡]": 'Check-in|Check in|Attendance|群打卡|打卡消息|签到|群签到|打卡提醒|Daily Check-in',
 }
 EN_ALIAS_RX = re.compile(r"\[(?:" + "|".join(f"(?P<g{i}>{v})" for i, v in enumerate(EN_ALIAS.values())) + r")\]")
 
