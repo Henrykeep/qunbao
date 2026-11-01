@@ -11,4 +11,5 @@ def test_bare_domain_link():
 
 
 def test_bark_copy_segmented_voucher():
+    from bark_copy import pick_copy
     assert pick_copy("核销码：ABCD-1234-EFGH", None, "") == "ABCD-1234-EFGH"
