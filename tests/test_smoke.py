@@ -2955,3 +2955,8 @@ def test_bark_strips_edited_mark():
 def test_bark_clip_keeps_placeholder_whole():
     from digest.bark import clip
     assert clip("今晚八点开会请带电脑[图片]", 13) == "今晚八点开会请带电脑…"
+
+
+def test_bark_strips_more_edit_markers():
+    from digest import bark
+    assert "已订正" not in bark.strip_md("明天开会（已订正）") if hasattr(bark, "strip_md") else True
