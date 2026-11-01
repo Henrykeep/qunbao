@@ -98,7 +98,7 @@ def pick_copy(txt: str, link, title: str) -> str:
     spaced = CODE_SPACED.search(txt)
     if spaced:
         return spaced.group(1).replace(" ", "")
-    code = CODE_SECRET.search(txt) or CODE_KEYPAD.search(txt) or CODE_PHRASE.search(txt) or CODE_AFTER.search(txt) or CODE_PWD.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt) or CODE_EN_BEFORE.search(txt)
+    code = CODE_SECRET.search(txt) or CODE_KEYPAD.search(txt) or CODE_PHRASE.search(txt) or CODE_PWD.search(txt) or CODE_AFTER.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt) or CODE_EN_BEFORE.search(txt)
     if code:
         c = _whole_digits(txt, code)
         if c != code.group(1):
