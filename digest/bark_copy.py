@@ -30,6 +30,7 @@ CODE_BEFORE = re.compile(r"(?<![\dA-Za-z])(\d{4,8})(?![\dA-Za-z])\D{0,6}(?:是|�
 CODE_EN_BEFORE = re.compile(r"(?<![\dA-Za-z])(?:[A-Z]-)?(\d{4,8})(?![\dA-Za-z])\s*(?:is\s+your\b[^.\n]{0,30}?(?:code|pin|otp|password)|to\s+(?:verify|log\s?in|sign\s?in|confirm|reset)|for\s+(?:verification|login|sign\s?in))", re.I)  # 英文短信「482913 is your code」「Use 482913 to verify」
 
 CODE_PWD = re.compile(r"(?:wifi|WiFi|WIFI|无线网|热点|账号)?密码\s*(?:是|为)?\s*[:：]?\s*([A-Za-z0-9][\x21-\x7e]{5,19})(?![\x21-\x7e])")  # 含符号的密码「Ab@12345」，CODE_AFTER 只认字母数字
+CODE_KEYPAD = re.compile(r"(?:密码|口令|开门码|门禁码)\s*(?:是|为)?\s*[:：]?\s*([*#]\d{3,8}[*#]?|\d{3,8}[*#])")  # 门禁/快递柜键盘码「*1234#」带星井号才能按出来
 CODE_PINGMA = re.compile(r"[凭憑](?:码)?\s*([A-Za-z0-9-]{3,12})\s*(?:到|去)?(?:取|领|核销|兑换)")  # “凭 8832 取件”
 
 LINK_RX = re.compile(r"(?:https?://|(?<![A-Za-z0-9_.@/])www\.)[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]*[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef.,;:!?)]")  # 链接末尾的英文标点/右括号不属于链接
@@ -97,7 +98,7 @@ def pick_copy(txt: str, link, title: str) -> str:
     spaced = CODE_SPACED.search(txt)
     if spaced:
         return spaced.group(1).replace(" ", "")
-    code = CODE_SECRET.search(txt) or CODE_PHRASE.search(txt) or CODE_AFTER.search(txt) or CODE_PWD.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt) or CODE_EN_BEFORE.search(txt)
+    code = CODE_SECRET.search(txt) or CODE_KEYPAD.search(txt) or CODE_PHRASE.search(txt) or CODE_AFTER.search(txt) or CODE_PWD.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt) or CODE_EN_BEFORE.search(txt)
     if code:
         c = _whole_digits(txt, code)
         if c != code.group(1):
