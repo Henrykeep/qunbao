@@ -13,3 +13,9 @@ def test_bare_domain_link():
 def test_bark_copy_segmented_voucher():
     from bark_copy import pick_copy
     assert pick_copy("核销码：ABCD-1234-EFGH", None, "") == "ABCD-1234-EFGH"
+
+
+def test_meeting_id_before_password():
+    from bark_copy import pick_copy
+    assert pick_copy("Zoom 会议号 8123456789 密码 abc123", None, "") == "8123456789"
+    assert pick_copy("会议ID 987 654 321 密码 1234", None, "") == "987654321"
