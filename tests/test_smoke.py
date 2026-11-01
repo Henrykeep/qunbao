@@ -2975,3 +2975,10 @@ def test_bark_collapses_doubled_commas():
 def test_bark_wx_emoji_more_tags():
     from digest import bark
     assert "[庆祝]" not in bark.strip_md("[庆祝] 恭喜 [红包]")
+
+
+def test_bark_voice_duration_stripped():
+    import bark
+    assert bark.strip_md('[语音] 3"') == '[语音]'
+    assert bark.strip_md('[视频] 0:12') == '[视频]'
+    assert bark.strip_md('[语音]3个人') == '[语音]3个人'
