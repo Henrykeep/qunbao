@@ -3034,3 +3034,8 @@ def test_bark_copy_group_password_and_hyphen_code():
 def test_bark_copy_prefers_password_over_account():
     import bark
     assert bark.build_payload("通知", "校园网账号 20231234 密码 Ab123456")["copy"] == "Ab123456"
+
+
+def test_bark_copy_symbol_password_whole():
+    from digest import bark_copy as bc
+    assert bc.pick_copy("Wi-Fi 密码：campus@2024", None, "") == "campus@2024"
