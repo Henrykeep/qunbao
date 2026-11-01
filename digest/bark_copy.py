@@ -63,7 +63,9 @@ ACCOUNT_RX = re.compile(r"(?:" + ACCOUNT_WORDS + r")\s*[:：]\s*([A-Za-z][A-Za-z
 ACCOUNT_LOOSE = re.compile(r"(?:群号|(?:QQ|微信|钉钉|飞书|班级|年级|交流|学习)群|微信号?|QQ号?|vx|wx|账号|(?<![\u4e00-\u9fffA-Za-z])(?!(?:手机|电话|学|工|订单|身份证|邮政|门牌|单|序列|房|寝室|宿舍|教室|座位)[号码])[\u4e00-\u9fffA-Za-z]{1,6}(?:号|邀请码)|腾讯会议|钉钉群|飞书会议|钉钉会议|飞书群|Zoom|zoom|Webex|Teams)\s*(?:[:：]\s*)?([A-Za-z](?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})", re.I)  # 「群号 123456789」不带冒号也常见；只限最明确的几个词，避免误配
 
 
-FULLWIDTH = {c: c - 0xFEE0 for c in range(0xFF10, 0xFF5B) if chr(c).isalnum()}  # 全角数字/字母「１２３４５６」折成半角，口令才认得出
+FULLWIDTH = {c: c - 0xFEE0 for c in range(0xFF10, 0xFF5B) if chr(c).isalnum()}
+FULLWIDTH.update({0xFF20: 64, 0xFF0E: 46})  # 全角＠、．也折半角：邮箱「abc＠qq．com」才复制得出
+# 全角数字/字母「１２３４５６」折成半角，口令才认得出
 
 
 def pick_copy(txt: str, link, title: str) -> str:
