@@ -80,6 +80,9 @@ def pick_copy(txt: str, link, title: str) -> str:
     code = CODE_SECRET.search(txt) or CODE_PHRASE.search(txt) or CODE_AFTER.search(txt) or CODE_PWD.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt) or CODE_EN_BEFORE.search(txt)
     if code:
         c = code.group(1)
+        sp = SPLIT_DIGITS.match(txt, code.start(1)) if c.isdigit() else None
+        if sp and sp.group(0).startswith(c) and len(sp.group(0)) > len(c):
+            return re.sub(r"[ -]", "", sp.group(0))  # 「会议号 123 456 789」分组书写：整串复制，别只剩 123
         return c.replace("-", "") if re.fullmatch(r"\d{3}-\d{3,4}-\d{3,4}", c) else c  # 会议号「123-456-789」粘贴到会议 App 要纯数字
     if link:
         return _copy_link(link.group(0))
