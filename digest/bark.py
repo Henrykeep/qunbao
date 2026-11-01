@@ -20,6 +20,9 @@ def clip(t: str, n: int) -> str:
     m = re.search(r"[A-Za-z0-9\-]+$", t[:cut])
     if m and t[cut:cut + 1].isascii() and t[cut:cut + 1].isalnum() and m.start() >= 3:
         cut = m.start()  # 不把取件码/单号/英文单词拦腰截断
+    o = t.rfind("[", 0, cut)
+    if o >= 3 and "]" not in t[o:cut] and cut - o <= 6:
+        cut = o  # 不把「[图片]」「[链接]」占位拦腰截成「[图…」
     return t[:cut].rstrip("，,、：:；;（([【“\"‘ ") + "…"  # 截断处不留悬空标点/半个括号
 
 
