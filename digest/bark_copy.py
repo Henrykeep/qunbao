@@ -69,7 +69,7 @@ def _copy_link(u: str) -> str:
 
 ACCOUNT_WORDS = r"[\u4e00-\u9fffA-Za-z]{0,8}(?:号|账号|ID|id)|联系电话|电话|微信|vx|wx|tg|ins|wechat|telegram|discord|line|whatsapp|instagram|支付宝|steam|github|zoom|skype|teams|slack|facebook|twitter|signal|kakao(?:talk)?|[\u4e00-\u9fffA-Za-z]{1,6}群|QQ|会议号"  # 通用「xxx号/ID」+ 常见平台名，新平台一般无需再改
 ACCOUNT_RX = re.compile(r"(?:" + ACCOUNT_WORDS + r")\s*[:：]\s*([A-Za-z][A-Za-z0-9_-]{5,19}|[1-9]\d{4,11}(?!\d)|\d{16,19}(?!\d)|[1-9]\d{2,3}(?: \d{3,4}){1,2}(?!\d))", re.I)  # 银行卡 16-19 位整串，不能只截 12 位  # 加好友/入群要抄的号
-ACCOUNT_LOOSE = re.compile(r"(?:群号|银行卡号?|卡号|(?:QQ|微信|钉钉|飞书|班级|年级|交流|学习)群|微信号?|QQ号?|vx|wx|账号|(?<![\u4e00-\u9fffA-Za-z])(?!(?:手机|电话|学|工|订单|身份证|邮政|门牌|单|序列|房|寝室|宿舍|教室|座位)[号码])[\u4e00-\u9fffA-Za-z]{1,6}(?:号|邀请码)|腾讯会议|钉钉群|飞书会议|钉钉会议|飞书群|Zoom|zoom|Webex|Teams)\s*(?:[:：]\s*)?([A-Za-z](?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{5,19}|[1-9]\d{4,11}(?!\d)|\d{16,19}(?!\d))", re.I)  # 「群号 123456789」不带冒号也常见；只限最明确的几个词，避免误配
+ACCOUNT_LOOSE = re.compile(r"(?:群号|银行卡号?|卡号|(?:QQ|微信|钉钉|飞书|班级|年级|交流|学习)群|微信号?|QQ号?|vx|wx|加\s*[vV]|[vV]\s*信|扣扣|账号|(?<![\u4e00-\u9fffA-Za-z])(?!(?:手机|电话|学|工|订单|身份证|邮政|门牌|单|序列|房|寝室|宿舍|教室|座位)[号码])[\u4e00-\u9fffA-Za-z]{1,6}(?:号|邀请码)|腾讯会议|钉钉群|飞书会议|钉钉会议|飞书群|Zoom|zoom|Webex|Teams)\s*(?:[:：]\s*)?([A-Za-z](?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{5,19}|[1-9]\d{4,11}(?!\d)|\d{16,19}(?!\d))", re.I)  # 「群号 123456789」不带冒号也常见；只限最明确的几个词，避免误配
 
 
 FULLWIDTH = {c: c - 0xFEE0 for c in range(0xFF10, 0xFF5B) if chr(c).isalnum()}
