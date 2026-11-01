@@ -59,13 +59,22 @@ def _copy_link(u: str) -> str:
 
 
 ACCOUNT_WORDS = r"[\u4e00-\u9fffA-Za-z]{0,8}(?:号|账号|ID|id)|联系电话|电话|微信|vx|wx|tg|ins|wechat|telegram|discord|line|whatsapp|instagram|支付宝|steam|github|zoom|skype|teams|slack|facebook|twitter|signal|kakao(?:talk)?|[\u4e00-\u9fffA-Za-z]{1,6}群|QQ|会议号"  # 通用「xxx号/ID」+ 常见平台名，新平台一般无需再改
-ACCOUNT_RX = re.compile(r"(?:" + ACCOUNT_WORDS + r")\s*[:：]\s*([A-Za-z][A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})", re.I)  # 加好友/入群要抄的号
+ACCOUNT_RX = re.compile(r"(?:" + ACCOUNT_WORDS + r")\s*[:：]\s*([A-Za-z][A-Za-z0-9_-]{5,19}|[1-9]\d{4,11}|[1-9]\d{2,3}(?: \d{3,4}){1,2}(?!\d))", re.I)  # 加好友/入群要抄的号
 ACCOUNT_LOOSE = re.compile(r"(?:群号|(?:QQ|微信|钉钉|飞书|班级|年级|交流|学习)群|微信号?|QQ号?|vx|wx|账号|(?<![\u4e00-\u9fffA-Za-z])(?!(?:手机|电话|学|工|订单|身份证|邮政|门牌|单|序列|房|寝室|宿舍|教室|座位)[号码])[\u4e00-\u9fffA-Za-z]{1,6}(?:号|邀请码)|腾讯会议|钉钉群|飞书会议|钉钉会议|飞书群|Zoom|zoom|Webex|Teams)\s*(?:[:：]\s*)?([A-Za-z](?=[A-Za-z0-9_-]*\d)[A-Za-z0-9_-]{5,19}|[1-9]\d{4,11})", re.I)  # 「群号 123456789」不带冒号也常见；只限最明确的几个词，避免误配
 
 
 FULLWIDTH = {c: c - 0xFEE0 for c in range(0xFF10, 0xFF5B) if chr(c).isalnum()}
 FULLWIDTH.update({0xFF20: 64, 0xFF0E: 46})  # 全角＠、．也折半角：邮箱「abc＠qq．com」才复制得出
 # 全角数字/字母「１２３４５６」折成半角，口令才认得出
+
+
+def _whole_digits(txt, m):
+    """分组书写的数字（123 456 789）取整串；其余原样。"""
+    c = m.group(1)
+    sp = SPLIT_DIGITS.match(txt, m.start(1)) if c.isdigit() else None
+    if sp and sp.group(0).startswith(c) and len(sp.group(0)) > len(c):
+        return re.sub(r"[ -]", "", sp.group(0))
+    return c
 
 
 def pick_copy(txt: str, link, title: str) -> str:
@@ -79,16 +88,15 @@ def pick_copy(txt: str, link, title: str) -> str:
         return wrapped.group(1)
     code = CODE_SECRET.search(txt) or CODE_PHRASE.search(txt) or CODE_AFTER.search(txt) or CODE_PWD.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt) or CODE_EN_BEFORE.search(txt)
     if code:
-        c = code.group(1)
-        sp = SPLIT_DIGITS.match(txt, code.start(1)) if c.isdigit() else None
-        if sp and sp.group(0).startswith(c) and len(sp.group(0)) > len(c):
-            return re.sub(r"[ -]", "", sp.group(0))  # 「会议号 123 456 789」分组书写：整串复制，别只剩 123
+        c = _whole_digits(txt, code)
+        if c != code.group(1):
+            return c  # 「会议号 123 456 789」分组书写：整串复制，别只剩 123
         return c.replace("-", "") if re.fullmatch(r"\d{3}-\d{3,4}-\d{3,4}", c) else c  # 会议号「123-456-789」粘贴到会议 App 要纯数字
     if link:
         return _copy_link(link.group(0))
     acc = ACCOUNT_RX.search(txt) or ACCOUNT_LOOSE.search(txt)
     if acc:
-        return acc.group(1)
+        return _whole_digits(txt, acc).replace(" ", "")  # 「群号：123 456 789」分组书写同样整串复制
     for rx in (EMAIL_RX, TRACK_RX, PHONE_RX):
         m = rx.search(txt)
         if m:
