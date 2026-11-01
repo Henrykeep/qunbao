@@ -34,6 +34,8 @@ CODE_PINGMA = re.compile(r"[凭憑](?:码)?\s*([A-Za-z0-9-]{3,12})\s*(?:到|去)
 
 LINK_RX = re.compile(r"(?:https?://|(?<![A-Za-z0-9_.@/])www\.)[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]*[^\s<>\"'\]\u4e00-\u9fff\u3000-\u303f\uff00-\uffef.,;:!?)]")  # 链接末尾的英文标点/右括号不属于链接
 
+BARE_LINK = re.compile(r"(?<![A-Za-z0-9_.@/-])(?:[A-Za-z0-9-]+\.)+(?:com|cn|net|org|edu\.cn|cc|link|ly|top|me|io)/[A-Za-z0-9_./?=&%#~+-]+[A-Za-z0-9_/=#-]")  # 无协议的短链「wj.qq.com/s/123」「pan.baidu.com/s/1abc」（必须带路径，避免把「qq.com」之类文字当链接）
+
 CODE_WRAPPED = re.compile(r"([￥¥$€₤][A-Za-z0-9]{8,20}[￥¥$€₤])")  # 淘宝/拼团式整段口令「￥AbC12dEf3￥」，两端符号也要复制才能被 App 识别
 
 
@@ -94,6 +96,9 @@ def pick_copy(txt: str, link, title: str) -> str:
         return c.replace("-", "") if re.fullmatch(r"\d{3}-\d{3,4}-\d{3,4}", c) else c  # 会议号「123-456-789」粘贴到会议 App 要纯数字
     if link:
         return _copy_link(link.group(0))
+    bare = BARE_LINK.search(txt)
+    if bare:
+        return _copy_link(bare.group(0))
     acc = ACCOUNT_RX.search(txt) or ACCOUNT_LOOSE.search(txt)
     if acc:
         return _whole_digits(txt, acc).replace(" ", "")  # 「群号：123 456 789」分组书写同样整串复制
