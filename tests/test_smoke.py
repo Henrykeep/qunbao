@@ -2949,3 +2949,4 @@ def test_bark_copy_phrase_passcode():
 def test_bark_strips_edited_mark():
     from digest import bark
     assert bark.strip_md("明天8点集合（已编辑）") == "明天8点集合"
+    assert bark.strip_md("[课件]") == "[文件]"
