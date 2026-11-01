@@ -120,6 +120,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"([\U0001F300-\U0001FAFF\u2600-\u27BF]\uFE0F?)\1{2,}", r"\1\1", 0),  # 刷屏表情压成两个
     (r"(?:…|\.){4,}", "……", 0),
     (EN_ALIAS_RX.pattern, _en_alias, 0),  # 英文/别名占位统一查 EN_ALIAS 表
+    (r"(" + _PLACEHOLDERS + r")\s*[x×*]\s*\d{1,3}\b", _first, 0),  # 「[图片]×3」「[图片] x3」只留占位
     (r"(" + _PLACEHOLDERS + r")(?:\s*\1)+", _first, 0),  # 连发同类占位只留一个
     (r"(?m)^(.+)\n(?:\1\n?)+", lambda m: m.group(1) + "\n", 0),  # 复读连着几行一样的只留一行
     (r"(?i)[@＠](?:全体成员|所有人|everyone|all(?![a-z]))\s*", "", 0),  # 任意位置的 @全体成员/@所有人（紧急度已由级别表达）
