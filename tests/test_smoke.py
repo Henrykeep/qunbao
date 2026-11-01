@@ -3016,3 +3016,8 @@ def test_bark_copy_landline():
     import bark_copy as b
     assert b.pick_copy("办公室座机 010-12345678", None, "") == "010-12345678"
     assert b.pick_copy("辅导员 0571-8765432-801", None, "") == "0571-8765432-801"
+
+
+def test_bark_copy_keypad_code():
+    from bark_copy import pick_copy
+    assert pick_copy("门禁卡密码 *1234#", None, "x") == "*1234#"
