@@ -73,6 +73,7 @@ EN_ALIAS = {
     "[日程]": 'Calendar Event|Group Schedule|群日程|日程提醒',
     "[笔记]": 'Note|Notes|Group Note Doc|笔记分享|群笔记|云笔记|Memo|备忘录|Reminder|提醒事项',
     "[二维码]": 'QR Code|QR|二维码图片|群二维码|收款码|Payment Code|Barcode|条形码|付款码',
+    "[快递]": 'Package|Parcel|Delivery|Express|快递|包裹|快递信息|取件通知',
     "[礼物]": 'Gift|Group Gift|礼物|群礼物|礼物消息|Sticker Gift|表情礼物|Voucher|礼品卡',
 }
 EN_ALIAS_RX = re.compile(r"\[(?:" + "|".join(f"(?P<g{i}>{v})" for i, v in enumerate(EN_ALIAS.values())) + r")\]")
@@ -157,7 +158,7 @@ PHONE_RX = re.compile(r"(?<!\d)(?:[(（]?\+?86[)）]?[ -]?)?(1[3-9]\d)[ -]?(\d{4
 TRACK_RX = re.compile(r"(?<![A-Za-z0-9])(?:[A-Z]{2,5}[A-Z]?\d{10,15}(?!\d)|[A-Z]{2}\d{9}CN(?![A-Za-z]))")  # 快递单号：2~6 位大写字母前缀 + 10~15 位数字，通吃各家快递，不再逐家加前缀；也含 EMS 式 XX123456789CN
 
 
-TRACK_AFTER = re.compile(r"(?:快递|运单|物流|单号)[^\dA-Za-z]{0,6}((?:[A-Za-z]{1,5})?\d{10,20})(?![\dA-Za-z])")  # 「快递单号：4301234567890」纯数字 13~15 位，CODE_AFTER 只取前 12 位会复制残缺
+TRACK_AFTER = re.compile(r"(?:快递|运单|物流|单号)[^\dA-Za-z]{0,6}((?:[A-Za-z]{1,5})?\d{4}(?:[ -]?\d{1,5}){2,4})(?![\dA-Za-z])")  # 「快递单号：4301234567890」纯数字 13~15 位，CODE_AFTER 只取前 12 位会复制残缺
 
 
 def _copy_link(u: str) -> str:
@@ -179,7 +180,7 @@ def pick_copy(txt: str, link, title: str) -> str:
     txt = txt.translate(FULLWIDTH)
     track = TRACK_AFTER.search(txt)
     if track:
-        return track.group(1)
+        return re.sub(r"[ -]", "", track.group(1))  # 「4301 2345 6789 0」分组写法复制整串
     code = CODE_SECRET.search(txt) or CODE_AFTER.search(txt) or CODE_PWD.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt) or CODE_EN_BEFORE.search(txt)
     if code:
         return code.group(1)
