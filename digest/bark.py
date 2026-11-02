@@ -28,7 +28,7 @@ CQ_LABEL = {"record": "[语音]", "video": "[视频]", "forward": "[卡片]", "j
             "file": "[文件]", "music": "[音乐]", "share": "[链接]", "dice": "[骰子]", "rps": "[猜拳]", "image": "[图片]", "face": "[表情]", "mface": "[表情]", "bface": "[表情]"}
 
 
-WX_EMOJI = "微笑|撇嘴|色|发呆|得意|流泪|害羞|闭嘴|睡|大哭|尴尬|发怒|调皮|呲牙|惊讶|难过|酷|冷汗|抓狂|吐|偷笑|愉快|白眼|傲慢|困|惊恐|流汗|憨笑|悠闲|奋斗|咒骂|疑问|嘘|晕|衰|骷髅|敲打|再见|擦汗|抠鼻|鼓掌|坏笑|左哼哼|右哼哼|哈欠|鄙视|委屈|快哭了|阴险|亲亲|可怜|笑脸|生病|脸红|破涕为笑|恐惧|失望|无语|嘿哈|捂脸|奸笑|机智|皱眉|耶|吃瓜|加油|汗|天啊|Emm|社会社会|旺柴|好的|打脸|哇|翻白眼|裂开|苦涩|让我看看|叹气|合十|强|握手|胜利|抱拳|OK|拳头|爱心|心碎|玫瑰|凋谢|赞|踩|庆祝|拥抱|蛋糕|礼物|鞭炮|烟花|红包|福|发抖|666|打call|佛系|猪头|咖啡|啤酒|西瓜|太阳|月亮|炸弹|菜刀|鬼魂|骷髅头|跳跳|转圈|磕头|回头|激动|飞吻|爱你|不屑|NO|弱|勾引|拜托|吓|可爱|睡觉|大笑|微笑脸"
+WX_EMOJI = "微笑|撇嘴|色|发呆|得意|流泪|害羞|闭嘴|睡|大哭|尴尬|发怒|调皮|呲牙|惊讶|难过|酷|冷汗|抓狂|吐|偷笑|愉快|白眼|傲慢|困|惊恐|流汗|憨笑|悠闲|奋斗|咒骂|疑问|嘘|晕|衰|骷髅|敲打|再见|擦汗|抠鼻|鼓掌|坏笑|左哼哼|右哼哼|哈欠|鄙视|委屈|快哭了|阴险|亲亲|可怜|笑脸|生病|脸红|破涕为笑|恐惧|失望|无语|嘿哈|捂脸|奸笑|机智|皱眉|耶|吃瓜|加油|汗|天啊|Emm|社会社会|旺柴|好的|打脸|哇|翻白眼|裂开|苦涩|让我看看|叹气|合十|强|握手|胜利|抱拳|OK|拳头|爱心|心碎|玫瑰|凋谢|赞|踩|庆祝|拥抱|蛋糕|鞭炮|烟花|红包|福|发抖|666|打call|佛系|猪头|咖啡|啤酒|西瓜|太阳|月亮|炸弹|菜刀|鬼魂|骷髅头|跳跳|转圈|磕头|回头|激动|飞吻|爱你|不屑|NO|弱|勾引|拜托|吓|可爱|睡觉|大笑|微笑脸"
 
 
 def _cq(m) -> str:
@@ -52,7 +52,7 @@ EN_ALIAS = {
     "[转账]": 'Transfer|Money Transfer|微信转账|转账消息|Payment|付款|收款|Payment Request|AA收款|群收款',
     "[投票]": 'Poll|Vote|群投票|投票消息|Survey|问卷|Questionnaire|表单|Form|填表|报名表|Sign-up Form|Registration Form|Signup Form|Application Form|Feedback Form|反馈表|登记表',
     "[接龙]": 'Solitaire|Group Note|群接龙|接龙消息',
-    "[通话]": "(?:(?:Zoom|Teams|Skype|Telegram|LINE|Discord|Signal|WhatsApp|Webex|Google Meet|Voice|Video|Group|Group Video|Missed|Meet)\\s*)?(?:Call|Meeting|Chat)|Google Meet|FaceTime|未接通话|未接来电|通话请求|群通话|语音聊天|腾讯会议|会议邀请|视频会议|飞书会议|钉钉会议|语音通话|网络电话|微信电话|QQ电话|会议通话|多人通话|视频通话|线上会议|语音会议|会议链接",
+    "[通话]": "(?:(?:Zoom|Teams|Skype|Telegram|LINE|Discord|Signal|WhatsApp|Webex|Google Meet|Voice|Video|Group|Group Video|Missed|Meet)\\s*)?(?:Call|Meeting|Chat)|FaceTime|未接通话|未接来电|通话请求|群通话|语音聊天|腾讯会议|会议邀请|视频会议|飞书会议|钉钉会议|语音通话|网络电话|微信电话|QQ电话|会议通话|多人通话|视频通话|线上会议|语音会议|会议链接",
     "[直播]": 'Live|Livestream|Live Stream|直播间|直播分享|直播邀请|直播回放|Live Replay|Webinar|网课直播',
     "[公告]": 'Announcement|Group Announcement|群公告|公告消息|Notice|Notification|通知公告|放假通知|Holiday Notice|学校通知|School Notice',
     "[日程]": 'Calendar Event|Group Schedule|群日程|日程提醒|Timetable|Schedule|课表|课程表|Class Schedule|考试安排|Exam Schedule|值日表|排班表|Duty Roster|会议日程|Meeting Schedule|Lesson Plan|教学计划|课程安排|Syllabus|教学大纲',
