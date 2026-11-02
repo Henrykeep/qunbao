@@ -3044,3 +3044,8 @@ def test_bark_copy_symbol_password_whole():
 def test_bark_copy_pickup_list_single_keyword():
     from bark import build_payload
     assert build_payload("x", "取件码 8-6-2037 和 8-6-2038")["copy"] == "8-6-2037 8-6-2038"
+
+
+def test_bark_schedule_placeholder_aliases():
+    from digest import bark
+    assert "[日程]" in bark.strip_md("[Timetable]") or "[日程]" in bark.strip_md("[课表]")
