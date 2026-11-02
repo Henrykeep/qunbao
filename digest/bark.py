@@ -54,7 +54,7 @@ EN_ALIAS = {
     "[接龙]": 'Solitaire|Group Note|群接龙|接龙消息',
     "[通话]": "(?:(?:Zoom|Teams|Skype|Telegram|LINE|Discord|Signal|WhatsApp|Webex|Google Meet|Voice|Video|Group|Group Video|Missed|Meet)\\s*)?(?:Call|Meeting|Chat)|Google Meet|FaceTime|未接通话|未接来电|通话请求|群通话|语音聊天|腾讯会议|会议邀请|视频会议|飞书会议|钉钉会议|语音通话|网络电话|微信电话|QQ电话|会议通话|多人通话",
     "[直播]": 'Live|Livestream|Live Stream|直播间|直播分享|直播邀请|直播回放|Live Replay|Webinar|网课直播',
-    "[公告]": 'Announcement|Group Announcement|群公告|公告消息',
+    "[公告]": 'Announcement|Group Announcement|群公告|公告消息|Notice|Notification|通知公告|放假通知|Holiday Notice|学校通知|School Notice',
     "[日程]": 'Calendar Event|Group Schedule|群日程|日程提醒|Timetable|Schedule|课表|课程表|Class Schedule|考试安排|Exam Schedule|值日表|排班表|Duty Roster|会议日程|Meeting Schedule|Lesson Plan|教学计划|课程安排|Syllabus|教学大纲',
     "[笔记]": 'Note|Notes|Group Note Doc|笔记分享|群笔记|云笔记|Memo|备忘录|Reminder|提醒事项',
     "[二维码]": 'QR Code|QR|二维码图片|群二维码|收款码|Payment Code|Barcode|条形码|付款码',
