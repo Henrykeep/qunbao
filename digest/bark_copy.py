@@ -92,6 +92,10 @@ MEETING_ID = re.compile(r"(?:会议\s?(?:号|ID|id)|(?i:meeting\s?(?:ID|number|n
 PICKUP_ALL = re.compile(r"取件码[^A-Za-z0-9]{0,4}(\d{1,2}-\d{1,2}-\d{3,5}|[A-Za-z]?\d{4,8})(?![A-Za-z0-9])")  # 一条里多个取件码（两件快递）
 
 
+PICKUP_ITEM = re.compile(r"\d{1,2}-\d{1,2}-\d{3,5}|[A-Za-z]?\d{4,8}")
+PICKUP_LIST = re.compile(r"取件码[^A-Za-z0-9]{0,4}(?:\d{1,2}-\d{1,2}-\d{3,5}|[A-Za-z]?\d{4,8})(?:\s*(?:和|、|，|,|/|及|与)\s*(?:\d{1,2}-\d{1,2}-\d{3,5}|[A-Za-z]?\d{4,8}))+")  # 「取件码 8-6-2037 和 8-6-2038」只写一次「取件码」的并列写法
+
+
 def pick_copy(txt: str, link, title: str) -> str:
     """一键复制的内容，按优先级：口令/验证码 > 链接 > 微信/QQ号 > 邮箱 > 手机号 > 标题。"""
     txt = txt.translate(FULLWIDTH)
@@ -107,7 +111,7 @@ def pick_copy(txt: str, link, title: str) -> str:
     mt = MEETING_ID.search(txt)
     if mt:
         return re.sub(r"[ -]", "", mt.group(1))
-    pk = list(dict.fromkeys(PICKUP_ALL.findall(txt)))
+    pk = list(dict.fromkeys(PICKUP_ALL.findall(txt) + [c for m in PICKUP_LIST.finditer(txt) for c in PICKUP_ITEM.findall(m.group(0))]))
     if len(pk) > 1:
         return " ".join(pk[:3])  # 两件快递：全放进复制内容，长按后各取各的
     code = CODE_SECRET.search(txt) or CODE_KEYPAD.search(txt) or CODE_PHRASE.search(txt) or CODE_PWD.search(txt) or CODE_AFTER.search(txt) or CODE_PINGMA.search(txt) or CODE_BEFORE.search(txt) or CODE_EN_BEFORE.search(txt)
