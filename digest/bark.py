@@ -52,7 +52,7 @@ EN_ALIAS = {
     "[转账]": 'Transfer|Money Transfer|微信转账|转账消息|Payment|付款|收款|Payment Request|AA收款|群收款',
     "[投票]": 'Poll|Vote|群投票|投票消息|Survey|问卷|Questionnaire|表单|Form|填表|报名表|Sign-up Form|Registration Form|Signup Form|Application Form|Feedback Form|反馈表|登记表',
     "[接龙]": 'Solitaire|Group Note|群接龙|接龙消息',
-    "[通话]": "(?:(?:Zoom|Teams|Skype|Telegram|LINE|Discord|Signal|WhatsApp|Webex|Google Meet|Voice|Video|Group|Group Video|Missed|Meet)\\s*)?(?:Call|Meeting|Chat)|FaceTime|未接通话|未接来电|通话请求|群通话|语音聊天|腾讯会议|VooV Meeting|企业微信会议|企微会议|Lark Meeting|视频会议|飞书会议|钉钉会议|语音通话|网络电话|微信电话|QQ电话|会议通话|多人通话|视频通话|线上会议|语音会议|直播链接|语音电话|视频电话|屏幕共享|共享屏幕|投屏|语音群聊|视频群聊|电话会议|入会密码|入会链接|(?:腾讯)?会议(?:室|号|密码|链接|ID|主题|口令|邀请码?|时间|地点|回放|录制|纪要链接)|入会(?:密码|链接|二维码|口令)",
+    "[通话]": "(?:(?:Zoom|Teams|Skype|Telegram|LINE|Discord|Signal|WhatsApp|Webex|Google Meet|Voice|Video|Group|Group Video|Missed|Meet)\\s*)?(?:Call|Meeting|Chat)|FaceTime|未接通话|未接来电|通话请求|群通话|语音聊天|腾讯会议|VooV Meeting|企业微信会议|企微会议|Lark Meeting|视频会议|飞书会议|钉钉会议|语音通话|网络电话|微信电话|QQ电话|会议通话|多人通话|视频通话|线上会议|语音会议|直播链接|语音电话|视频电话|屏幕共享|共享屏幕|投屏|语音群聊|视频群聊|电话会议|入会密码|入会链接|(?:腾讯)?会议(?:室|号|密码|链接|ID|主题|口令|邀请码?|时间|地点|回放|录制|纪要链接|纪要|摘要|录音|参会人|议程)|入会(?:密码|链接|二维码|口令|号|ID)",
     "[直播]": 'Live|Livestream|Live Stream|直播间|直播分享|直播邀请|直播回放|Live Replay|Webinar|网课直播',
     "[公告]": 'Announcement|Group Announcement|群公告|公告消息|Notice|Notification|通知公告|放假通知|Holiday Notice|学校通知|School Notice',
     "[日程]": 'Calendar Event|Group Schedule|群日程|日程提醒|Schedule|课程表|Class Schedule|考试安排|Exam Schedule|值日表|排班表|Duty Roster|会议日程|Meeting Schedule|Lesson Plan|教学计划|课程安排',
