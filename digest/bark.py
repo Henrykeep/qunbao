@@ -102,7 +102,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"([哈啊嘿呵])\1{3,}", r"\1\1\1", 0),
     (r"([\U0001F300-\U0001FAFF\u2600-\u27BF]\uFE0F?)\1{2,}", r"\1\1", 0),  # 刷屏表情压成两个
     (r"(?:…|\.){4,}", "……", 0),
-    (EN_ALIAS_RX.pattern, _en_alias, 0),  # 英文/别名占位统一查 EN_ALIAS 表
+    (EN_ALIAS_RX.pattern, _en_alias, re.I),  # 英文/别名占位统一查 EN_ALIAS 表（大小写不敏感：[PHOTO]/[voice] 也认）
     (r"(" + _PLACEHOLDERS + r")\s*[x×*]\s*\d{1,3}\b", _first, 0),  # 「[图片]×3」「[图片] x3」只留占位
     (r"(\[(?:语音|视频)\])\s*\d{1,3}(?:[\"″秒sS'′]|:\d{2}|分\d{0,2}秒?)", _first, 0),  # 「[语音] 3\"」「[视频] 0:12」时长不露在锁屏
     (r"(" + _PLACEHOLDERS + r")(?:\s*\1)+", _first, 0),  # 连发同类占位只留一个
