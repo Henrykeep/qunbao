@@ -40,7 +40,7 @@ EN_ALIAS = {
     "[图片]": 'Photo|照片|Image|Picture|闪照|图片消息|Screenshot|截图|相册|Album|Live Photo|实况照片|群相册|Group Album|Photo Album|Selfie|自拍|Burst Photo|连拍',
     "[语音]": "(?:Voice(?: Message)?|语音|语音消息)(?:\\s*\\d+\\s*(?:''|'|″|′|秒|s))?|语音消息|Audio|语音条|Voice Note|Voice Memo|语音留言",
     "[视频]": 'Video|Video Clip|Short Video|小视频|视频号|视频消息|短视频|Screen Recording|录屏',
-    "[文件]": 'File|Document|Attachment|文件消息|文档|压缩包|附件|Group File|群文件|Folder|文件夹|Spreadsheet|表格文件|PDF|Word|Excel|PPT|Presentation|Zip|Archive|压缩文件|Slides|课件|讲义|Homework|Assignment|作业|作业文件|Lecture Notes|Handout|Exam Paper|试卷|真题|Past Paper|Study Guide|复习资料|论文|Thesis|Paper|成绩单|Transcript|简历|Resume|CV|课表|Timetable|Syllabus|教学大纲|Cheat Sheet',
+    "[文件]": 'File|Document|Attachment|文件消息|文档|压缩包|附件|Group File|群文件|Folder|文件夹|Spreadsheet|表格文件|PDF|Word|Excel|PPT|Presentation|Zip|Archive|压缩文件|Slides|课件|讲义|Homework|Assignment|作业|作业文件|Lecture Notes|Handout|Exam Paper|试卷|真题|Past Paper|Study Guide|复习资料|论文|Thesis|Paper|成绩单|Transcript|简历|Resume|CV|课表|Timetable|Syllabus|教学大纲|Cheat Sheet|通知文件|公示|名单|Roster|报名表|Form|Questionnaire|问卷|Sign-up Sheet',
     "[位置]": 'Location|Live Location|Map|位置信息|地理位置|实时位置|位置共享|Navigation|导航分享|Shared Location|Pin|定位|Drop Pin',
     "[名片]": 'Contact|Business Card|Name Card|个人名片|联系人名片|Contact Card|Shared Contact|推荐好友',
     "[链接]": 'Link|Shared Link|Web Page|Webpage|Share|分享链接|网页链接|链接分享|Article|Shared Article|公众号文章|文章分享',
