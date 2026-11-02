@@ -1,3 +1,6 @@
+## 0.38.55 — 2026-11-02
+- Bark：「[Signup Form/Application Form/Feedback Form/反馈表/登记表]」也显示为 [投票] 占位。
+
 ## 0.38.54 — 2026-11-02
 - Bark：「[报名表]/[Sign-up Form]」统一显示为 [投票] 占位。
 
