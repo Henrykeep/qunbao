@@ -50,7 +50,7 @@ EN_ALIAS = {
     "[红包]": 'Red Packet|Lucky Money|Red Envelope|Hongbao|拼手气红包|口令红包|微信红包|QQ红包|红包消息|红包封面|Red Packet Cover',
     "[聊天记录]": 'Forwarded Message|Forwarded Messages|Merged Forward|Chat Records|合并转发|Chat History|Chat Record|聊天记录转发|转发的聊天记录',
     "[转账]": 'Transfer|Money Transfer|微信转账|转账消息|Payment|付款|收款|Payment Request|AA收款|群收款',
-    "[投票]": 'Poll|Vote|群投票|投票消息|Survey|问卷|Questionnaire|表单|Form|填表|报名表|Sign-up Form|Registration Form',
+    "[投票]": 'Poll|Vote|群投票|投票消息|Survey|问卷|Questionnaire|表单|Form|填表|报名表|Sign-up Form|Registration Form|Signup Form|Application Form|Feedback Form|反馈表|登记表',
     "[接龙]": 'Solitaire|Group Note|群接龙|接龙消息',
     "[通话]": "(?:(?:Zoom|Teams|Skype|Telegram|LINE|Discord|Signal|WhatsApp|Webex|Google Meet|Voice|Video|Group|Group Video|Missed|Meet)\\s*)?(?:Call|Meeting|Chat)|Google Meet|FaceTime|未接通话|未接来电|通话请求|群通话|语音聊天|腾讯会议|会议邀请|视频会议|飞书会议|钉钉会议|语音通话|网络电话|微信电话|QQ电话|会议通话|多人通话",
     "[直播]": 'Live|Livestream|Live Stream|直播间|直播分享|直播邀请|直播回放|Live Replay|Webinar|网课直播',
