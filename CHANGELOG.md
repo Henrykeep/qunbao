@@ -1,3 +1,6 @@
+## 0.38.56 — 2026-11-02
+- Bark：「[Timetable/课表/课程表/Exam Schedule/考试安排]」统一显示为 [日程] 占位。
+
 ## 0.38.55 — 2026-11-02
 - Bark：「[Signup Form/Application Form/Feedback Form/反馈表/登记表]」也显示为 [投票] 占位。
 
