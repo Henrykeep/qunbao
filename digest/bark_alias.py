@@ -43,7 +43,7 @@ EN_ALIAS = {
     "[日程]": 'Calendar Event|Group Schedule|群日程|日程提醒|Schedule|课程表|Class Schedule|考试安排|Exam Schedule|值日表|排班表|Duty Roster|会议日程|Meeting Schedule|Lesson Plan|教学计划|课程安排',
     "[笔记]": 'Note|Notes|会议纪要|Meeting Minutes|Minutes|Group Note Doc|笔记分享|群笔记|云笔记|Memo|备忘录|Reminder|提醒事项',
     "[二维码]": 'QR Code|QR|二维码图片|群二维码|收款码|Payment Code|Barcode|条形码|付款码',
-    "[快递]": 'Package|Parcel|Delivery|Express|快递|包裹|快递信息|取件通知|菜鸟驿站|丰巢|Pickup Notice|Courier',
+    "[快递]": 'Package|Parcel|Delivery|Express|快递|包裹|快递信息|取件通知|菜鸟驿站|丰巢|Pickup Notice|Courier|快递柜|Parcel Locker|SF Express',
     "[礼物]": 'Gift|Group Gift|礼物|群礼物|礼物消息|Sticker Gift|表情礼物|Voucher|礼品卡',
     "[打卡]": 'Check-in|Check in|Attendance|群打卡|打卡消息|签到|群签到|打卡提醒|Daily Check-in',
 }
