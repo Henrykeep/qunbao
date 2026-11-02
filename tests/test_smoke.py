@@ -3048,10 +3048,11 @@ def test_bark_copy_pickup_list_single_keyword():
 
 def test_bark_schedule_placeholder_aliases():
     from digest import bark
-    assert "[日程]" in bark.strip_md("[Timetable]") or "[日程]" in bark.strip_md("[课表]")
+    assert "[日程]" in bark.strip_md("[课程表]")
 
 
 def test_bark_duty_roster_placeholder():
     from digest import bark
     for s in ("[值日表]", "[排班表]", "[Duty Roster]"):
         assert "[日程]" in bark.strip_md(s)
+
