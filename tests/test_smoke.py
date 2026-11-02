@@ -3056,3 +3056,16 @@ def test_bark_duty_roster_placeholder():
     for s in ("[值日表]", "[排班表]", "[Duty Roster]"):
         assert "[日程]" in bark.strip_md(s)
 
+
+
+def test_bark_alias_no_duplicates_across_rows():
+    import collections, sys
+    sys.path.insert(0, "digest")
+    import bark
+    seen = collections.defaultdict(set)
+    for k, v in bark.EN_ALIAS.items():
+        if v.startswith("(?:"):
+            continue
+        for a in v.split("|"):
+            seen[a.lower()].add(k)
+    assert not {a: k for a, k in seen.items() if len(k) > 1}
