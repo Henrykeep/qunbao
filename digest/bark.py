@@ -39,7 +39,7 @@ def _cq(m) -> str:
 EN_ALIAS = {
     "[图片]": 'Photo|照片|Image|Picture|闪照|图片消息|Screenshot|截图|相册|Album|Live Photo|实况照片|群相册|Group Album|Photo Album|Selfie|自拍|Burst Photo|连拍',
     "[语音]": "(?:Voice(?: Message)?|语音|语音消息)(?:\\s*\\d+\\s*(?:''|'|″|′|秒|s))?|语音消息|Audio|语音条|Voice Note|Voice Memo|语音留言",
-    "[视频]": 'Video|Video Clip|Short Video|小视频|视频号|视频消息|短视频|视频通话|Screen Recording|录屏',
+    "[视频]": 'Video|Video Clip|Short Video|小视频|视频号|视频消息|短视频|Screen Recording|录屏',
     "[文件]": 'File|Document|Attachment|文件消息|文档|压缩包|附件|Group File|群文件|Folder|文件夹|Spreadsheet|表格文件|PDF|Word|Excel|PPT|Presentation|Zip|Archive|压缩文件|Slides|课件|讲义|Homework|Assignment|作业|作业文件|Lecture Notes|Handout|Exam Paper|试卷|真题|Past Paper|Study Guide|复习资料|论文|Thesis|Paper|成绩单|Transcript|简历|Resume|CV',
     "[位置]": 'Location|Live Location|Map|位置信息|地理位置|实时位置|位置共享|Navigation|导航分享|Shared Location|Pin|定位|Drop Pin',
     "[名片]": 'Contact|Business Card|Name Card|个人名片|联系人名片|Contact Card|Shared Contact|推荐好友',
@@ -52,7 +52,7 @@ EN_ALIAS = {
     "[转账]": 'Transfer|Money Transfer|微信转账|转账消息|Payment|付款|收款|Payment Request|AA收款|群收款',
     "[投票]": 'Poll|Vote|群投票|投票消息|Survey|问卷|Questionnaire|表单|Form|填表|报名表|Sign-up Form|Registration Form|Signup Form|Application Form|Feedback Form|反馈表|登记表',
     "[接龙]": 'Solitaire|Group Note|群接龙|接龙消息',
-    "[通话]": "(?:(?:Zoom|Teams|Skype|Telegram|LINE|Discord|Signal|WhatsApp|Webex|Google Meet|Voice|Video|Group|Group Video|Missed|Meet)\\s*)?(?:Call|Meeting|Chat)|Google Meet|FaceTime|未接通话|未接来电|通话请求|群通话|语音聊天|腾讯会议|会议邀请|视频会议|飞书会议|钉钉会议|语音通话|网络电话|微信电话|QQ电话|会议通话|多人通话",
+    "[通话]": "(?:(?:Zoom|Teams|Skype|Telegram|LINE|Discord|Signal|WhatsApp|Webex|Google Meet|Voice|Video|Group|Group Video|Missed|Meet)\\s*)?(?:Call|Meeting|Chat)|Google Meet|FaceTime|未接通话|未接来电|通话请求|群通话|语音聊天|腾讯会议|会议邀请|视频会议|飞书会议|钉钉会议|语音通话|网络电话|微信电话|QQ电话|会议通话|多人通话|视频通话",
     "[直播]": 'Live|Livestream|Live Stream|直播间|直播分享|直播邀请|直播回放|Live Replay|Webinar|网课直播',
     "[公告]": 'Announcement|Group Announcement|群公告|公告消息|Notice|Notification|通知公告|放假通知|Holiday Notice|学校通知|School Notice',
     "[日程]": 'Calendar Event|Group Schedule|群日程|日程提醒|Timetable|Schedule|课表|课程表|Class Schedule|考试安排|Exam Schedule|值日表|排班表|Duty Roster|会议日程|Meeting Schedule|Lesson Plan|教学计划|课程安排|Syllabus|教学大纲',
