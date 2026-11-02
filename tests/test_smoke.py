@@ -3069,3 +3069,10 @@ def test_bark_alias_no_duplicates_across_rows():
         for a in v.split("|"):
             seen[a.lower()].add(k)
     assert not {a: k for a, k in seen.items() if len(k) > 1}
+
+
+def test_bark_meeting_minutes_is_note_not_call():
+    import sys; sys.path.insert(0, "digest")
+    import bark
+    assert bark.strip_md("[会议纪要]") == "[笔记]"
+    assert bark.strip_md("[会议日程]") == "[日程]"
