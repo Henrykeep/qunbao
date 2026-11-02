@@ -89,11 +89,10 @@ def _whole_digits(txt, m):
 MEETING_ID = re.compile(r"(?:会议\s?(?:号|ID|id)|(?i:meeting\s?(?:ID|number|no\.?)))\s*[:：是为]?\s*#?(\d{3}[ -]?\d{3,4}[ -]?\d{3,5})(?!\d)")  # 会议号和密码并存：先复制会议号（进会先输号，密码在群里再看）
 
 
-PICKUP_ALL = re.compile(r"取件码[^A-Za-z0-9]{0,4}(\d{1,2}-\d{1,2}-\d{3,5}|[A-Za-z]?\d{4,8})(?![A-Za-z0-9])")  # 一条里多个取件码（两件快递）
-
-
-PICKUP_ITEM = re.compile(r"\d{1,2}-\d{1,2}-\d{3,5}|[A-Za-z]?\d{4,8}")
-PICKUP_LIST = re.compile(r"取件码[^A-Za-z0-9]{0,4}(?:\d{1,2}-\d{1,2}-\d{3,5}|[A-Za-z]?\d{4,8})(?:\s*(?:和|、|，|,|/|及|与)\s*(?:\d{1,2}-\d{1,2}-\d{3,5}|[A-Za-z]?\d{4,8}))+")  # 「取件码 8-6-2037 和 8-6-2038」只写一次「取件码」的并列写法
+_PK = r"\d{1,2}-\d{1,2}-\d{3,5}|[A-Za-z]?\d{4,8}"  # 取件码两种写法：货架式 8-6-2037 / 纯数字（可带一位字母）
+PICKUP_ALL = re.compile(r"取件码[^A-Za-z0-9]{0,4}(" + _PK + r")(?![A-Za-z0-9])")  # 一条里多个取件码（两件快递）
+PICKUP_ITEM = re.compile(_PK)
+PICKUP_LIST = re.compile(r"取件码[^A-Za-z0-9]{0,4}(?:" + _PK + r")(?:\s*(?:和|、|，|,|/|及|与)\s*(?:" + _PK + r"))+")  # 「取件码 8-6-2037 和 8-6-2038」只写一次「取件码」
 
 
 def pick_copy(txt: str, link, title: str) -> str:
