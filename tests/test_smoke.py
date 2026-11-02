@@ -3039,3 +3039,8 @@ def test_bark_copy_prefers_password_over_account():
 def test_bark_copy_symbol_password_whole():
     from digest import bark_copy as bc
     assert bc.pick_copy("Wi-Fi 密码：campus@2024", None, "") == "campus@2024"
+
+
+def test_bark_copy_pickup_list_single_keyword():
+    from bark import build_payload
+    assert build_payload("x", "取件码 8-6-2037 和 8-6-2038")["copy"] == "8-6-2037 8-6-2038"
