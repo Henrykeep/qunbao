@@ -89,7 +89,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"([\U0001F300-\U0001FAFF\u2600-\u27BF]\uFE0F?)\1{2,}", r"\1\1", 0),  # 刷屏表情压成两个
     (r"(?:…|\.){4,}", "……", 0),
     (EN_ALIAS_RX.pattern, _en_alias, re.I),  # 英文/别名占位统一查 EN_ALIAS 表（大小写不敏感：[PHOTO]/[voice] 也认）
-    (r"\[[^\[\]\n]{1,40}\.(?:docx?|xlsx?|pptx?|pdf|zip|rar|7z|txt|csv|md|apk|psd|wps|key|pages|numbers|epub|tex|ipynb)\]", "[文件]", re.I),  # 带扩展名的方括号文件名一律是文件，不必逐个登记关键词
+    (r"\[[^\[\]\n]{1,40}\.(?:docx?|xlsx?|pptx?|pdf|zip|rar|7z|txt|csv|md|apk|psd|wps|key|pages|numbers|epub|tex|ipynb|tar|gz|tgz|dmg|exe|msi|ipa|py|java|cpp|c|h|json|xml|mobi|azw3|torrent)\]", "[文件]", re.I),  # 带扩展名的方括号文件名一律是文件，不必逐个登记关键词
     *[(r"\[[^\[\]\n]{0,8}(?:" + kw + r")[^\[\]\n]{0,8}\]", label, re.I) for label, kw in PLACEHOLDER_KEYWORDS],  # 含关键词的未登记占位按语义归类，新增只改 PLACEHOLDER_KEYWORDS
     (r"\[[^\[\]\n]{1,20}(?:表|单|册|书|稿|纪要|安排|名单|报告|手册|通知|证|卷|资料|大纲|课件|讲义)\]", "[文件]", 0),  # 文书类后缀（课表/成绩单/任务书/实验报告…）一条规则兜住，不再逐词登记
     (r"(" + _PLACEHOLDERS + r")\s*[x×*]\s*\d{1,3}\b", _first, 0),  # 「[图片]×3」「[图片] x3」只留占位
