@@ -1,3 +1,6 @@
+## 0.39.39 — 2026-11-04
+- Bark：方括号文件名扩展名表补 rtf/odt/sql/log/html/js/ts/dwg/xmind 等，一并归为 [文件]。
+
 ## 0.39.38 — 2026-11-04
 - Bark：方括号文件名扩展名表补 m4v/3gp/webm、ogg/opus/wma、tiff/svg/avif，归入 [视频]/[语音]/[图片]。
 
