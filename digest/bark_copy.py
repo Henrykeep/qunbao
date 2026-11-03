@@ -17,6 +17,8 @@ def clip(t: str, n: int) -> str:
     o = t.rfind("[", 0, cut)
     if o >= 3 and "]" not in t[o:cut] and cut - o <= 6:
         cut = o  # 不把「[图片]」「[链接]」占位拦腰截成「[图…」
+    while cut > 1 and (t[cut:cut + 1] in "\u200d\ufe0f\u20e3" or t[cut - 1:cut] == "\u200d" or "\U0001f3fb" <= t[cut:cut + 1] <= "\U0001f3ff"):
+        cut -= 1  # 不把表情的修饰符/ZWJ 组合（👨‍👩‍👧、❤️、👍🏽）拦腰截成残片
     return t[:cut].rstrip("，,、：:；;（([【“\"‘ ") + "…"  # 截断处不留悬空标点/半个括号
 
 
