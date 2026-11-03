@@ -95,6 +95,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"([\U0001F300-\U0001FAFF\u2600-\u27BF]\uFE0F?)\1{2,}", r"\1\1", 0),  # 刷屏表情压成两个
     (r"(?:…|\.){4,}", "……", 0),
     (EN_ALIAS_RX.pattern, _en_alias, re.I),  # 英文/别名占位统一查 EN_ALIAS 表（大小写不敏感：[PHOTO]/[voice] 也认）
+    (r"【([^【】\n]{1,40}\.[A-Za-z][A-Za-z0-9]{1,4})】", r"[\1]", 0),  # 全角【文件名.扩展名】先换成半角，后面的文件/图片/语音规则只写一份
     *[(r"\[[^\[\]\n]{1,40}\.(?:" + exts + r")\]", label, re.I) for label, exts in EXT_LABELS],  # 方括号文件名按扩展名归类，只需登记视频/语音/图片后缀，其余扩展名由下一条兜底为 [文件]
     (r"\[[^\[\]\n]{1,40}\.[A-Za-z][A-Za-z0-9]{1,4}\]", "[文件]", 0),  # 兜底：方括号内「名字.扩展名」一律 [文件]，不再逐个登记后缀
     *[(r"\[[^\[\]\n]{0,8}(?:" + kw + r")[^\[\]\n]{0,8}\]", label, re.I) for label, kw in PLACEHOLDER_KEYWORDS],  # 含关键词的未登记占位按语义归类，新增只改 PLACEHOLDER_KEYWORDS
