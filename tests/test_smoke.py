@@ -3086,3 +3086,11 @@ def test_bark_photo_keyword_placeholder():
 def test_bark_placeholder_sticker_keywords():
     from digest.bark import strip_md
     assert strip_md("[动画表情]") == "[表情]" and strip_md("[骰子]") == "[表情]"
+
+
+def test_bark_clip_keeps_emoji_sequences_whole():
+    from digest.bark import clip
+    fam = "\U0001f468\u200d\U0001f469\u200d\U0001f467"
+    out = clip("a" * 7 + fam + "b" * 20, 10)
+    assert "\u200d" not in out and out.endswith("…")
+    assert clip("x" * 8 + "\U0001f44d\U0001f3fd" + "y" * 9, 10) == "x" * 8 + "…"
