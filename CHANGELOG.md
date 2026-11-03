@@ -1,3 +1,6 @@
+## 0.39.40 — 2026-11-04
+- Bark：方括号文件名扩展名表补 xz/bz2/iso/pkg/deb/dotx/xlsm/pptm/yaml 等压缩包与安装包，归为 [文件]。
+
 ## 0.39.39 — 2026-11-04
 - Bark：方括号文件名扩展名表补 rtf/odt/sql/log/html/js/ts/dwg/xmind 等，一并归为 [文件]。
 
