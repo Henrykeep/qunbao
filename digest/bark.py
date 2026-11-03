@@ -64,6 +64,13 @@ PLACEHOLDER_KEYWORDS = [
     ("[卡片]", "名片|联系人|群聊邀请|聊天记录|投票|接龙|群公告|会议邀请|腾讯会议|在线表格|分享|待办|打卡|相册"),
 ]
 
+EXT_LABELS = [
+    ("[视频]", "mp4|mov|avi|mkv|flv|wmv"),
+    ("[语音]", "mp3|m4a|wav|flac|aac|amr|silk"),
+    ("[图片]", "jpe?g|png|gif|webp|heic|bmp"),
+    ("[文件]", "docx?|xlsx?|pptx?|pdf|zip|rar|7z|txt|csv|md|apk|psd|wps|key|pages|numbers|epub|tex|ipynb|tar|gz|tgz|dmg|exe|msi|ipa|py|java|cpp|c|h|json|xml|mobi|azw3|torrent"),
+]
+
 STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"[\u200b-\u200d\u2060\ufeff\u00ad\u180e\u200e\u200f\u202a-\u202e]", "", 0),  # 零宽字符：锁屏是看不见的空档，还会让取件码匹配失败
     (r"\r\n?|[\u2028\u2029\x0b\x0c\x85]", "\n", 0),  # 换行统一（含 Unicode 行/段分隔符、垂直制表），免得重复行折叠和列表符匹配被 \r 挡住
@@ -89,10 +96,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"([\U0001F300-\U0001FAFF\u2600-\u27BF]\uFE0F?)\1{2,}", r"\1\1", 0),  # 刷屏表情压成两个
     (r"(?:…|\.){4,}", "……", 0),
     (EN_ALIAS_RX.pattern, _en_alias, re.I),  # 英文/别名占位统一查 EN_ALIAS 表（大小写不敏感：[PHOTO]/[voice] 也认）
-    (r"\[[^\[\]\n]{1,40}\.(?:mp4|mov|avi|mkv|flv|wmv)\]", "[视频]", re.I),  # 视频文件名归 [视频]，不当文件
-    (r"\[[^\[\]\n]{1,40}\.(?:mp3|m4a|wav|flac|aac|amr|silk)\]", "[语音]", re.I),
-    (r"\[[^\[\]\n]{1,40}\.(?:jpe?g|png|gif|webp|heic|bmp)\]", "[图片]", re.I),
-    (r"\[[^\[\]\n]{1,40}\.(?:docx?|xlsx?|pptx?|pdf|zip|rar|7z|txt|csv|md|apk|psd|wps|key|pages|numbers|epub|tex|ipynb|tar|gz|tgz|dmg|exe|msi|ipa|py|java|cpp|c|h|json|xml|mobi|azw3|torrent)\]", "[文件]", re.I),  # 带扩展名的方括号文件名一律是文件，不必逐个登记关键词
+    *[(r"\[[^\[\]\n]{1,40}\.(?:" + exts + r")\]", label, re.I) for label, exts in EXT_LABELS],  # 方括号文件名按扩展名归类，新增只改 EXT_LABELS
     *[(r"\[[^\[\]\n]{0,8}(?:" + kw + r")[^\[\]\n]{0,8}\]", label, re.I) for label, kw in PLACEHOLDER_KEYWORDS],  # 含关键词的未登记占位按语义归类，新增只改 PLACEHOLDER_KEYWORDS
     (r"\[[^\[\]\n]{1,20}(?:表|单|册|书|稿|纪要|安排|名单|报告|手册|通知|证|卷|资料|大纲|课件|讲义)\]", "[文件]", 0),  # 文书类后缀（课表/成绩单/任务书/实验报告…）一条规则兜住，不再逐词登记
     (r"(" + _PLACEHOLDERS + r")\s*[x×*]\s*\d{1,3}\b", _first, 0),  # 「[图片]×3」「[图片] x3」只留占位
