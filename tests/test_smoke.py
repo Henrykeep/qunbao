@@ -3076,3 +3076,8 @@ def test_bark_meeting_minutes_is_note_not_call():
     import bark
     assert bark.strip_md("[会议纪要]") == "[笔记]"
     assert bark.strip_md("[会议日程]") == "[日程]"
+
+
+def test_bark_photo_keyword_placeholder():
+    from digest import bark
+    assert bark.strip_md("[手机截图] 看这个") == "[图片] 看这个"
