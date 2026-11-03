@@ -97,6 +97,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"(?:…|\.){4,}", "……", 0),
     (EN_ALIAS_RX.pattern, _en_alias, re.I),  # 英文/别名占位统一查 EN_ALIAS 表（大小写不敏感：[PHOTO]/[voice] 也认）
     *[(r"\[[^\[\]\n]{1,40}\.(?:" + exts + r")\]", label, re.I) for label, exts in EXT_LABELS],  # 方括号文件名按扩展名归类，新增只改 EXT_LABELS
+    (r"\[[^\[\]\n]{1,40}\.[A-Za-z][A-Za-z0-9]{1,4}\]", "[文件]", 0),  # 兜底：方括号内「名字.扩展名」一律 [文件]，不再逐个登记后缀
     *[(r"\[[^\[\]\n]{0,8}(?:" + kw + r")[^\[\]\n]{0,8}\]", label, re.I) for label, kw in PLACEHOLDER_KEYWORDS],  # 含关键词的未登记占位按语义归类，新增只改 PLACEHOLDER_KEYWORDS
     (r"\[[^\[\]\n]{1,20}(?:表|单|册|书|稿|纪要|安排|名单|报告|手册|通知|证|卷|资料|大纲|课件|讲义)\]", "[文件]", 0),  # 文书类后缀（课表/成绩单/任务书/实验报告…）一条规则兜住，不再逐词登记
     (r"(" + _PLACEHOLDERS + r")\s*[x×*]\s*\d{1,3}\b", _first, 0),  # 「[图片]×3」「[图片] x3」只留占位
