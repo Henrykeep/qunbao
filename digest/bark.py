@@ -89,6 +89,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"([\U0001F300-\U0001FAFF\u2600-\u27BF]\uFE0F?)\1{2,}", r"\1\1", 0),  # 刷屏表情压成两个
     (r"(?:…|\.){4,}", "……", 0),
     (EN_ALIAS_RX.pattern, _en_alias, re.I),  # 英文/别名占位统一查 EN_ALIAS 表（大小写不敏感：[PHOTO]/[voice] 也认）
+    (r"\[[^\[\]\n]{1,40}\.(?:docx?|xlsx?|pptx?|pdf|zip|rar|7z|txt|csv|md|apk|psd)\]", "[文件]", re.I),  # 带扩展名的方括号文件名一律是文件，不必逐个登记关键词
     *[(r"\[[^\[\]\n]{0,8}(?:" + kw + r")[^\[\]\n]{0,8}\]", label, re.I) for label, kw in PLACEHOLDER_KEYWORDS],  # 含关键词的未登记占位按语义归类，新增只改 PLACEHOLDER_KEYWORDS
     (r"(" + _PLACEHOLDERS + r")\s*[x×*]\s*\d{1,3}\b", _first, 0),  # 「[图片]×3」「[图片] x3」只留占位
     (r"(\[(?:语音|视频)\])\s*\d{1,3}(?:[\"″秒sS'′]|:\d{2}|分\d{0,2}秒?)", _first, 0),  # 「[语音] 3\"」「[视频] 0:12」时长不露在锁屏
