@@ -1,3 +1,6 @@
+## 0.39.43 — 2026-11-04
+- Bark：方括号文件名扩展名表补 WPS 系（et/dps）与常见代码/安装包后缀（go/rs/vue/jar/whl/bin 等），归为 [文件]。
+
 ## 0.39.42 — 2026-11-04
 - Bark：方括号文件名扩展名表补 mpeg/ape/ico/dng 与 ppsx/pem/ini/sh 等，归入对应占位。
 
