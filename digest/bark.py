@@ -57,6 +57,7 @@ PLACEHOLDER_KEYWORDS = [
     ("[语音]", "语音|录音"),
     ("[视频]", "视频|录像|短片"),
     ("[链接]", "小程序|Mini ?Program"),
+    ("[位置]", "位置|定位|地点"),
 ]
 
 STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
