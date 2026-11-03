@@ -68,7 +68,6 @@ EXT_LABELS = [
     ("[视频]", "mp4|mov|avi|mkv|flv|wmv|m4v|3gp|webm|mpe?g|rm"),
     ("[语音]", "mp3|m4a|wav|flac|aac|amr|silk|ogg|opus|wma|ape|m4r|mid"),
     ("[图片]", "jpe?g|png|gif|webp|heic|bmp|tiff?|svg|avif|ico|dng"),
-    ("[文件]", "docx?|xlsx?|pptx?|pdf|zip|rar|7z|txt|csv|md|apk|psd|wps|key|pages|numbers|epub|tex|ipynb|tar|gz|tgz|dmg|exe|msi|ipa|py|java|cpp|c|h|json|xml|mobi|azw3|torrent|rtf|odt|ods|odp|sql|log|html?|js|ts|ipt|dwg|xmind|xz|bz2|iso|pkg|deb|dot|dotx|xlsm|pptm|yaml|yml|ttf|otf|ics|vsdx?|pub|rp|sketch|fig|ai|eps|mat|rmvb|cer|ppsx?|odg|xlsb|wpd|pem|cfg|ini|bat|sh|cpt|et|dps|ett|go|rs|kt|swift|cs|php|rb|vue|jsx|tsx|css|ps1|jar|war|whl|crx|xpi|bin"),
 ]
 
 STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
@@ -96,7 +95,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"([\U0001F300-\U0001FAFF\u2600-\u27BF]\uFE0F?)\1{2,}", r"\1\1", 0),  # 刷屏表情压成两个
     (r"(?:…|\.){4,}", "……", 0),
     (EN_ALIAS_RX.pattern, _en_alias, re.I),  # 英文/别名占位统一查 EN_ALIAS 表（大小写不敏感：[PHOTO]/[voice] 也认）
-    *[(r"\[[^\[\]\n]{1,40}\.(?:" + exts + r")\]", label, re.I) for label, exts in EXT_LABELS],  # 方括号文件名按扩展名归类，新增只改 EXT_LABELS
+    *[(r"\[[^\[\]\n]{1,40}\.(?:" + exts + r")\]", label, re.I) for label, exts in EXT_LABELS],  # 方括号文件名按扩展名归类，只需登记视频/语音/图片后缀，其余扩展名由下一条兜底为 [文件]
     (r"\[[^\[\]\n]{1,40}\.[A-Za-z][A-Za-z0-9]{1,4}\]", "[文件]", 0),  # 兜底：方括号内「名字.扩展名」一律 [文件]，不再逐个登记后缀
     *[(r"\[[^\[\]\n]{0,8}(?:" + kw + r")[^\[\]\n]{0,8}\]", label, re.I) for label, kw in PLACEHOLDER_KEYWORDS],  # 含关键词的未登记占位按语义归类，新增只改 PLACEHOLDER_KEYWORDS
     (r"\[[^\[\]\n]{1,20}(?:表|单|册|书|稿|纪要|安排|名单|报告|手册|通知|证|卷|资料|大纲|课件|讲义)\]", "[文件]", 0),  # 文书类后缀（课表/成绩单/任务书/实验报告…）一条规则兜住，不再逐词登记
