@@ -68,7 +68,7 @@ EXT_LABELS = [
     ("[视频]", "mp4|mov|avi|mkv|flv|wmv|m4v|3gp|webm"),
     ("[语音]", "mp3|m4a|wav|flac|aac|amr|silk|ogg|opus|wma"),
     ("[图片]", "jpe?g|png|gif|webp|heic|bmp|tiff?|svg|avif"),
-    ("[文件]", "docx?|xlsx?|pptx?|pdf|zip|rar|7z|txt|csv|md|apk|psd|wps|key|pages|numbers|epub|tex|ipynb|tar|gz|tgz|dmg|exe|msi|ipa|py|java|cpp|c|h|json|xml|mobi|azw3|torrent|rtf|odt|ods|odp|sql|log|html?|js|ts|ipt|dwg|xmind|xz|bz2|iso|pkg|deb|dot|dotx|xlsm|pptm|csv|yaml|yml|ppt"),
+    ("[文件]", "docx?|xlsx?|pptx?|pdf|zip|rar|7z|txt|csv|md|apk|psd|wps|key|pages|numbers|epub|tex|ipynb|tar|gz|tgz|dmg|exe|msi|ipa|py|java|cpp|c|h|json|xml|mobi|azw3|torrent|rtf|odt|ods|odp|sql|log|html?|js|ts|ipt|dwg|xmind|xz|bz2|iso|pkg|deb|dot|dotx|xlsm|pptm|yaml|yml|ttf|otf|ics|vsdx?|pub|rp|sketch|fig|ai|eps|mat|rmvb|cer"),
 ]
 
 STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
