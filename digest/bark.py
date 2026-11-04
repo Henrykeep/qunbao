@@ -237,7 +237,10 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
     async with httpx.AsyncClient(timeout=httpx.Timeout(8, connect=4)) as cl:  # 三次共用一个连接；连不上 4 秒就重试，不干等 8 秒
         wait = 0.0
         tries, step = retry_plan(level)
-        for i in range(tries):
+        i, shrunk = -1, False
+        while i < tries - 1 or shrunk:  # 压短重发不占重试次数，最后一次遇到过大也能再送一次
+            i += 1 if not shrunk else 0
+            shrunk = False
             wait = step * (i + 1)
             try:
                 r = await cl.post(burl, json=payload)
@@ -252,6 +255,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                     payload["body"] = payload["body"][:200].rstrip() + ("…" if len(payload["body"]) > 200 else "")
                     if len(str(payload.get("url", ""))) > 200:
                         payload.pop("url")
+                    shrunk = True
                     continue
                 if r.status_code < 500 and r.status_code not in RETRYABLE:  # 408 超时/429 限流也值得再试
                     _RECENT.pop(key, None)
