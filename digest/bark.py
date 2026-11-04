@@ -229,6 +229,8 @@ _HINT_GROUPS = (
     (tuple(c for c in range(500, 600) if c not in (502, 503, 504, 521, 522, 523, 524, 525, 526)), "（Bark 服务器暂时出错，会自动重试）"),
 )
 STATUS_HINT = {c: h for cs, h in _HINT_GROUPS for c in cs}
+for _c in range(400, 500):  # 其余 4xx 也给兜底提示，不留空白
+    STATUS_HINT.setdefault(_c, "（Bark 服务器拒绝了请求，请检查地址和设备 Key）")
 LAST_ERR = ""  # 最近一次失败的原因（测试推送时直接告诉用户，不让人猜）
 
 
