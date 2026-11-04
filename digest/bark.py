@@ -1,6 +1,7 @@
 """Bark 传输层（0.34.24 从 app.py 拆出）：纯发送，不碰数据库、不 import app。"""
 import asyncio
 import html
+import random
 import re
 import time
 import unicodedata
@@ -265,7 +266,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
         while i < tries - 1 or shrunk:  # 压短重发不占重试次数，最后一次遇到过大也能再送一次
             i += 1 if not shrunk else 0
             shrunk = False
-            wait = step * (i + 1)
+            wait = step * (i + 1) * random.uniform(0.8, 1.25)  # 抖动：多条同时失败时不在同一刻齐刷刷重试
             try:
                 r = await cl.post(burl, json=payload)
                 if r.status_code < 300:
