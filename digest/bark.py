@@ -224,7 +224,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 if r.status_code == 429 and str(r.headers.get('retry-after', '')).isdigit():
                     wait = min(int(r.headers['retry-after']), 5)  # 服务端说等几秒就等几秒，最多 5 秒
             except Exception as ex:
-                LAST_ERR = f"连不上 Bark 服务器（{type(ex).__name__}）" + ("，检查服务器能否访问外网/DNS" if isinstance(ex, httpx.ConnectError) else "")
+                LAST_ERR = f"连不上 Bark 服务器（{type(ex).__name__}）" + ("，检查服务器能否访问外网/DNS" if isinstance(ex, httpx.ConnectError) else "，连接超时，会自动重试" if isinstance(ex, httpx.TimeoutException) else "")
                 print(redact(f"Bark 推送失败（第{i+1}次）：{type(ex).__name__} {ex}", burl))  # 超时异常 str 为空，带上类型才看得出原因
             if i < tries - 1:
                 await asyncio.sleep(wait)
