@@ -211,6 +211,8 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                     _RECENT[key] = time.monotonic()
                     return True
                 LAST_ERR = redact(f"Bark 返回 {r.status_code}：{r.text[:60]}", burl)
+                if r.status_code in (400, 404):
+                    LAST_ERR += "（设备 Key 或地址可能填错，到 Bark App 首页重新复制）"
                 print(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
                 if r.status_code < 500 and r.status_code != 429:  # 429 限流也值得再试
                     _RECENT.pop(key, None)
