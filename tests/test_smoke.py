@@ -3108,3 +3108,9 @@ def test_bark_retry_plan():
     import bark
     assert bark.retry_plan("timeSensitive") == (5, 1.0)
     assert bark.retry_plan("active") == (3, 1.5)
+
+
+def test_bark_redact_key():
+    from digest import bark
+    assert "abcdef123456" not in bark.redact("fail http://x/abcdef123456/t", "http://x/abcdef123456")
+    assert bark.redact("ok", "http://x/ab") == "ok"
