@@ -187,7 +187,7 @@ TOO_BIG = (413, 414, 431)  # 内容过大类状态码：压短重发
 def shrink_payload(payload, limit=200):
     """413/414/431 时就地压短：正文截到 limit 字，超长跳转链接直接丢（414/431 多半是链接惹的祸）。"""
     body = payload["body"]
-    payload["body"] = body[:limit].rstrip() + ("…" if len(body) > limit else "")
+    payload["body"] = body[:limit - 1].rstrip() + "…" if len(body) > limit else body  # 含省略号 ≤ limit，保证再压一次必收敛
     if len(str(payload.get("url", ""))) > limit:
         payload.pop("url")
 
@@ -262,7 +262,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
     async with httpx.AsyncClient(timeout=httpx.Timeout(8, connect=4)) as cl:  # 三次共用一个连接；连不上 4 秒就重试，不干等 8 秒
         wait = 0.0
         tries, step = retry_plan(level)
-        i, shrunk = -1, False
+        i, shrunk, shrunk_once = -1, False, False
         while i < tries - 1 or shrunk:  # 压短重发不占重试次数，最后一次遇到过大也能再送一次
             i += 1 if not shrunk else 0
             shrunk = False
@@ -275,9 +275,9 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 LAST_ERR = redact(f"Bark 返回 {r.status_code}：{r.text[:60]}", burl)
                 LAST_ERR += STATUS_HINT.get(r.status_code, "")
                 print(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
-                if r.status_code in TOO_BIG and (len(payload["body"]) > 200 or len(str(payload.get("url", ""))) > 200):
+                if r.status_code in TOO_BIG and not shrunk_once and (len(payload["body"]) > 200 or len(str(payload.get("url", ""))) > 200):
                     shrink_payload(payload)  # 内容过大：压短正文、丢掉超长跳转链接再发，宁可短也要送达
-                    shrunk = True
+                    shrunk = shrunk_once = True  # 只压短重发一次，服务器仍嫌大就按失败走，杜绝死循环
                     continue
                 if r.status_code < 500 and r.status_code not in RETRYABLE:  # 408 超时/429 限流也值得再试
                     _RECENT.pop(key, None)
