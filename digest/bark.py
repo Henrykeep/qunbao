@@ -185,6 +185,7 @@ def redact(t: str, burl: str) -> str:
 _KEY_HINT = "（设备 Key 或地址可能填错，到 Bark App 首页重新复制）"
 _AUTH_HINT = "（自建 Bark 服务器开了鉴权，地址里需带账号）"
 STATUS_HINT = {400: _KEY_HINT, 404: _KEY_HINT, 401: _AUTH_HINT, 403: _AUTH_HINT,
+               **{c: "（Bark 地址被重定向，请直接填最终地址，自建服务器多为 http 被跳转到 https）" for c in (301, 302, 307, 308)},
                413: "（推送内容过大，已超出 Bark 服务器限制）", 429: "（Bark 服务器限流，稍后会自动重试）",
                **{c: "（Bark 服务器暂时出错，会自动重试）" for c in range(500, 600)}}  # 5xx 同一提示（含 504）
 LAST_ERR = ""  # 最近一次失败的原因（测试推送时直接告诉用户，不让人猜）
