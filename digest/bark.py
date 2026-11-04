@@ -194,8 +194,10 @@ def net_err_text(ex: Exception) -> str:
     """网络异常 → 给用户的一句话（原因 + 怎么修）"""
     if "SSL" in str(ex) or "CERTIFICATE" in str(ex).upper():
         hint = "，证书/HTTPS 握手失败，自建服务器请改用 http://IP:端口"
+    elif isinstance(ex, httpx.ConnectError) and any(k in str(ex).lower() for k in ("name or service", "resolution", "getaddrinfo")):
+        hint = "，域名解析失败，检查 Bark 地址拼写或服务器 DNS"
     elif isinstance(ex, httpx.ConnectError):
-        hint = "，检查服务器能否访问外网/DNS"
+        hint = "，检查服务器能否访问外网/防火墙端口"
     elif isinstance(ex, httpx.TimeoutException):
         hint = "，连接超时，会自动重试"
     else:
