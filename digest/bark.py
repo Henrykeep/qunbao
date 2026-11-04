@@ -223,4 +223,5 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
             if i < tries - 1:
                 await asyncio.sleep(wait)
     _RECENT.pop(key, None)  # 没送达就释放占位，允许之后重试
+    print(f"Bark 推送最终未送达：「{payload['title'][:20]}」（{LAST_ERR}）")  # 一条汇总，docker logs 里看得出丢了哪条
     return False
