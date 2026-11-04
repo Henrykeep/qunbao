@@ -171,6 +171,11 @@ def _is_dup(key: tuple, now: float) -> bool:
     return key in _RECENT
 
 
+def retry_plan(level: str) -> tuple:
+    """(最多尝试次数, 退避步长秒)：紧急推送丢了代价最大，多试两次且间隔更短（5 次总等待 10 秒内）。"""
+    return (5, 1.0) if level == "timeSensitive" else (3, 1.5)
+
+
 LAST_ERR = ""  # 最近一次失败的原因（测试推送时直接告诉用户，不让人猜）
 
 
@@ -191,9 +196,9 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
     # 大陆服务器连 Bark 偶发超时：失败（网络错/5xx）自动再试两次，4xx（地址错）不重试，429 限流除外
     async with httpx.AsyncClient(timeout=httpx.Timeout(8, connect=4)) as cl:  # 三次共用一个连接；连不上 4 秒就重试，不干等 8 秒
         wait = 0.0
-        tries = 5 if level == "timeSensitive" else 3  # 紧急推送丢了代价最大，多试两次
+        tries, step = retry_plan(level)
         for i in range(tries):
-            wait = (1.0 if level == "timeSensitive" else 1.5) * (i + 1)  # 紧急的间隔更短，5 次总等待也就 10 秒内
+            wait = step * (i + 1)
             try:
                 r = await cl.post(burl, json=payload)
                 if r.status_code < 300:
