@@ -176,6 +176,12 @@ def retry_plan(level: str) -> tuple:
     return (5, 1.0) if level == "timeSensitive" else (3, 1.5)
 
 
+def redact(t: str, burl: str) -> str:
+    """日志/错误提示里抹掉 Bark Key（地址最后一段路径），docker logs 和测试推送回显都不泄露设备密钥。"""
+    key = burl.rstrip("/").rsplit("/", 1)[-1]
+    return t.replace(key, "***") if len(key) >= 6 else t
+
+
 LAST_ERR = ""  # 最近一次失败的原因（测试推送时直接告诉用户，不让人猜）
 
 
@@ -204,7 +210,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 if r.status_code < 300:
                     _RECENT[key] = time.monotonic()
                     return True
-                LAST_ERR = f"Bark 返回 {r.status_code}：{r.text[:60]}"
+                LAST_ERR = redact(f"Bark 返回 {r.status_code}：{r.text[:60]}", burl)
                 print(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
                 if r.status_code < 500 and r.status_code != 429:  # 429 限流也值得再试
                     _RECENT.pop(key, None)
@@ -213,7 +219,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                     wait = min(int(r.headers['retry-after']), 5)  # 服务端说等几秒就等几秒，最多 5 秒
             except Exception as ex:
                 LAST_ERR = f"连不上 Bark 服务器（{type(ex).__name__}）"
-                print(f"Bark 推送失败（第{i+1}次）：{type(ex).__name__} {ex}")  # 超时异常 str 为空，带上类型才看得出原因
+                print(redact(f"Bark 推送失败（第{i+1}次）：{type(ex).__name__} {ex}", burl))  # 超时异常 str 为空，带上类型才看得出原因
             if i < tries - 1:
                 await asyncio.sleep(wait)
     _RECENT.pop(key, None)  # 没送达就释放占位，允许之后重试
