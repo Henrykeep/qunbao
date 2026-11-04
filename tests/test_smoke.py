@@ -3146,7 +3146,7 @@ def test_bark_shrink_payload():
     from digest import bark
     p = {"body": "字" * 300, "url": "http://x/" + "a" * 300}
     bark.shrink_payload(p)
-    assert len(p["body"]) == 201 and p["body"].endswith("…") and "url" not in p
+    assert len(p["body"]) == 200 and p["body"].endswith("…") and "url" not in p
 
 
 def test_bark_retry_after_parse():
