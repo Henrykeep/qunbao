@@ -3147,3 +3147,12 @@ def test_bark_shrink_payload():
     p = {"body": "字" * 300, "url": "http://x/" + "a" * 300}
     bark.shrink_payload(p)
     assert len(p["body"]) == 201 and p["body"].endswith("…") and "url" not in p
+
+
+def test_bark_retry_after_parse():
+    import bark, email.utils, time
+    assert bark.retry_after("1.5") == 1.5
+    assert bark.retry_after("0") == 0.5
+    assert bark.retry_after("99") == 5
+    assert bark.retry_after("abc") is None
+    assert bark.retry_after(email.utils.formatdate(time.time() + 3, usegmt=True)) > 1
