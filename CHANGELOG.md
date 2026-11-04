@@ -1,3 +1,6 @@
+## 0.39.73 — 2026-11-04
+- Bark：代理连接失败（ProxyError）、发送中断（WriteError）各自给出提示，纳入 NET_ERR_HINTS 表。
+
 ## 0.39.72 — 2026-11-04
 - Bark：连接被重置（ReadError）单独提示，纳入 NET_ERR_HINTS 表。
 
