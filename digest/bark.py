@@ -64,11 +64,13 @@ PLACEHOLDER_KEYWORDS = [
     ("[卡片]", "名片|联系人|群聊邀请|聊天记录|投票|接龙|群公告|会议邀请|腾讯会议|在线表格|分享|待办|打卡|相册"),
 ]
 
-EXT_LABELS = [
-    ("[视频]", "mp4|mov|avi|mkv|flv|wmv|m4v|3gp|webm|mpe?g|rmvb|f4v|mts|vob|ogv|rm"),
-    ("[语音]", "mp3|m4a|wav|flac|aac|amr|silk|ogg|opus|wma|ape|m4r|mid|midi|aiff?|mka|m4b|weba"),
-    ("[图片]", "jpe?g|png|gif|webp|heic|bmp|tiff?|svg|avif|ico|dng|raw|psd|heif|jfif|jp2|heics|tga|apng|jxl|pcx"),
-]
+# 扩展名按「一行一类」登记成列表（mpe?g/jpe?g/tiff?/aiff? 是可选字母写法），生成正则与测试都读这张表
+EXT_WORDS = {
+    "[视频]": "mp4 mov avi mkv flv wmv m4v 3gp webm mpe?g rmvb f4v mts vob ogv rm".split(),
+    "[语音]": "mp3 m4a wav flac aac amr silk ogg opus wma ape m4r mid midi aiff? mka m4b weba".split(),
+    "[图片]": "jpe?g png gif webp heic bmp tiff? svg avif ico dng raw psd heif jfif jp2 heics tga apng jxl pcx".split(),
+}
+EXT_LABELS = [(label, "|".join(words)) for label, words in EXT_WORDS.items()]
 
 STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"[\u200b-\u200d\u2060\ufeff\u00ad\u180e\u200e\u200f\u202a-\u202e]", "", 0),  # 零宽字符：锁屏是看不见的空档，还会让取件码匹配失败
