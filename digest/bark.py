@@ -245,6 +245,9 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 LAST_ERR = redact(f"Bark 返回 {r.status_code}：{r.text[:60]}", burl)
                 LAST_ERR += STATUS_HINT.get(r.status_code, "")
                 print(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
+                if r.status_code == 413 and len(payload["body"]) > 200:  # 内容过大：压短正文再发一次，宁可短也要送达
+                    payload["body"] = payload["body"][:200].rstrip() + "…"
+                    continue
                 if r.status_code < 500 and r.status_code != 429:  # 429 限流也值得再试
                     _RECENT.pop(key, None)
                     return False
