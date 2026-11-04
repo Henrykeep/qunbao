@@ -3119,4 +3119,5 @@ def test_bark_redact_key():
 def test_bark_dns_hint():
     import httpx
     from digest import bark
+    assert "网络路由" in bark.net_err_text(httpx.ConnectError("[Errno 101] Network is unreachable"))
     assert "域名解析失败" in bark.net_err_text(httpx.ConnectError("[Errno -2] Name or service not known"))
