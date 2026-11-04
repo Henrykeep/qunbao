@@ -3121,3 +3121,22 @@ def test_bark_dns_hint():
     from digest import bark
     assert "网络路由" in bark.net_err_text(httpx.ConnectError("[Errno 101] Network is unreachable"))
     assert "域名解析失败" in bark.net_err_text(httpx.ConnectError("[Errno -2] Name or service not known"))
+
+
+def test_bark_413_retries_shorter(monkeypatch):
+    import asyncio, httpx, bark
+    seen = []
+
+    class R:
+        def __init__(s, c): s.status_code = c; s.text = ""; s.headers = {}
+
+    class CL:
+        def __init__(s, *a, **k): pass
+        async def __aenter__(s): return s
+        async def __aexit__(s, *a): return False
+        async def post(s, url, json=None):
+            seen.append(len(json["body"]))
+            return R(413 if len(json["body"]) > 250 else 200)
+    monkeypatch.setattr(httpx, "AsyncClient", CL)
+    ok = asyncio.run(bark.send_bark("http://1.2.3.4:8080/k", "t", "字" * 900, dedupe=False))
+    assert ok and len(seen) == 2 and seen[1] <= 201
