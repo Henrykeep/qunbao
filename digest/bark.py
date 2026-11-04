@@ -226,13 +226,11 @@ _HINT_GROUPS = (
     ((426,), "（Bark 服务器要求升级协议，地址请改用 https:// 开头）"),
     ((429,), "（Bark 服务器限流，稍后会自动重试）"),
     ((521, 522, 523, 524, 525, 526), "（Bark 服务器前面的 CDN 连不上源站或证书异常，会自动重试；自建的请检查源站是否在线）"),
-    (tuple(c for c in range(500, 600) if c not in (502, 503, 504, 521, 522, 523, 524, 525, 526)), "（Bark 服务器暂时出错，会自动重试）"),
 )
 STATUS_HINT = {c: h for cs, h in _HINT_GROUPS for c in cs}
-for _c in range(300, 400):  # 其余 3xx 同样按重定向提示
-    STATUS_HINT.setdefault(_c, STATUS_HINT[302])
-for _c in range(400, 500):  # 其余 4xx 也给兜底提示，不留空白
-    STATUS_HINT.setdefault(_c, "（Bark 服务器拒绝了请求，请检查地址和设备 Key）")
+_FALLBACK = {3: STATUS_HINT[302], 4: "（Bark 服务器拒绝了请求，请检查地址和设备 Key）", 5: "（Bark 服务器暂时出错，会自动重试）"}
+for _c in range(300, 600):  # 各段其余状态码统一兜底，不留空白
+    STATUS_HINT.setdefault(_c, _FALLBACK[_c // 100])
 LAST_ERR = ""  # 最近一次失败的原因（测试推送时直接告诉用户，不让人猜）
 
 
