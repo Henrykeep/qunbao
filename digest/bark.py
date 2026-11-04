@@ -190,6 +190,19 @@ STATUS_HINT = {400: _KEY_HINT, 404: _KEY_HINT, 401: _AUTH_HINT, 403: _AUTH_HINT,
 LAST_ERR = ""  # 最近一次失败的原因（测试推送时直接告诉用户，不让人猜）
 
 
+def net_err_text(ex: Exception) -> str:
+    """网络异常 → 给用户的一句话（原因 + 怎么修）"""
+    if "SSL" in str(ex) or "CERTIFICATE" in str(ex).upper():
+        hint = "，证书/HTTPS 握手失败，自建服务器请改用 http://IP:端口"
+    elif isinstance(ex, httpx.ConnectError):
+        hint = "，检查服务器能否访问外网/DNS"
+    elif isinstance(ex, httpx.TimeoutException):
+        hint = "，连接超时，会自动重试"
+    else:
+        hint = ""
+    return f"连不上 Bark 服务器（{type(ex).__name__}）" + hint
+
+
 async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "", dedupe: bool = True) -> bool:
     """发一条 Bark。level：timeSensitive / active / passive。"""
     global LAST_ERR
@@ -224,7 +237,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 if r.status_code == 429 and str(r.headers.get('retry-after', '')).isdigit():
                     wait = min(int(r.headers['retry-after']), 5)  # 服务端说等几秒就等几秒，最多 5 秒
             except Exception as ex:
-                LAST_ERR = f"连不上 Bark 服务器（{type(ex).__name__}）" + ("，证书/HTTPS 握手失败，自建服务器请改用 http://IP:端口" if "SSL" in str(ex) or "CERTIFICATE" in str(ex).upper() else "，检查服务器能否访问外网/DNS" if isinstance(ex, httpx.ConnectError) else "，连接超时，会自动重试" if isinstance(ex, httpx.TimeoutException) else "")
+                LAST_ERR = net_err_text(ex)
                 print(redact(f"Bark 推送失败（第{i+1}次）：{type(ex).__name__} {ex}", burl))  # 超时异常 str 为空，带上类型才看得出原因
             if i < tries - 1:
                 await asyncio.sleep(wait)
