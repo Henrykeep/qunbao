@@ -197,6 +197,8 @@ NET_ERR_HINTS = (
     (httpx.ConnectError, ("refused",), "，对方拒绝连接，检查 Bark 服务是否在运行、端口是否写对"),
     (httpx.ConnectError, ("unreachable", "no route"), "，服务器当前没有可用网络路由，检查服务器网络/出口"),
     (httpx.ConnectError, (), "，检查服务器能否访问外网/防火墙端口"),
+    (httpx.ConnectTimeout, (), "，连接超时（端口可能被防火墙丢包），检查安全组/防火墙，会自动重试"),
+    (httpx.ReadTimeout, (), "，已连上但对方响应太慢，会自动重试"),
     (httpx.TimeoutException, (), "，连接超时，会自动重试"),
 )
 
