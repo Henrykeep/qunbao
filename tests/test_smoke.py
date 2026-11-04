@@ -3114,3 +3114,9 @@ def test_bark_redact_key():
     from digest import bark
     assert "abcdef123456" not in bark.redact("fail http://x/abcdef123456/t", "http://x/abcdef123456")
     assert bark.redact("ok", "http://x/ab") == "ok"
+
+
+def test_bark_dns_hint():
+    import httpx
+    from digest import bark
+    assert "域名解析失败" in bark.net_err_text(httpx.ConnectError("[Errno -2] Name or service not known"))
