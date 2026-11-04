@@ -265,8 +265,8 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 if r.status_code < 500 and r.status_code not in RETRYABLE:  # 408 超时/429 限流也值得再试
                     _RECENT.pop(key, None)
                     return False
-                if r.status_code in (429, 503) and re.fullmatch(r'\d+(\.\d+)?', str(r.headers.get('retry-after', '')).strip()):
-                    wait = max(0.5, min(float(r.headers['retry-after']), 5))  # 429 限流/503 维护：服务端说等几秒就等几秒，最少 0.5、最多 5 秒
+                if re.fullmatch(r'\d+(\.\d+)?', str(r.headers.get('retry-after', '')).strip()):
+                    wait = max(0.5, min(float(r.headers['retry-after']), 5))  # 任何可重试状态（408/429/5xx）：服务端说等几秒就等几秒，最少 0.5、最多 5 秒
             except Exception as ex:
                 LAST_ERR = net_err_text(ex)
                 print(redact(f"Bark 推送失败（第{i+1}次）：{type(ex).__name__} {ex}", burl))  # 超时异常 str 为空，带上类型才看得出原因
