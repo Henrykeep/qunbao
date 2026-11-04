@@ -196,6 +196,8 @@ def net_err_text(ex: Exception) -> str:
         hint = "，证书/HTTPS 握手失败，自建服务器请改用 http://IP:端口"
     elif isinstance(ex, httpx.ConnectError) and any(k in str(ex).lower() for k in ("name or service", "resolution", "getaddrinfo")):
         hint = "，域名解析失败，检查 Bark 地址拼写或服务器 DNS"
+    elif isinstance(ex, httpx.ConnectError) and "refused" in str(ex).lower():
+        hint = "，对方拒绝连接，检查 Bark 服务是否在运行、端口是否写对"
     elif isinstance(ex, httpx.ConnectError):
         hint = "，检查服务器能否访问外网/防火墙端口"
     elif isinstance(ex, httpx.TimeoutException):
