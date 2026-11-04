@@ -200,6 +200,7 @@ NET_ERR_HINTS = (
     (httpx.ConnectTimeout, (), "，连接超时（端口可能被防火墙丢包），检查安全组/防火墙，会自动重试"),
     (httpx.ReadTimeout, (), "，已连上但对方响应太慢，会自动重试"),
     (httpx.TimeoutException, (), "，连接超时，会自动重试"),
+    (httpx.RemoteProtocolError, (), "，对方中途断开连接（常见于被网关/防火墙重置），会自动重试"),
 )
 
 
