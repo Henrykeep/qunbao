@@ -190,22 +190,22 @@ STATUS_HINT = {400: _KEY_HINT, 404: _KEY_HINT, 401: _AUTH_HINT, 403: _AUTH_HINT,
 LAST_ERR = ""  # 最近一次失败的原因（测试推送时直接告诉用户，不让人猜）
 
 
+# (异常类型, 错误文本关键词(小写), 提示)；按顺序首条命中，类型 None = 任意异常
+NET_ERR_HINTS = (
+    (None, ("ssl", "certificate"), "，证书/HTTPS 握手失败，自建服务器请改用 http://IP:端口"),
+    (httpx.ConnectError, ("name or service", "resolution", "getaddrinfo"), "，域名解析失败，检查 Bark 地址拼写或服务器 DNS"),
+    (httpx.ConnectError, ("refused",), "，对方拒绝连接，检查 Bark 服务是否在运行、端口是否写对"),
+    (httpx.ConnectError, ("unreachable", "no route"), "，服务器当前没有可用网络路由，检查服务器网络/出口"),
+    (httpx.ConnectError, (), "，检查服务器能否访问外网/防火墙端口"),
+    (httpx.TimeoutException, (), "，连接超时，会自动重试"),
+)
+
+
 def net_err_text(ex: Exception) -> str:
     """网络异常 → 给用户的一句话（原因 + 怎么修）"""
-    if "SSL" in str(ex) or "CERTIFICATE" in str(ex).upper():
-        hint = "，证书/HTTPS 握手失败，自建服务器请改用 http://IP:端口"
-    elif isinstance(ex, httpx.ConnectError) and any(k in str(ex).lower() for k in ("name or service", "resolution", "getaddrinfo")):
-        hint = "，域名解析失败，检查 Bark 地址拼写或服务器 DNS"
-    elif isinstance(ex, httpx.ConnectError) and "refused" in str(ex).lower():
-        hint = "，对方拒绝连接，检查 Bark 服务是否在运行、端口是否写对"
-    elif isinstance(ex, httpx.ConnectError) and any(k in str(ex).lower() for k in ("unreachable", "no route")):
-        hint = "，服务器当前没有可用网络路由，检查服务器网络/出口"
-    elif isinstance(ex, httpx.ConnectError):
-        hint = "，检查服务器能否访问外网/防火墙端口"
-    elif isinstance(ex, httpx.TimeoutException):
-        hint = "，连接超时，会自动重试"
-    else:
-        hint = ""
+    msg = str(ex).lower()
+    hint = next((h for t, kws, h in NET_ERR_HINTS
+                 if (t is None or isinstance(ex, t)) and (not kws or any(k in msg for k in kws))), "")
     return f"连不上 Bark 服务器（{type(ex).__name__}）" + hint
 
 
