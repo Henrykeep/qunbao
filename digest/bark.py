@@ -198,6 +198,8 @@ def net_err_text(ex: Exception) -> str:
         hint = "，域名解析失败，检查 Bark 地址拼写或服务器 DNS"
     elif isinstance(ex, httpx.ConnectError) and "refused" in str(ex).lower():
         hint = "，对方拒绝连接，检查 Bark 服务是否在运行、端口是否写对"
+    elif isinstance(ex, httpx.ConnectError) and any(k in str(ex).lower() for k in ("unreachable", "no route")):
+        hint = "，服务器当前没有可用网络路由，检查服务器网络/出口"
     elif isinstance(ex, httpx.ConnectError):
         hint = "，检查服务器能否访问外网/防火墙端口"
     elif isinstance(ex, httpx.TimeoutException):
