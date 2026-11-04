@@ -3140,3 +3140,10 @@ def test_bark_413_retries_shorter(monkeypatch):
     monkeypatch.setattr(httpx, "AsyncClient", CL)
     ok = asyncio.run(bark.send_bark("http://1.2.3.4:8080/k", "t", "字" * 900, dedupe=False))
     assert ok and len(seen) == 2 and seen[1] <= 201
+
+
+def test_bark_shrink_payload():
+    from digest import bark
+    p = {"body": "字" * 300, "url": "http://x/" + "a" * 300}
+    bark.shrink_payload(p)
+    assert len(p["body"]) == 201 and p["body"].endswith("…") and "url" not in p
