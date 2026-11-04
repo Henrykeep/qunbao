@@ -187,7 +187,7 @@ _AUTH_HINT = "（自建 Bark 服务器开了鉴权，地址里需带账号）"
 STATUS_HINT = {400: _KEY_HINT, 404: _KEY_HINT, 401: _AUTH_HINT, 403: _AUTH_HINT,
                **{c: "（Bark 地址被重定向，请直接填最终地址，自建服务器多为 http 被跳转到 https）" for c in (301, 302, 307, 308)},
                405: "（Bark 地址路径不对，地址只填到服务器根，如 https://api.day.app/Key）", 408: "（Bark 服务器等待请求超时，会自动重试）",
-               **{c: "（推送内容过大，已超出 Bark 服务器限制，已自动压短重发）" for c in (413, 414)}, 429: "（Bark 服务器限流，稍后会自动重试）",
+               **{c: "（推送内容过大，已超出 Bark 服务器限制，已自动压短重发）" for c in (413, 414, 431)}, 429: "（Bark 服务器限流，稍后会自动重试）",
                **{c: "（Bark 服务器暂时出错，会自动重试）" for c in range(500, 600)}}  # 5xx 同一提示（含 504）
 LAST_ERR = ""  # 最近一次失败的原因（测试推送时直接告诉用户，不让人猜）
 
@@ -245,7 +245,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 LAST_ERR = redact(f"Bark 返回 {r.status_code}：{r.text[:60]}", burl)
                 LAST_ERR += STATUS_HINT.get(r.status_code, "")
                 print(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
-                if r.status_code in (413, 414) and len(payload["body"]) > 200:  # 内容过大：压短正文再发一次，宁可短也要送达
+                if r.status_code in (413, 414, 431) and len(payload["body"]) > 200:  # 内容过大：压短正文再发一次，宁可短也要送达
                     payload["body"] = payload["body"][:200].rstrip() + "…"
                     continue
                 if r.status_code < 500 and r.status_code != 429:  # 429 限流也值得再试
