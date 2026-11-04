@@ -3102,3 +3102,9 @@ def test_bark_ext_table_classifies_every_word():
         for w in words:
             ext = w.replace("e?", "e").replace("f?", "f")
             assert bark.strip_md(f"[文件名.{ext}]") == label, (label, ext)
+
+
+def test_bark_retry_plan():
+    import bark
+    assert bark.retry_plan("timeSensitive") == (5, 1.0)
+    assert bark.retry_plan("active") == (3, 1.5)
