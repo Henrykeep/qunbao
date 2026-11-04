@@ -66,8 +66,8 @@ PLACEHOLDER_KEYWORDS = [
 
 EXT_LABELS = [
     ("[视频]", "mp4|mov|avi|mkv|flv|wmv|m4v|3gp|webm|mpe?g|rmvb|rm"),
-    ("[语音]", "mp3|m4a|wav|flac|aac|amr|silk|ogg|opus|wma|ape|m4r|mid"),
-    ("[图片]", "jpe?g|png|gif|webp|heic|bmp|tiff?|svg|avif|ico|dng"),
+    ("[语音]", "mp3|m4a|wav|flac|aac|amr|silk|ogg|opus|wma|ape|m4r|mid|midi|aiff?|mka"),
+    ("[图片]", "jpe?g|png|gif|webp|heic|bmp|tiff?|svg|avif|ico|dng|raw|psd"),
 ]
 
 STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
