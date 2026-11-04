@@ -211,11 +211,21 @@ def retry_after(v) -> float | None:
 RETRYABLE = (408, 429)  # 4xx 里值得再试的
 _KEY_HINT = "（设备 Key 或地址可能填错，到 Bark App 首页重新复制）"
 _AUTH_HINT = "（自建 Bark 服务器开了鉴权，地址里需带账号）"
-STATUS_HINT = {400: _KEY_HINT, 404: _KEY_HINT, 401: _AUTH_HINT, 403: _AUTH_HINT,
-               **{c: "（Bark 地址被重定向，请直接填最终地址，自建服务器多为 http 被跳转到 https）" for c in (301, 302, 307, 308)},
-               407: "（服务器出口代理要求鉴权，检查 HTTP_PROXY 设置）", 405: "（Bark 地址路径不对，地址只填到服务器根，如 https://api.day.app/Key）", 410: "（该设备已在 Bark 服务器注销，请在 App 重新注册并复制新 Key）", 408: "（Bark 服务器等待请求超时，会自动重试）",
-               **{c: "（推送内容过大，已超出 Bark 服务器限制，已自动压短重发）" for c in TOO_BIG}, 422: "（Bark 服务器认为请求参数不合法，检查设备 Key 是否完整）", 429: "（Bark 服务器限流，稍后会自动重试）",
-               **{c: "（Bark 服务器暂时出错，会自动重试）" for c in range(500, 600)}}  # 5xx 同一提示（含 504）
+# (状态码们, 提示)：一组状态码共用一句话，按分组一目了然
+_HINT_GROUPS = (
+    ((400, 404), _KEY_HINT),
+    ((401, 403), _AUTH_HINT),
+    ((301, 302, 307, 308), "（Bark 地址被重定向，请直接填最终地址，自建服务器多为 http 被跳转到 https）"),
+    ((405,), "（Bark 地址路径不对，地址只填到服务器根，如 https://api.day.app/Key）"),
+    ((407,), "（服务器出口代理要求鉴权，检查 HTTP_PROXY 设置）"),
+    ((408,), "（Bark 服务器等待请求超时，会自动重试）"),
+    ((410,), "（该设备已在 Bark 服务器注销，请在 App 重新注册并复制新 Key）"),
+    (TOO_BIG, "（推送内容过大，已超出 Bark 服务器限制，已自动压短重发）"),
+    ((422,), "（Bark 服务器认为请求参数不合法，检查设备 Key 是否完整）"),
+    ((429,), "（Bark 服务器限流，稍后会自动重试）"),
+    (tuple(range(500, 600)), "（Bark 服务器暂时出错，会自动重试）"),
+)
+STATUS_HINT = {c: h for cs, h in _HINT_GROUPS for c in cs}
 LAST_ERR = ""  # 最近一次失败的原因（测试推送时直接告诉用户，不让人猜）
 
 
