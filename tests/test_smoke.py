@@ -3094,3 +3094,11 @@ def test_bark_clip_keeps_emoji_sequences_whole():
     out = clip("a" * 7 + fam + "b" * 20, 10)
     assert "\u200d" not in out and out.endswith("…")
     assert clip("x" * 8 + "\U0001f44d\U0001f3fd" + "y" * 9, 10) == "x" * 8 + "…"
+
+
+def test_bark_ext_table_classifies_every_word():
+    import bark
+    for label, words in bark.EXT_WORDS.items():
+        for w in words:
+            ext = w.replace("e?", "e").replace("f?", "f")
+            assert bark.strip_md(f"[文件名.{ext}]") == label, (label, ext)
