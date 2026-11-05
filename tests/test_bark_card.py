@@ -11,3 +11,8 @@ def test_bank_card_copied_whole():
 def test_bark_placeholder_case_insensitive():
     from digest import bark
     assert bark.strip_md("[PHOTO] [voice message]") == "[图片] [语音]"
+
+
+def test_group_label_strips_edge_brackets():
+    from digest.bark import group_label
+    assert group_label("（计科2班") == "计科2班"
