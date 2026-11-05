@@ -192,8 +192,9 @@ def shrink_payload(payload, limit=200) -> bool:
     """413/414/431 时就地压短：标题 >SHRINK_TITLE_MAX、正文 >limit 截断，超长跳转链接丢弃（414/431 多半是链接惹的祸）。返回是否真的改动。"""
     before = dict(payload)
     t = str(payload.get("title", ""))
-    if len(t) > SHRINK_TITLE_MAX:
-        payload["title"] = t[:SHRINK_TITLE_MAX - 1].rstrip() + "…"
+    tmax = min(SHRINK_TITLE_MAX, max(limit, 20))  # 标题上限随档位收紧，末档也别留一个 60 字长标题
+    if len(t) > tmax:
+        payload["title"] = t[:tmax - 1].rstrip() + "…"
     body = str(payload.get("body", ""))
     if len(body) > limit:
         payload["body"] = body[:limit - 1].rstrip() + "…"  # 含省略号 ≤ limit，保证再压一次必收敛
