@@ -199,6 +199,7 @@ def shrink_payload(payload, limit=200) -> bool:
     body = str(payload.get("body", ""))
     if limit <= SHRINK_LIMITS[2]:
         body = re.sub(r"\s*\n\s*", " ", body).strip()  # 末两档：换行并成空格，路径里换行会被编码成 %0A 白占长度
+    body = body or payload["title"]  # 正文只剩空白时回退标题，不发空正文
     if len(body) > limit:
         payload["body"] = clip(body, limit)  # 与正常截断同一套（不拦腰切时间/小数/网址），≤ limit 保证再压一次必收敛
     else:
