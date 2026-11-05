@@ -185,7 +185,7 @@ def redact(t: str, burl: str) -> str:
 
 TOO_BIG = (413, 414, 431)  # 内容过大类状态码：压短重发
 SHRINK_TITLE_MAX = 60  # 压短时标题上限
-SHRINK_LIMITS = (200, 80)  # 逐档压短：第一档不够再狠一点，宁可短也要送达
+SHRINK_LIMITS = (200, 80, 30)  # 逐档压短：第一档不够再狠一点，宁可短也要送达
 
 
 def shrink_payload(payload, limit=200) -> bool:
