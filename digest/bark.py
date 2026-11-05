@@ -135,7 +135,7 @@ from bark_copy import *  # noqa: F401,F403  复制规则与 clip 在 bark_copy.p
 from bark_copy import clip, pick_copy, _copy_link  # noqa: F401
 
 
-MEMBER_COUNT = re.compile(r"\s*(?:[(（\[]\s*(?:共|total)?\s*\d{1,5}\s*(?:人|名|位|members?)?\s*[)）\]]|\s\d{1,5}\s*(?:人|名|members?))\s*$", re.I)  # 群名尾的「(358)」是人数，会变，不能让同一个群锁屏上裂成几组
+MEMBER_COUNT = re.compile(r"\s*(?:[(（\[【〔]\s*(?:共|total)?\s*\d{1,5}\s*(?:人|名|位|members?)?\s*[)）\]】〕]|\s\d{1,5}\s*(?:人|名|members?))\s*$", re.I)  # 群名尾的「(358)」是人数，会变，不能让同一个群锁屏上裂成几组
 
 
 def group_label(group: str) -> str:
