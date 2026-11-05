@@ -138,10 +138,14 @@ from bark_copy import clip, pick_copy, _copy_link  # noqa: F401
 MEMBER_COUNT = re.compile(r"\s*(?:[(（\[【〔]\s*(?:共|在线|total|online)?\s*\d{1,5}\s*(?:人|名|位|members?)?\s*[)）\]】〕]|[(（\[【〔]\s*(?:群聊?|group|免打扰|已静音|置顶)\s*[)）\]】〕]|\s\d{1,5}\s*(?:人|名|members?))\s*$", re.I)  # 群名尾的「(358)」是人数，会变，不能让同一个群锁屏上裂成几组
 
 
+LEAD_TAG = re.compile(r"^[(\[【〔]\s*(?:群聊?|group|免打扰|已静音|置顶)\s*[)\]】〕]\s*", re.I)  # 群名开头的「[置顶]」同理
+
+
 def group_label(group: str) -> str:
     """锁屏分组名：去标记、全角转半角、并空白、截 30 字、去首尾标点、英文统一小写，空了回退「群报」。"""
     group = "".join(c for c in unicodedata.normalize("NFKC", strip_md(group)) if unicodedata.category(c) not in ("So", "Cs", "Cf"))  # 表情符号：群名带🔥/🎓与否不再拆成两组
     group = re.sub(r"\s+", " ", group).strip()
+    group = LEAD_TAG.sub("", group) or group
     while (nxt := MEMBER_COUNT.sub("", group).strip()) != group:  # 尾部可能叠两层（「群名(358)【在线12】」），剥到不变为止
         group = nxt
     return clip(group, 30).strip(" -_.,，。·|~—–:：;；!！、《》「」【】()（）…").lower() or "群报"
