@@ -190,7 +190,7 @@ def shrink_payload(payload, limit=200) -> bool:
     t = str(payload.get("title", ""))
     if len(t) > 60:
         payload["title"] = t[:59].rstrip() + "…"
-    body = payload["body"]
+    body = str(payload.get("body", ""))
     if len(body) > limit:
         payload["body"] = body[:limit - 1].rstrip() + "…"  # 含省略号 ≤ limit，保证再压一次必收敛
     if len(str(payload.get("url", ""))) > limit:
