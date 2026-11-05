@@ -137,7 +137,7 @@ from bark_copy import clip, pick_copy, _copy_link  # noqa: F401
 
 def group_label(group: str) -> str:
     """锁屏分组名：去标记、并空白、截 30 字、去首尾标点，空了回退「群报」。"""
-    return clip(re.sub(r"\s+", " ", strip_md(group)).strip(), 30).strip(" -_.,，。·|~—–:：;；!！、《》「」【】()（）") or "群报"
+    return clip(re.sub(r"\s+", " ", strip_md(group)).strip(), 30).strip(" -_.,，。·|~—–:：;；!！、《》「」【】()（）…") or "群报"
 
 
 def build_payload(title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> dict:
