@@ -209,6 +209,8 @@ def shrink_payload(payload, limit=200) -> bool:
         payload["body"] = clip(body, limit)  # 与正常截断同一套（不拦腰切时间/小数/网址），≤ limit 保证再压一次必收敛
     else:
         payload["body"] = body
+    if "group" in payload:
+        payload["group"] = group_label(str(payload["group"]))  # 压短重发也走同一套分组名清理，空了回退「群报」
     for k in [k for k, v in payload.items() if k not in ("title", "body") and len(str(v)) > limit]:
         payload.pop(k)  # 其余任何超长字段（链接、图标、复制内容、分组…）同样会触发 414/431，一并丢弃
     return payload != before
