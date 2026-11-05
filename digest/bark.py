@@ -293,7 +293,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 LAST_ERR = redact(f"Bark 返回 {r.status_code}：{r.text[:60]}", burl)
                 LAST_ERR += STATUS_HINT.get(r.status_code, "")
                 print(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
-                if r.status_code in TOO_BIG and not shrunk_once and (len(payload["body"]) > 200 or len(str(payload.get("url", ""))) > 200):
+                if r.status_code in TOO_BIG and not shrunk_once and (len(payload["body"]) > 200 or len(str(payload.get("url", ""))) > 200 or len(str(payload.get("title", ""))) > 60):
                     shrink_payload(payload)  # 内容过大：压短正文、丢掉超长跳转链接再发，宁可短也要送达
                     shrunk = shrunk_once = True  # 只压短重发一次，服务器仍嫌大就按失败走，杜绝死循环
                     continue
