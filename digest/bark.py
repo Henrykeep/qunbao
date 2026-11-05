@@ -185,6 +185,7 @@ def redact(t: str, burl: str) -> str:
 
 TOO_BIG = (413, 414, 431)  # 内容过大类状态码：压短重发
 SHRINK_TITLE_MAX = 60  # 压短时标题上限
+SHRINK_LIMITS = (200, 80)  # 逐档压短：第一档不够再狠一点，宁可短也要送达
 
 
 def shrink_payload(payload, limit=200) -> bool:
@@ -286,7 +287,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
     async with httpx.AsyncClient(timeout=httpx.Timeout(8, connect=4)) as cl:  # 三次共用一个连接；连不上 4 秒就重试，不干等 8 秒
         wait = 0.0
         tries, step = retry_plan(level)
-        i, shrunk, shrunk_once = -1, False, False
+        i, shrunk, shrinks = -1, False, 0
         while i < tries - 1 or shrunk:  # 压短重发不占重试次数，最后一次遇到过大也能再送一次
             i += 1 if not shrunk else 0
             shrunk = False
@@ -299,9 +300,9 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 LAST_ERR = redact(f"Bark 返回 {r.status_code}：{r.text[:60]}", burl)
                 LAST_ERR += STATUS_HINT.get(r.status_code, "")
                 print(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
-                if r.status_code in TOO_BIG and not shrunk_once and shrink_payload(payload):
+                if r.status_code in TOO_BIG and shrinks < len(SHRINK_LIMITS) and shrink_payload(payload, SHRINK_LIMITS[shrinks]):
                     # 内容过大：压短正文、丢掉超长跳转链接再发，宁可短也要送达
-                    shrunk = shrunk_once = True  # 只压短重发一次，服务器仍嫌大就按失败走，杜绝死循环
+                    shrunk, shrinks = True, shrinks + 1  # 最多压两档（200→80），仍嫌大就按失败走，杜绝死循环
                     continue
                 if r.status_code < 500 and r.status_code not in RETRYABLE:  # 408 超时/429 限流也值得再试
                     _RECENT.pop(key, None)
