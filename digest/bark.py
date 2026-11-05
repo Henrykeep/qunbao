@@ -193,9 +193,8 @@ def shrink_payload(payload, limit=200) -> bool:
     body = str(payload.get("body", ""))
     if len(body) > limit:
         payload["body"] = body[:limit - 1].rstrip() + "…"  # 含省略号 ≤ limit，保证再压一次必收敛
-    for k in ("url", "icon", "copy", "group"):  # 超长跳转/图标链接、复制内容同样会触发 414/431，一并丢弃
-        if len(str(payload.get(k, ""))) > limit:
-            payload.pop(k)
+    for k in [k for k, v in payload.items() if k not in ("title", "body") and len(str(v)) > limit]:
+        payload.pop(k)  # 其余任何超长字段（链接、图标、复制内容、分组…）同样会触发 414/431，一并丢弃
     return payload != before
 
 
