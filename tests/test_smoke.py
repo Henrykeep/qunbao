@@ -3168,3 +3168,10 @@ def test_bark_clip_keeps_time_whole():
     from bark import clip
     out = clip("请于明天abc 下午14:30到教学楼301集合", 14)
     assert "14:" not in out.replace("14:30", "")
+
+
+def test_bark_group_whitespace_normalized():
+    from digest import bark
+    p = bark.build_payload("t", "b", group="  软工\n 2班  ")
+    assert p["group"] == "软工 2班"
+    assert bark.build_payload("t", "b", group=" \n ")["group"] == "群报"
