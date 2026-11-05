@@ -184,15 +184,18 @@ def redact(t: str, burl: str) -> str:
 
 
 TOO_BIG = (413, 414, 431)  # 内容过大类状态码：压短重发
-def shrink_payload(payload, limit=200):
-    """413/414/431 时就地压短：正文截到 limit 字，超长跳转链接直接丢（414/431 多半是链接惹的祸）。"""
+def shrink_payload(payload, limit=200) -> bool:
+    """413/414/431 时就地压短：标题 >60、正文 >limit 截断，超长跳转链接丢弃（414/431 多半是链接惹的祸）。返回是否真的改动。"""
+    before = dict(payload)
     t = str(payload.get("title", ""))
     if len(t) > 60:
-        payload["title"] = t[:59].rstrip() + "…"  # 标题过长同样可能触发 431
+        payload["title"] = t[:59].rstrip() + "…"
     body = payload["body"]
-    payload["body"] = body[:limit - 1].rstrip() + "…" if len(body) > limit else body  # 含省略号 ≤ limit，保证再压一次必收敛
+    if len(body) > limit:
+        payload["body"] = body[:limit - 1].rstrip() + "…"  # 含省略号 ≤ limit，保证再压一次必收敛
     if len(str(payload.get("url", ""))) > limit:
         payload.pop("url")
+    return payload != before
 
 
 def retry_after(v) -> float | None:
@@ -293,8 +296,8 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 LAST_ERR = redact(f"Bark 返回 {r.status_code}：{r.text[:60]}", burl)
                 LAST_ERR += STATUS_HINT.get(r.status_code, "")
                 print(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
-                if r.status_code in TOO_BIG and not shrunk_once and (len(payload["body"]) > 200 or len(str(payload.get("url", ""))) > 200 or len(str(payload.get("title", ""))) > 60):
-                    shrink_payload(payload)  # 内容过大：压短正文、丢掉超长跳转链接再发，宁可短也要送达
+                if r.status_code in TOO_BIG and not shrunk_once and shrink_payload(payload):
+                    # 内容过大：压短正文、丢掉超长跳转链接再发，宁可短也要送达
                     shrunk = shrunk_once = True  # 只压短重发一次，服务器仍嫌大就按失败走，杜绝死循环
                     continue
                 if r.status_code < 500 and r.status_code not in RETRYABLE:  # 408 超时/429 限流也值得再试
