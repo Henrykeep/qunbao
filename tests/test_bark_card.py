@@ -16,3 +16,8 @@ def test_bark_placeholder_case_insensitive():
 def test_group_label_strips_edge_brackets():
     from digest.bark import group_label
     assert group_label("（计科2班") == "计科2班"
+
+
+def test_group_label_strips_stacked_counts():
+    from digest.bark import group_label
+    assert group_label("计科2班（358人）【12】") == "计科2班"
