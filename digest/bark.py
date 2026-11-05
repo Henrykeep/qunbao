@@ -184,12 +184,15 @@ def redact(t: str, burl: str) -> str:
 
 
 TOO_BIG = (413, 414, 431)  # 内容过大类状态码：压短重发
+SHRINK_TITLE_MAX = 60  # 压短时标题上限
+
+
 def shrink_payload(payload, limit=200) -> bool:
-    """413/414/431 时就地压短：标题 >60、正文 >limit 截断，超长跳转链接丢弃（414/431 多半是链接惹的祸）。返回是否真的改动。"""
+    """413/414/431 时就地压短：标题 >SHRINK_TITLE_MAX、正文 >limit 截断，超长跳转链接丢弃（414/431 多半是链接惹的祸）。返回是否真的改动。"""
     before = dict(payload)
     t = str(payload.get("title", ""))
-    if len(t) > 60:
-        payload["title"] = t[:59].rstrip() + "…"
+    if len(t) > SHRINK_TITLE_MAX:
+        payload["title"] = t[:SHRINK_TITLE_MAX - 1].rstrip() + "…"
     body = str(payload.get("body", ""))
     if len(body) > limit:
         payload["body"] = body[:limit - 1].rstrip() + "…"  # 含省略号 ≤ limit，保证再压一次必收敛
