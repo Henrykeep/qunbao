@@ -3156,3 +3156,9 @@ def test_bark_retry_after_parse():
     assert bark.retry_after("99") == 5
     assert bark.retry_after("abc") is None
     assert bark.retry_after(email.utils.formatdate(time.time() + 3, usegmt=True)) > 1
+
+
+def test_shrink_payload_drops_long_copy():
+    from digest import bark
+    p = {"title": "t", "body": "b", "copy": "x" * 500}
+    assert bark.shrink_payload(p) and "copy" not in p
