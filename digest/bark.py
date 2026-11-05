@@ -140,7 +140,8 @@ MEMBER_COUNT = re.compile(r"\s*[(（\[]\d{1,5}\s*(?:人|名|位|members?)?[)）\
 
 def group_label(group: str) -> str:
     """锁屏分组名：去标记、全角转半角、并空白、截 30 字、去首尾标点，空了回退「群报」。"""
-    return clip(MEMBER_COUNT.sub("", re.sub(r"\s+", " ", unicodedata.normalize("NFKC", strip_md(group))).strip()), 30).strip(" -_.,，。·|~—–:：;；!！、《》「」【】()（）…") or "群报"
+    group = "".join(c for c in unicodedata.normalize("NFKC", strip_md(group)) if unicodedata.category(c) not in ("So", "Cs", "Cf"))  # 表情符号：群名带🔥/🎓与否不再拆成两组
+    return clip(MEMBER_COUNT.sub("", re.sub(r"\s+", " ", group).strip()), 30).strip(" -_.,，。·|~—–:：;；!！、《》「」【】()（）…") or "群报"
 
 
 def build_payload(title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> dict:
