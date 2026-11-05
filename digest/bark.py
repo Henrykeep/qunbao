@@ -191,10 +191,11 @@ SHRINK_LIMITS = (200, 80, 30, 10)  # 逐档压短：第一档不够再狠一点�
 def shrink_payload(payload, limit=200) -> bool:
     """413/414/431 时就地压短：标题 >SHRINK_TITLE_MAX、正文 >limit 截断，超长跳转链接丢弃（414/431 多半是链接惹的祸）。返回是否真的改动。"""
     before = dict(payload)
-    t = str(payload.get("title", ""))
+    t = re.sub(r"\s+", " ", str(payload.get("title", ""))).strip()  # 标题里的换行/连续空白编码后白占长度
     tmax = min(SHRINK_TITLE_MAX, max(limit, 20))  # 标题上限随档位收紧，末档也别留一个 60 字长标题
     if len(t) > tmax:
-        payload["title"] = clip(t, tmax)
+        t = clip(t, tmax)
+    payload["title"] = t
     body = str(payload.get("body", ""))
     if limit <= SHRINK_LIMITS[2]:
         body = re.sub(r"\s*\n\s*", " ", body).strip()  # 末两档：换行并成空格，路径里换行会被编码成 %0A 白占长度
