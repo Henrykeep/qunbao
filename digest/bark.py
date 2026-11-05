@@ -135,9 +135,12 @@ from bark_copy import *  # noqa: F401,F403  复制规则与 clip 在 bark_copy.p
 from bark_copy import clip, pick_copy, _copy_link  # noqa: F401
 
 
+MEMBER_COUNT = re.compile(r"\s*[(（\[]\d{1,5}\s*人?[)）\]]\s*$")  # 群名尾的「(358)」是人数，会变，不能让同一个群锁屏上裂成几组
+
+
 def group_label(group: str) -> str:
     """锁屏分组名：去标记、全角转半角、并空白、截 30 字、去首尾标点，空了回退「群报」。"""
-    return clip(re.sub(r"\s+", " ", unicodedata.normalize("NFKC", strip_md(group))).strip(), 30).strip(" -_.,，。·|~—–:：;；!！、《》「」【】()（）…") or "群报"
+    return clip(MEMBER_COUNT.sub("", re.sub(r"\s+", " ", unicodedata.normalize("NFKC", strip_md(group))).strip()), 30).strip(" -_.,，。·|~—–:：;；!！、《》「」【】()（）…") or "群报"
 
 
 def build_payload(title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> dict:
