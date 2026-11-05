@@ -195,7 +195,7 @@ def shrink_payload(payload, limit=200) -> bool:
     tmax = min(SHRINK_TITLE_MAX, max(limit, 20))  # 标题上限随档位收紧，末档也别留一个 60 字长标题
     if len(t) > tmax:
         t = clip(t, tmax)
-    payload["title"] = t
+    payload["title"] = t or "群报"  # 标题只剩空白时别发空标题
     body = str(payload.get("body", ""))
     if limit <= SHRINK_LIMITS[2]:
         body = re.sub(r"\s*\n\s*", " ", body).strip()  # 末两档：换行并成空格，路径里换行会被编码成 %0A 白占长度
