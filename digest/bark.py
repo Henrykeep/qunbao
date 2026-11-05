@@ -135,10 +135,13 @@ from bark_copy import *  # noqa: F401,F403  复制规则与 clip 在 bark_copy.p
 from bark_copy import clip, pick_copy, _copy_link  # noqa: F401
 
 
-MEMBER_COUNT = re.compile(r"\s*(?:[(（\[【〔]\s*(?:共|在线|total|online)?\s*\d{1,5}\s*(?:人|名|位|members?)?\s*[)）\]】〕]|[(（\[【〔]\s*(?:群聊?|group|免打扰|已静音|置顶)\s*[)）\]】〕]|\s\d{1,5}\s*(?:人|名|members?))\s*$", re.I)  # 群名尾的「(358)」是人数，会变，不能让同一个群锁屏上裂成几组
+_OPEN, _CLOSE = r"[(（\[【〔]", r"[)）\]】〕]"
+_TAG_WORDS = r"群聊?|group|免打扰|已静音|置顶"  # 群名里的状态标注词，头尾共用一份
+_COUNT = r"(?:共|在线|total|online)?\s*\d{1,5}\s*(?:人|名|位|members?)?"  # 人数会变，不能让同一个群锁屏上裂成几组
+MEMBER_COUNT = re.compile(rf"\s*(?:{_OPEN}\s*(?:{_COUNT}|{_TAG_WORDS})\s*{_CLOSE}|\s\d{{1,5}}\s*(?:人|名|members?))\s*$", re.I)
 
 
-LEAD_TAG = re.compile(r"^[(\[【〔]\s*(?:群聊?|group|免打扰|已静音|置顶|(?:共|在线|total|online)?\s*\d{1,5}\s*(?:人|名|位|members?)?)\s*[)\]】〕]\s*", re.I)  # 群名开头的「[置顶]」同理
+LEAD_TAG = re.compile(rf"^{_OPEN}\s*(?:{_TAG_WORDS}|{_COUNT})\s*{_CLOSE}\s*", re.I)
 
 
 def group_label(group: str) -> str:
