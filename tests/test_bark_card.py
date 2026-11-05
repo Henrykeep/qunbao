@@ -26,3 +26,7 @@ def test_group_label_strips_stacked_counts():
 def test_group_name_strips_mute_tag():
     from digest import bark
     assert bark.MEMBER_COUNT.sub("", "计算机2班(免打扰)") == "计算机2班"
+
+
+def test_group_label_strips_leading_tag():
+    assert bark.group_label("[置顶] 计算机2班(358)") == "计算机2班"
