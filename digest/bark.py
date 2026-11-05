@@ -196,8 +196,12 @@ def shrink_payload(payload, limit=200) -> bool:
     if len(t) > tmax:
         payload["title"] = clip(t, tmax)
     body = str(payload.get("body", ""))
+    if limit <= SHRINK_LIMITS[2]:
+        body = re.sub(r"\s*\n\s*", " ", body).strip()  # 末两档：换行并成空格，路径里换行会被编码成 %0A 白占长度
     if len(body) > limit:
         payload["body"] = clip(body, limit)  # 与正常截断同一套（不拦腰切时间/小数/网址），≤ limit 保证再压一次必收敛
+    else:
+        payload["body"] = body
     for k in [k for k, v in payload.items() if k not in ("title", "body") and len(str(v)) > limit]:
         payload.pop(k)  # 其余任何超长字段（链接、图标、复制内容、分组…）同样会触发 414/431，一并丢弃
     return payload != before
