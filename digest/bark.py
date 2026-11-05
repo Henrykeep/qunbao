@@ -136,7 +136,7 @@ from bark_copy import clip, pick_copy, _copy_link  # noqa: F401
 
 
 _OPEN, _CLOSE = r"[(（\[【〔]", r"[)）\]】〕]"
-_TAG_WORDS = r"群聊?|group|免打扰|已静音|置顶|全员禁言|全体禁言|已屏蔽"  # 群名里的状态标注词，头尾共用一份
+_TAG_WORDS = r"群聊?|group|免打扰|已静音|置顶|全员禁言|全体禁言|已屏蔽|消息免打扰|已折叠|折叠"  # 群名里的状态标注词，头尾共用一份
 _COUNT = r"(?:共|在线|total|online|未读|unread)?\s*\d{1,5}\s*(?:人|名|位|members?|条未读|条消息|条|unread)?"  # 人数会变，不能让同一个群锁屏上裂成几组
 MEMBER_COUNT = re.compile(rf"\s*(?:{_OPEN}\s*(?:{_COUNT}|{_TAG_WORDS})\s*{_CLOSE}|\s\d{{1,5}}\s*(?:人|名|members?))\s*$", re.I)
 
