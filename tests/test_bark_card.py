@@ -1,6 +1,6 @@
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "digest"))
-from bark import build_payload
+from bark import build_payload, group_label
 
 
 def test_bank_card_copied_whole():
@@ -29,4 +29,4 @@ def test_group_name_strips_mute_tag():
 
 
 def test_group_label_strips_leading_tag():
-    assert bark.group_label("[置顶] 计算机2班(358)") == "计算机2班"
+    assert group_label("[置顶] 计算机2班(358)") == "计算机2班"
