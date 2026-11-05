@@ -3186,3 +3186,9 @@ def test_group_label_strips_trailing_colon_dash():
 def test_bark_group_label_strips_group_suffix():
     from digest import bark
     assert bark.group_label("高数班(群聊)") == bark.group_label("高数班")
+
+
+def test_group_label_strips_mute_tags():
+    import bark
+    assert bark.group_label("计算机2班(全员禁言)") == bark.group_label("计算机2班")
+    assert bark.group_label("[已屏蔽]计算机2班") == bark.group_label("计算机2班")
