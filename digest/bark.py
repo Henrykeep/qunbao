@@ -302,7 +302,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                 print(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
                 if r.status_code in TOO_BIG and shrinks < len(SHRINK_LIMITS) and shrink_payload(payload, SHRINK_LIMITS[shrinks]):
                     # 内容过大：压短正文、丢掉超长跳转链接再发，宁可短也要送达
-                    shrunk, shrinks = True, shrinks + 1  # 最多压两档（200→80），仍嫌大就按失败走，杜绝死循环
+                    shrunk, shrinks = True, shrinks + 1  # 最多压 len(SHRINK_LIMITS) 档，仍嫌大就按失败走，杜绝死循环
                     continue
                 if r.status_code < 500 and r.status_code not in RETRYABLE:  # 408 超时/429 限流也值得再试
                     _RECENT.pop(key, None)
