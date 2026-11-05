@@ -3175,3 +3175,9 @@ def test_bark_group_whitespace_normalized():
     p = bark.build_payload("t", "b", group="  软工\n 2班  ")
     assert p["group"] == "软工 2班"
     assert bark.build_payload("t", "b", group=" \n ")["group"] == "群报"
+
+
+def test_group_label_strips_trailing_colon_dash():
+    from digest import bark
+    assert bark.group_label("三班群 —") == "三班群"
+    assert bark.group_label("：：") == "群报"
