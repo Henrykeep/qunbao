@@ -11,9 +11,9 @@ def clip(t: str, n: int) -> str:
     k = max(t.rfind(c, 0, cut) for c in "。！？!?\n；;")  # 优先在句末收尾：锁屏上读到完整的一句，比半句加省略号清楚
     if k >= n * 0.6:
         return t[:k + 1].rstrip() + "…"
-    m = re.search(r"[A-Za-z0-9\-]+$", t[:cut])
+    m = re.search(r"[A-Za-z0-9\-]+(?:[.:/][A-Za-z0-9\-]*)*$", t[:cut])
     if m and t[cut:cut + 1].isascii() and t[cut:cut + 1].isalnum() and m.start() >= 3:
-        cut = m.start()  # 不把取件码/单号/英文单词拦腰截断
+        cut = m.start()  # 不把取件码/单号/英文单词/14:30/3.5 这类时间小数拦腰截断
     o = t.rfind("[", 0, cut)
     if o >= 3 and "]" not in t[o:cut] and cut - o <= 6:
         cut = o  # 不把「[图片]」「[链接]」占位拦腰截成「[图…」
