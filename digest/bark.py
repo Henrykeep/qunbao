@@ -144,7 +144,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     full_body = body  # 去标题前缀前的正文：复制内容要在完整文字里找（「取件」+「取件码：123」去重后只剩「码：123」会认不出）
     if body != title and body.startswith(title) and len(body) > len(title) + 2:
         body = body[len(title):].lstrip("：:，,。 \n") or body  # 正文以标题开头时去掉重复
-    payload = {"title": clip(title, 60), "body": clip(body, 300), "group": clip(re.sub(r"\s+", " ", strip_md(group)).strip(), 30) or "群报", "isArchive": "1"}  # 存进 Bark 历史
+    payload = {"title": clip(title, 60), "body": clip(body, 300), "group": clip(re.sub(r"\s+", " ", strip_md(group)).strip(), 30).strip(" -_.,，。·|~") or "群报", "isArchive": "1"}  # 存进 Bark 历史
     if level in ("timeSensitive", "passive"):
         payload["level"] = level
     if level == "timeSensitive":
