@@ -3162,3 +3162,9 @@ def test_shrink_payload_drops_long_copy():
     from digest import bark
     p = {"title": "t", "body": "b", "copy": "x" * 500}
     assert bark.shrink_payload(p) and "copy" not in p
+
+
+def test_bark_clip_keeps_time_whole():
+    from bark import clip
+    out = clip("请于明天abc 下午14:30到教学楼301集合", 14)
+    assert "14:" not in out.replace("14:30", "")
