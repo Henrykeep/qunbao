@@ -3181,3 +3181,8 @@ def test_group_label_strips_trailing_colon_dash():
     from digest import bark
     assert bark.group_label("三班群 —") == "三班群"
     assert bark.group_label("：：") == "群报"
+
+
+def test_bark_group_label_strips_group_suffix():
+    from digest import bark
+    assert bark.group_label("高数班(群聊)") == bark.group_label("高数班")
