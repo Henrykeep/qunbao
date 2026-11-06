@@ -37,3 +37,8 @@ def test_group_label_keeps_paired_brackets():
     assert group_label("【通知】计算机2班") == "【通知】计算机2班"
     assert group_label("计算机2班（官方群）") == "计算机2班(官方群)"
     assert group_label("(abc") == "abc"
+
+
+def test_group_label_strips_leading_count_dash():
+    from digest.bark import group_label
+    assert group_label("358人 - 计算机2班") == "计算机2班"
