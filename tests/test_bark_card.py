@@ -42,3 +42,9 @@ def test_group_label_keeps_paired_brackets():
 def test_group_label_strips_leading_count_dash():
     from digest.bark import group_label
     assert group_label("358人 - 计算机2班") == "计算机2班"
+
+
+def test_group_label_strips_lead_prefixed_count():
+    from digest.bark import group_label
+    assert group_label("在线12人 - 计科2班") == group_label("计科2班")
+    assert group_label("未读5 | 计科2班") == group_label("计科2班")
