@@ -54,3 +54,10 @@ def test_bark_group_strips_99plus_and_new_msg_counts():
     from bark_group import group_label
     for s in ("计算机2班 (3条新消息)", "计算机2班 [99+]", "[99+] 计算机2班"):
         assert group_label(s) == "计算机2班"
+
+
+def test_group_label_bare_qun_is_part_of_name():
+    from bark_group import group_label
+    assert group_label("群/名") == "群/名"
+    assert group_label("群聊 - 名") == "名"
+    assert group_label("群名(群)") == "群名"
