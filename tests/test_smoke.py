@@ -3209,3 +3209,10 @@ def test_bark_group_label_strips_separator_count():
     assert group_label("计算机2班 - 358人") == group_label("计算机2班")
     assert group_label("高数群|120人") == "高数群"
     assert group_label("2024级-3班") == "2024级-3班"
+
+
+def test_bark_group_leading_tag_dash():
+    import sys; sys.path.insert(0, "digest")
+    from bark_group import group_label
+    assert group_label("免打扰 - 计算机2班") == group_label("计算机2班")
+    assert group_label("置顶：计算机2班") == group_label("计算机2班")
