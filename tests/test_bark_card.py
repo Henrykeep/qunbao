@@ -48,3 +48,9 @@ def test_group_label_strips_lead_prefixed_count():
     from digest.bark import group_label
     assert group_label("在线12人 - 计科2班") == group_label("计科2班")
     assert group_label("未读5 | 计科2班") == group_label("计科2班")
+
+
+def test_bark_group_strips_99plus_and_new_msg_counts():
+    from bark_group import group_label
+    for s in ("计算机2班 (3条新消息)", "计算机2班 [99+]", "[99+] 计算机2班"):
+        assert group_label(s) == "计算机2班"
