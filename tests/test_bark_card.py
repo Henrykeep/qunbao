@@ -61,3 +61,8 @@ def test_group_label_bare_qun_is_part_of_name():
     assert group_label("群/名") == "群/名"
     assert group_label("群聊 - 名") == "名"
     assert group_label("群名(群)") == "群名"
+
+
+def test_group_label_strips_group_number():
+    from digest.bark import group_label
+    assert group_label("计科2班(群号123456789)") == "计科2班"
