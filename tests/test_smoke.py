@@ -3192,3 +3192,8 @@ def test_group_label_strips_mute_tags():
     import bark
     assert bark.group_label("计算机2班(全员禁言)") == bark.group_label("计算机2班")
     assert bark.group_label("[已屏蔽]计算机2班") == bark.group_label("计算机2班")
+
+
+def test_bark_group_label_strips_unread_tags():
+    from bark_group import group_label
+    assert group_label("【新消息】软件工程群") == group_label("软件工程群[未读]") == group_label("软件工程群")
