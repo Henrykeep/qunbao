@@ -72,3 +72,10 @@ def test_group_label_strips_at_me_reply_tags():
     from digest.bark import group_label
     for t in ("[@我]", "[有人回复你]", "[群公告]", "[有人@你]"):
         assert group_label("计科2班 " + t) == "计科2班"
+
+
+def test_group_label_strips_multi_tag_bracket():
+    from digest.bark import group_label
+    assert group_label("计科2班(置顶 免打扰)") == "计科2班"
+    assert group_label("[置顶|免打扰]计科2班") == "计科2班"
+    assert group_label("计科2班【星标，未读】") == "计科2班"
