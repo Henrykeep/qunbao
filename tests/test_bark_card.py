@@ -66,3 +66,9 @@ def test_group_label_bare_qun_is_part_of_name():
 def test_group_label_strips_group_number():
     from digest.bark import group_label
     assert group_label("计科2班(群号123456789)") == "计科2班"
+
+
+def test_group_label_strips_at_me_reply_tags():
+    from digest.bark import group_label
+    for t in ("[@我]", "[有人回复你]", "[群公告]", "[有人@你]"):
+        assert group_label("计科2班 " + t) == "计科2班"
