@@ -1,6 +1,7 @@
 """Bark 锁屏分组名：从 bark.py 拆出，只管把群名规整成稳定的分组键。"""
 import re
 import unicodedata
+from functools import lru_cache
 
 from bark_copy import clip
 
@@ -26,6 +27,7 @@ MEMBER_COUNT = re.compile(rf"\s*(?:{_OPEN}\s*(?:{_COUNT}|{_BR_WORDS})\s*{_CLOSE}
 LEAD_TAG = re.compile(rf"^(?:{_OPEN}\s*(?:{_BR_WORDS}|{_COUNT})\s*{_CLOSE}|(?:{_TAG_WORDS}|(?:共|在线|未读|unread|online)\s*\d{{1,5}}\s*(?:人|名|条)?|\d{{1,5}}\s*(?:人|名|条|members?|unread))\s*[-|·_—–/:：]\s*(?=\S))\s*", re.I)  # 开头「免打扰 - 群名」也剥
 
 
+@lru_cache(maxsize=512)  # 同一个群每条推送都算一遍，结果只取决于群名，缓存即可
 def group_label(group: str) -> str:
     """锁屏分组名：去标记、全角转半角、并空白、截 30 字、去首尾标点、英文统一小写，空了回退「群报」。"""
     group = "".join(c for c in unicodedata.normalize("NFKC", group) if unicodedata.category(c) not in ("So", "Cs", "Cf"))  # 群名不过 strip_md（否则「[草稿]群名」被占位规则改成「[文件]群名」）；表情符号：群名带🔥/🎓与否不再拆成两组
