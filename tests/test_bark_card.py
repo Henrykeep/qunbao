@@ -84,3 +84,9 @@ def test_group_label_strips_multi_tag_bracket():
 def test_group_label_strips_english_at_all_tag():
     from bark_group import group_label
     assert group_label("高数群 [@all]") == group_label("高数群")
+
+
+def test_group_label_ignores_space_between_cjk_and_digits():
+    from bark_group import group_label
+    assert group_label("计科 2201 班") == group_label("计科2201班")
+    assert group_label("Python 学习") == "python 学习"
