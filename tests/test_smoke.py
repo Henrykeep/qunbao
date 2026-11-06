@@ -3202,3 +3202,10 @@ def test_bark_group_label_strips_unread_tags():
 def test_bark_group_label_strips_notice_off_tags():
     from bark_group import group_label
     assert group_label("高数群 [通知已关闭]") == group_label("高数群")
+
+
+def test_bark_group_label_strips_separator_count():
+    from bark_group import group_label
+    assert group_label("计算机2班 - 358人") == group_label("计算机2班")
+    assert group_label("高数群|120人") == "高数群"
+    assert group_label("2024级-3班") == "2024级-3班"
