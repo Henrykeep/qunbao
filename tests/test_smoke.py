@@ -3221,3 +3221,8 @@ def test_bark_group_leading_tag_dash():
 def test_group_label_keeps_tag_words_not_placeholder():
     from bark_group import group_label
     assert group_label("[草稿] 计科2班") == "计科2班"
+
+
+def test_group_label_none_falls_back():
+    import bark_group
+    assert bark_group.group_label(None) == "群报"
