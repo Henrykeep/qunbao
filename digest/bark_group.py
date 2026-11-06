@@ -30,7 +30,7 @@ LEAD_TAG = re.compile(rf"^(?:{_OPEN}\s*(?:{_BR_WORDS}|{_COUNT})\s*{_CLOSE}|(?:{_
 @lru_cache(maxsize=512)  # 同一个群每条推送都算一遍，结果只取决于群名，缓存即可
 def group_label(group: str) -> str:
     """锁屏分组名：去标记、全角转半角、并空白、截 30 字、去首尾标点、英文统一小写，空了回退「群报」。"""
-    group = "".join(c for c in unicodedata.normalize("NFKC", str(group or "")) if unicodedata.category(c) not in ("So", "Cs", "Cf"))  # 群名不过 strip_md（否则「[草稿]群名」被占位规则改成「[文件]群名」）；表情符号：群名带🔥/🎓与否不再拆成两组
+    group = "".join(c for c in unicodedata.normalize("NFKC", str(group or "")) if unicodedata.category(c) not in ("So", "Cs", "Cf", "Sk") and c not in "\ufe0e\ufe0f")  # 群名不过 strip_md（否则「[草稿]群名」被占位规则改成「[文件]群名」）；表情符号：群名带🔥/🎓与否不再拆成两组
     group = re.sub(r"\s+", " ", group[:300]).strip()  # 先截断再跑正则：异常长群名不拖慢推送
     while (nxt := LEAD_TAG.sub("", group).strip()) and nxt != group:  # 开头也可能叠几层（「[置顶][358人]群名」）
         group = nxt
