@@ -27,4 +27,24 @@ def group_label(group: str) -> str:
         group = nxt
     while (nxt := MEMBER_COUNT.sub("", group).strip()) != group:  # 尾部可能叠两层（「群名(358)【在线12】」），剥到不变为止
         group = nxt
-    return clip(group, 30).strip(" -_.,，。·|~—–:：;；!！、《》「」【】()（）…").lower() or "群报"
+    group = clip(group, 30).strip(" -_.,，。·|~—–:：;；!！、《》「」…")
+    return _trim_brackets(group).lower() or "群报"
+
+
+_PAIRS = {"(": ")", "[": "]", "【": "】", "〔": "〕", "「": "」", "《": "》"}  # NFKC 后（）已是()
+
+
+def _trim_brackets(g: str) -> str:
+    """只去掉没有配对的首尾括号（截断或剥标注留下的残片）；成对的「【通知】群名」「群名(官方群)」原样保留。"""
+    closers = set(_PAIRS.values())
+    while g and g[-1] in _PAIRS:  # 结尾孤立的开括号
+        g = g[:-1].rstrip(" -_.,，。·|~—–:：;；")
+    while g and g[0] in closers:  # 开头孤立的闭括号
+        g = g[1:].lstrip(" -_.,，。·|~—–:：;；")
+    for o, c in _PAIRS.items():
+        if g.count(o) < g.count(c):
+            g = g.replace(c, "", g.count(c) - g.count(o)) if g.startswith(c) or g.endswith(c) else g
+        elif g.count(o) > g.count(c):
+            i = g.rfind(o)
+            g = (g[:i] + g[i + 1:]).strip()
+    return g.strip()
