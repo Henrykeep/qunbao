@@ -16,7 +16,7 @@ _COUNT = r"(?:共|在线|total|online|未读|unread)?\s*\d{1,5}\s*(?:人|名|位
 MEMBER_COUNT = re.compile(rf"\s*(?:{_OPEN}\s*(?:{_COUNT}|{_TAG_WORDS})\s*{_CLOSE}|(?:\s|\s*[-|·_—–/]\s*)(?:(?:共|在线|未读|unread|online)\s*\d{{1,5}}\s*(?:人|名|条|unread)?|\d{{1,5}}\s*(?:人|名|members?))|\s*[-|·_—–/]\s*(?:{_TAG_WORDS}))\s*$", re.I)  # 尾部「群名 - 免打扰」也剥
 
 
-LEAD_TAG = re.compile(rf"^(?:{_OPEN}\s*(?:{_TAG_WORDS}|{_COUNT})\s*{_CLOSE}|(?:{_TAG_WORDS}|\d{{1,5}}\s*(?:人|名|members?))\s*[-|·_—–/:：]\s*(?=\S))\s*", re.I)  # 开头「免打扰 - 群名」也剥
+LEAD_TAG = re.compile(rf"^(?:{_OPEN}\s*(?:{_TAG_WORDS}|{_COUNT})\s*{_CLOSE}|(?:{_TAG_WORDS}|(?:共|在线|未读|unread|online)\s*\d{{1,5}}\s*(?:人|名|条)?|\d{{1,5}}\s*(?:人|名|条|members?|unread))\s*[-|·_—–/:：]\s*(?=\S))\s*", re.I)  # 开头「免打扰 - 群名」也剥
 
 
 def group_label(group: str) -> str:
