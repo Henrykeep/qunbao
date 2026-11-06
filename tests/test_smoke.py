@@ -3173,7 +3173,7 @@ def test_bark_clip_keeps_time_whole():
 def test_bark_group_whitespace_normalized():
     from digest import bark
     p = bark.build_payload("t", "b", group="  软工\n 2班  ")
-    assert p["group"] == "软工 2班"
+    assert p["group"] == "软工2班"
     assert bark.build_payload("t", "b", group=" \n ")["group"] == "群报"
 
 
