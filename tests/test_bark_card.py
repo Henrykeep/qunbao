@@ -30,3 +30,10 @@ def test_group_name_strips_mute_tag():
 
 def test_group_label_strips_leading_tag():
     assert group_label("[置顶] 计算机2班(358)") == "计算机2班"
+
+
+def test_group_label_keeps_paired_brackets():
+    from bark_group import group_label
+    assert group_label("【通知】计算机2班") == "【通知】计算机2班"
+    assert group_label("计算机2班（官方群）") == "计算机2班(官方群)"
+    assert group_label("(abc") == "abc"
