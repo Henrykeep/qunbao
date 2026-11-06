@@ -79,3 +79,8 @@ def test_group_label_strips_multi_tag_bracket():
     assert group_label("计科2班(置顶 免打扰)") == "计科2班"
     assert group_label("[置顶|免打扰]计科2班") == "计科2班"
     assert group_label("计科2班【星标，未读】") == "计科2班"
+
+
+def test_group_label_strips_english_at_all_tag():
+    from bark_group import group_label
+    assert group_label("高数群 [@all]") == group_label("高数群")
