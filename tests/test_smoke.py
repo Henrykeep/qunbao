@@ -3244,3 +3244,9 @@ def test_group_label_plus_amp_spacing():
 def test_bark_bare_key_defaults_official_server():
     import bark; norm_bark_url = bark.norm_bark_url
     assert norm_bark_url("AbCdEf1234567890xyZ") == "https://api.day.app/AbCdEf1234567890xyZ"
+
+
+def test_bark_url_missing_slash():
+    from bark import norm_bark_url as n
+    assert n("https:/api.day.app/KEY") == "https://api.day.app/KEY"
+    assert n("http//1.2.3.4:8080/K") == "http://1.2.3.4:8080/K"
