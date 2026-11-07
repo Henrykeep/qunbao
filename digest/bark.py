@@ -37,7 +37,10 @@ def norm_bark_url(u: str) -> str:
     scheme, host = sp.scheme.lower(), sp.netloc.lower()
     if host == "api.day.app":
         scheme = "https"  # 官方服务器只认 https，手滑写成 http 会推送失败
-    return f"{scheme}://{host}" + ("/" + seg[0] if seg else "")  # 协议/域名不分大小写，统一小写（Key 区分大小写不动）
+    if len(seg) > 1:  # 自建 Bark 挂在反代子路径下（/bark/KEY/内容）：保留前缀，到 Key 为止
+        i = next((j for j, x in enumerate(seg) if re.fullmatch(r"[A-Za-z0-9]{16,40}", x)), 0)
+        seg = seg[:i + 1]
+    return f"{scheme}://{host}" + ("/" + "/".join(seg) if seg else "")  # 协议/域名不分大小写，统一小写（Key 区分大小写不动）
 
 
 CQ_LABEL = {"record": "[语音]", "video": "[视频]", "forward": "[卡片]", "json": "[卡片]", "xml": "[卡片]",
