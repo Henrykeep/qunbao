@@ -15,6 +15,7 @@ def norm_bark_url(u: str) -> str:
     u = unicodedata.normalize("NFKC", u or "").replace("。", ".")  # 中文输入法的全角 ：／．等
     u = u.strip().strip("\"'“”‘’<>《》「」").strip()  # 复制时常带引号/书名号
     u = re.sub(r"\s+", "", u)  # 微信/备忘录复制常夹换行、空格
+    u = re.sub(r"^(https?):?/{1,2}(?=[^/])", r"\1://", u, flags=re.I)  # https:/、https// 少打了斜杠或冒号
     if u and "://" not in u and "." in u.split("/")[0]:
         h = u.split("/")[0]
         # 漏写协议：域名补 https（api.day.app/KEY）；IP 或带端口的自建服务多半没证书，补 http
