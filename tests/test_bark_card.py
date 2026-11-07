@@ -108,3 +108,9 @@ def test_settings_save_normalizes_bark_url():
     r = c.post("/api/settings", headers=AUTH, json={"bark_url": " HTTP://api.day.app/abcdefghijklmnop/内容?group=x "})
     assert r.status_code == 200
     assert A.settings()["bark_url"] == "https://api.day.app/abcdefghijklmnop"
+
+
+def test_has_key_rejects_endpoint_names():
+    from bark_url import has_key
+    assert not has_key("https://api.day.app/push")
+    assert has_key("https://api.day.app/abcdefghijklmnop")
