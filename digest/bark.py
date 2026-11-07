@@ -31,7 +31,7 @@ def norm_bark_url(u: str) -> str:
     if not sp.scheme or not sp.netloc:
         return u.rstrip("/")
     seg = [x for x in sp.path.split("/") if x]
-    return f"{sp.scheme}://{sp.netloc}" + ("/" + seg[0] if seg else "")
+    return f"{sp.scheme.lower()}://{sp.netloc.lower()}" + ("/" + seg[0] if seg else "")  # 协议/域名不分大小写，统一小写（Key 区分大小写不动）
 
 
 CQ_LABEL = {"record": "[语音]", "video": "[视频]", "forward": "[卡片]", "json": "[卡片]", "xml": "[卡片]",
