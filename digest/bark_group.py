@@ -42,7 +42,7 @@ def group_label(group: str) -> str:
         group = nxt
     group = re.sub(r"[・•‧∙●]", "·", group)  # 各种中点写法统一成「·」，「计科・2201」与「计科·2201」同一个群
     group = re.sub(r"(?<=[\u4e00-\u9fff]) | (?=[\u4e00-\u9fff])", "", group)  # 汉字两侧的空格都不算区分（「计科 2201」「Python 学习群」「Python学习群」同一个群）
-    group = re.sub(r" ?([-_/·|—–~])(?: ?\1)* ?", r"\1", group)  # 分隔符：两侧空格不算区分、连写折成一个（「计科 - 2201」「计科--2201」都等于「计科-2201」）
+    group = re.sub(r" ?([-_/·|—–~+&])(?: ?\1)* ?", r"\1", group)  # 分隔符：两侧空格不算区分、连写折成一个（「计科 - 2201」「计科--2201」都等于「计科-2201」）
     group = clip(group, 30).strip(_EDGE + "!！、《》「」…")
     return _trim_brackets(group).lower() or "群报"
 
