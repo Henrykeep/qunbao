@@ -15,6 +15,9 @@ def norm_bark_url(u: str) -> str:
     u = unicodedata.normalize("NFKC", u or "").replace("。", ".")  # 中文输入法的全角 ：／．等
     u = u.strip().strip("\"'“”‘’<>《》「」").strip()  # 复制时常带引号/书名号
     u = re.sub(r"[\s\u200b-\u200f\u2060\ufeff]+", "", u)  # 微信/备忘录复制常夹换行、空格
+    m = re.search(r"https?:/{0,2}[^\s\u4e00-\u9fff]+", u, re.I) or (re.search(r"(?<![A-Za-z0-9])[A-Za-z0-9]{16,40}(?![A-Za-z0-9])", u) if re.search(r"[\u4e00-\u9fff]", u) else None)
+    if m and m.group(0) != u:  # 整句话粘进来（「我的 Key：abc…」「地址 https://… 复制自 Bark」）：只取其中的地址或 Key
+        u = m.group(0)
     u = re.sub(r"^(https?):?/{1,2}(?=[^/])", r"\1://", u, flags=re.I)  # https:/、https// 少打了斜杠或冒号
     if u and "://" not in u and "." in u.split("/")[0]:
         h = u.split("/")[0]
