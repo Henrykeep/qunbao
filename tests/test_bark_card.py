@@ -98,3 +98,13 @@ def test_group_label_cjk_latin_space():
 
 def test_group_label_dash_spaces_unified():
     assert group_label("计科 — 2201") == group_label("计科—2201")
+
+
+def test_settings_save_normalizes_bark_url():
+    from fastapi.testclient import TestClient
+    import app as A
+    from test_smoke import AUTH
+    c = TestClient(A.app)
+    r = c.post("/api/settings", headers=AUTH, json={"bark_url": " HTTP://api.day.app/abcdefghijklmnop/内容?group=x "})
+    assert r.status_code == 200
+    assert A.settings()["bark_url"] == "https://api.day.app/abcdefghijklmnop"
