@@ -44,5 +44,10 @@ def norm_bark_url(u: str) -> str:
 def has_key(u) -> bool:
     """规范化后的地址路径里要有 Key（最后一段），只有域名发不出去。"""
     from urllib.parse import urlsplit
-    seg = [x for x in urlsplit(norm_bark_url(str(u or ""))).path.split("/") if x]
-    return bool(seg) and seg[-1].lower() not in ("push", "ping", "healthz", "register")  # 接口名不是 Key
+    sp = urlsplit(norm_bark_url(str(u or "")))
+    seg = [x for x in sp.path.split("/") if x]
+    if not seg or seg[-1].lower() in ("push", "ping", "healthz", "register"):  # 接口名不是 Key
+        return False
+    if (sp.hostname or "") == "api.day.app":  # 官方服务器的 Key 是 16~40 位字母数字，写短了必定推送失败
+        return bool(re.fullmatch(r"[A-Za-z0-9]{16,40}", seg[-1]))
+    return True
