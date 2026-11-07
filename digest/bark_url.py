@@ -39,3 +39,9 @@ def norm_bark_url(u: str) -> str:
         i = next((j for j, x in enumerate(seg) if re.fullmatch(r"[A-Za-z0-9]{16,40}", x)), 0)
         seg = seg[:i + 1]
     return f"{scheme}://{host}" + ("/" + "/".join(seg) if seg else "")  # 协议/域名不分大小写，统一小写（Key 区分大小写不动）
+
+
+def has_key(u) -> bool:
+    """规范化后的地址路径里要有 Key（最后一段），只有域名发不出去。"""
+    from urllib.parse import urlsplit
+    return bool([x for x in urlsplit(norm_bark_url(str(u or ""))).path.split("/") if x])
