@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.39.203"
+VERSION = "0.39.204"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -121,6 +121,8 @@ def save_settings(new: dict):
         if k in DEFAULTS:
             s[k] = v
     s["auto_on"] = bool(s.get("auto_on"))
+    if "bark_url" in new and s.get("bark_url"):  # 存的就是清洗后的地址：设置页回显干净，发送时不必再猜
+        s["bark_url"] = bark_mod.norm_bark_url(str(s["bark_url"]))
     if s.get("default_mode") not in MODES:
         s["default_mode"] = "normal"
     s["modes"] = {k: v for k, v in (s.get("modes") or {}).items() if v in MODES and "|" in k}
