@@ -3280,3 +3280,8 @@ def test_norm_bark_url_table_idempotent():
              f"ｈｔｔｐｓ：／／api.day.app／{K}": f"https://api.day.app/{K}", "": ""}
     for s, want in cases.items():
         assert n(s) == want and n(n(s)) == want
+
+
+def test_bark_url_lowercases_host():
+    from bark import norm_bark_url
+    assert norm_bark_url("HTTPS://API.Day.App/AbCdEf1234567890") == "https://api.day.app/AbCdEf1234567890"
