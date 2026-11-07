@@ -3255,3 +3255,9 @@ def test_bark_url_missing_slash():
 def test_bark_url_strips_zero_width():
     import bark
     assert bark.norm_bark_url("https://api.day.app/\u200bAbCdEf\u200d123") == "https://api.day.app/AbCdEf123"
+
+
+def test_bark_url_extracted_from_sentence():
+    import bark
+    assert bark.norm_bark_url("我的Key：abc123def456ghi789") == "https://api.day.app/abc123def456ghi789"
+    assert bark.norm_bark_url("地址 https://api.day.app/abc123/x 复制自Bark") == "https://api.day.app/abc123"
