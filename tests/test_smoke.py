@@ -3250,3 +3250,8 @@ def test_bark_url_missing_slash():
     from bark import norm_bark_url as n
     assert n("https:/api.day.app/KEY") == "https://api.day.app/KEY"
     assert n("http//1.2.3.4:8080/K") == "http://1.2.3.4:8080/K"
+
+
+def test_bark_url_strips_zero_width():
+    import bark
+    assert bark.norm_bark_url("https://api.day.app/\u200bAbCdEf\u200d123") == "https://api.day.app/AbCdEf123"
