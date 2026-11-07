@@ -1614,6 +1614,7 @@ $("#s-qs").onchange=e=>{SET.quiet_start=+e.target.value;saveSet()};
 $("#s-qe").onchange=e=>{SET.quiet_end=+e.target.value;saveSet()};
 $("#s-remind").onchange=e=>{SET.remind_hours=+e.target.value;saveSet()};
 $("#s-bark").oninput=e=>{SET.bark_url=e.target.value.trim();saveSet()};
+$("#s-bark").onchange=async e=>{try{const {modes,...rest}=SET;rest.bark_url=e.target.value.trim();SET=await api("/api/settings",rest);e.target.value=SET.bark_url||""}catch(x){toast("保存失败："+x.message)}};
 $("#s-site").oninput=e=>{SET.site_url=e.target.value.trim();saveSet()};
 $("#s-pushat").onchange=e=>{tick();SET.push_at=e.target.checked;saveSet()};
 $("#s-keep").onchange=e=>{tick();SET.keep_days=+e.target.value;saveSet()};
