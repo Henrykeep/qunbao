@@ -29,9 +29,11 @@ def norm_bark_url(u: str) -> str:
     dk = re.search(r"device_key=([A-Za-z0-9]+)", sp.query)
     if dk and (not seg or seg[-1] == "push"):  # 粘成了 /push?device_key=KEY 这种接口地址（含子路径 /bark/push）
         seg = seg[:-1] + [dk.group(1)]
-    scheme, host = sp.scheme.lower(), sp.netloc.lower()
+    scheme = sp.scheme.lower()
+    ui, _, hp = sp.netloc.rpartition("@")  # 反代 Basic 认证 user:pass@ 区分大小写，只小写主机部分
+    host = (ui + "@" if ui else "") + hp.lower()
     host = re.sub(r":(443|80)$", lambda m: "" if (m.group(1) == "443") == (scheme == "https") else m.group(0), host)  # 默认端口多余
-    if host == "api.day.app":
+    if host.rpartition("@")[2] == "api.day.app":
         scheme = "https"  # 官方服务器只认 https，手滑写成 http 会推送失败
     if len(seg) > 1:  # 自建 Bark 挂在反代子路径下（/bark/KEY/内容）：保留前缀，到 Key 为止
         i = next((j for j, x in enumerate(seg) if re.fullmatch(r"[A-Za-z0-9]{16,40}", x)), 0)
