@@ -94,3 +94,7 @@ def test_group_label_ignores_space_between_cjk_and_digits():
 
 def test_group_label_cjk_latin_space():
     assert group_label("Python 学习群") == group_label("Python学习群")
+
+
+def test_group_label_dash_spaces_unified():
+    assert group_label("计科 — 2201") == group_label("计科—2201")
