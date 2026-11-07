@@ -138,6 +138,14 @@ from bark_copy import clip, pick_copy, _copy_link  # noqa: F401
 from bark_group import group_label, MEMBER_COUNT, LEAD_TAG  # noqa: F401  分组名规整在 bark_group.py
 
 
+def _copy_for(title: str, full_body: str, raw_body: str, link) -> str:
+    """长按可复制的内容：先归一全角数字，剔除位置类数字，再取原链接 pwd 或口令。"""
+    txt = SPLIT_DIGITS.sub(lambda m: ((m.group(1) or m.group(3)) + (m.group(2) or m.group(4))).replace(" ", "").replace("-", ""), unicodedata.normalize("NFKC", title + " " + full_body))  # 全角数字/冒号先归一，否则「１２３４５６」认不出
+    txt = ID_NUMS.sub(" ", txt)  # 寝室号/考场号等位置类数字不是口令
+    pwd = re.search(r"[?&]pwd=([A-Za-z0-9]{4,8})", raw_body or "")  # 链接在正文里已折成[链接]，pwd 参数要从原文取
+    return pwd.group(1) if pwd and not CODE_AFTER.search(txt) and not TRACK_AFTER.search(txt) else pick_copy(txt, link, title)
+
+
 def build_payload(title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> dict:
     """纯函数：把标题/正文整理成 Bark 请求体（清理、去重、级别、复制内容、点开地址）。发送与重试在 send_bark。"""
     raw_body = body
@@ -152,10 +160,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
         payload["level"] = level
     if level == "timeSensitive":
         payload.update(sound="alarm", volume=8, call="1")  # 紧急：不同铃声、拉高音量、循环响铃
-    txt = SPLIT_DIGITS.sub(lambda m: ((m.group(1) or m.group(3)) + (m.group(2) or m.group(4))).replace(" ", "").replace("-", ""), unicodedata.normalize("NFKC", title + " " + full_body))  # 全角数字/冒号先归一，否则「１２３４５６」认不出
-    txt = ID_NUMS.sub(" ", txt)  # 寝室号/考场号等位置类数字不是口令
-    pwd = re.search(r"[?&]pwd=([A-Za-z0-9]{4,8})", raw_body or "")  # 链接在正文里已折成[链接]，pwd 参数要从原文取
-    payload["copy"] = pwd.group(1) if pwd and not CODE_AFTER.search(txt) and not TRACK_AFTER.search(txt) else pick_copy(txt, link, title)  # 不开 autoCopy，用户长按复制
+    payload["copy"] = _copy_for(title, full_body, raw_body, link)  # 不开 autoCopy，用户长按复制
     if badge >= 0:
         payload["badge"] = badge  # 角标 = 未完成待办数
     if site_url:
