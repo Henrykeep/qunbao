@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION = "0.39.212"
+VERSION = "0.39.213"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -2515,6 +2515,8 @@ async def push_test(req: Request):
         return {"ok": True, "sent": n}
     if not settings().get("bark_url"):
         raise HTTPException(400, "先填 Bark 推送地址")
+    if not bark_mod.has_key(settings().get("bark_url")):
+        raise HTTPException(400, "Bark 地址里没有设备 Key：打开 Bark App，复制首页示例里的整条地址")
     ok = await push("群报", "推送通了。之后有人 @你 或说到关键词，会第一时间提醒你。", force=True, test=True, web=False)
     if not ok:
         raise HTTPException(502, "推送失败：" + (bark_mod.LAST_ERR or "检查 Bark 地址是否正确"))
