@@ -36,7 +36,7 @@ def group_label(group: str) -> str:
         group = nxt
     while (nxt := MEMBER_COUNT.sub("", group).strip()) != group:  # 尾部可能叠两层（「群名(358)【在线12】」），剥到不变为止
         group = nxt
-    group = re.sub(r"(?<=[\u4e00-\u9fff\d]) (?=[\u4e00-\u9fff])|(?<=[\u4e00-\u9fff]) (?=\d)", "", group)  # 「计科 2201」「计科2201」同一个群，空格不能拆组
+    group = re.sub(r"(?<=[\u4e00-\u9fff]) | (?=[\u4e00-\u9fff])", "", group)  # 汉字两侧的空格都不算区分（「计科 2201」「Python 学习群」「Python学习群」同一个群）
     group = clip(group, 30).strip(" -_.,，。·|~—–:：;；!！、《》「」…")
     return _trim_brackets(group).lower() or "群报"
 
