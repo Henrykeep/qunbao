@@ -3267,3 +3267,16 @@ def test_bark_url_trailing_punct():
     from bark import norm_bark_url
     assert norm_bark_url("https://api.day.app/abcdefghij1234567890。") == "https://api.day.app/abcdefghij1234567890"
     assert norm_bark_url("api.day.app/abcdefghij1234567890!") == "https://api.day.app/abcdefghij1234567890"
+
+
+def test_norm_bark_url_table_idempotent():
+    import sys; sys.path.insert(0, "digest")
+    from bark import norm_bark_url as n
+    K = "abcdEFGH12345678xyz"
+    cases = {f"https://api.day.app/{K}/标题/内容?group=x": f"https://api.day.app/{K}",
+             f"我的 Key：{K}。": f"https://api.day.app/{K}",
+             f"api.day.app/{K}": f"https://api.day.app/{K}",
+             f"1.2.3.4:8080/{K}": f"http://1.2.3.4:8080/{K}",
+             f"ｈｔｔｐｓ：／／api.day.app／{K}": f"https://api.day.app/{K}", "": ""}
+    for s, want in cases.items():
+        assert n(s) == want and n(n(s)) == want
