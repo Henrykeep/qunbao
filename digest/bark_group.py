@@ -27,6 +27,10 @@ MEMBER_COUNT = re.compile(rf"\s*(?:{_OPEN}\s*(?:{_COUNT}|{_BR_WORDS})\s*{_CLOSE}
 LEAD_TAG = re.compile(rf"^(?:{_OPEN}\s*(?:{_BR_WORDS}|{_COUNT})\s*{_CLOSE}|(?:{_TAG_WORDS}|(?:共|在线|未读|unread|online)\s*\d{{1,5}}\s*(?:人|名|条)?|\d{{1,5}}\s*(?:人|名|条|members?|unread))\s*[-|·_—–/:：]\s*(?=\S))\s*", re.I)  # 开头「免打扰 - 群名」也剥
 
 
+_EDGE = " -_.,，。·|~—–:：;；"  # 首尾要剥的标点，两处共用
+_PAIRS = {"(": ")", "[": "]", "【": "】", "〔": "〕", "「": "」", "《": "》"}  # NFKC 后（）已是()
+
+
 @lru_cache(maxsize=512)  # 同一个群每条推送都算一遍，结果只取决于群名，缓存即可
 def group_label(group: str) -> str:
     """锁屏分组名：去标记、全角转半角、并空白、截 30 字、去首尾标点、英文统一小写，空了回退「群报」。"""
@@ -41,10 +45,6 @@ def group_label(group: str) -> str:
     group = re.sub(r" ?([-_/·|—–~])(?: ?\1)* ?", r"\1", group)  # 分隔符：两侧空格不算区分、连写折成一个（「计科 - 2201」「计科--2201」都等于「计科-2201」）
     group = clip(group, 30).strip(_EDGE + "!！、《》「」…")
     return _trim_brackets(group).lower() or "群报"
-
-
-_EDGE = " -_.,，。·|~—–:：;；"  # 首尾要剥的标点，两处共用
-_PAIRS = {"(": ")", "[": "]", "【": "】", "〔": "〕", "「": "」", "《": "》"}  # NFKC 后（）已是()
 
 
 def _trim_brackets(g: str) -> str:
