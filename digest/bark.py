@@ -36,6 +36,7 @@ def norm_bark_url(u: str) -> str:
     if dk and (not seg or seg[-1] == "push"):  # 粘成了 /push?device_key=KEY 这种接口地址（含子路径 /bark/push）
         seg = seg[:-1] + [dk.group(1)]
     scheme, host = sp.scheme.lower(), sp.netloc.lower()
+    host = re.sub(r":(443|80)$", lambda m: "" if (m.group(1) == "443") == (scheme == "https") else m.group(0), host)  # 默认端口多余
     if host == "api.day.app":
         scheme = "https"  # 官方服务器只认 https，手滑写成 http 会推送失败
     if len(seg) > 1:  # 自建 Bark 挂在反代子路径下（/bark/KEY/内容）：保留前缀，到 Key 为止
