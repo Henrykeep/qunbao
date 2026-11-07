@@ -32,8 +32,8 @@ def norm_bark_url(u: str) -> str:
         return u.rstrip("/")
     seg = [x for x in sp.path.split("/") if x]
     dk = re.search(r"device_key=([A-Za-z0-9]+)", sp.query)
-    if dk and (not seg or seg[0] == "push"):  # 粘成了 /push?device_key=KEY 这种接口地址
-        seg = [dk.group(1)]
+    if dk and (not seg or seg[-1] == "push"):  # 粘成了 /push?device_key=KEY 这种接口地址（含子路径 /bark/push）
+        seg = seg[:-1] + [dk.group(1)]
     scheme, host = sp.scheme.lower(), sp.netloc.lower()
     if host == "api.day.app":
         scheme = "https"  # 官方服务器只认 https，手滑写成 http 会推送失败
