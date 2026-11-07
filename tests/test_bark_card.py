@@ -89,4 +89,8 @@ def test_group_label_strips_english_at_all_tag():
 def test_group_label_ignores_space_between_cjk_and_digits():
     from bark_group import group_label
     assert group_label("计科 2201 班") == group_label("计科2201班")
-    assert group_label("Python 学习") == "python 学习"
+    assert group_label("Python 学习") == "python学习"
+
+
+def test_group_label_cjk_latin_space():
+    assert group_label("Python 学习群") == group_label("Python学习群")
