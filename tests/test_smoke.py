@@ -3226,3 +3226,9 @@ def test_group_label_keeps_tag_words_not_placeholder():
 def test_group_label_none_falls_back():
     import bark_group
     assert bark_group.group_label(None) == "群报"
+
+
+def test_group_label_collapses_repeated_separators():
+    from bark_group import group_label
+    assert group_label("计科--2201") == group_label("计科-2201")
+    assert group_label("计科——2201") == group_label("计科—2201")
