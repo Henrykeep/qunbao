@@ -9,40 +9,7 @@ import unicodedata
 import httpx
 
 
-def norm_bark_url(u: str) -> str:
-    """用户常把 Bark App 里的示例整条粘进来（…/KEY/内容?group=x），只留 服务器/KEY。"""
-    from urllib.parse import urlsplit
-    u = unicodedata.normalize("NFKC", u or "").replace("。", ".")  # 中文输入法的全角 ：／．等
-    u = u.strip().strip("\"'“”‘’<>《》「」").strip()  # 复制时常带引号/书名号
-    u = re.sub(r"[\s\u200b-\u200f\u2060\ufeff]+", "", u)  # 微信/备忘录复制常夹换行、空格
-    m = re.search(r"https?:/{0,2}[^\s\u4e00-\u9fff]+", u, re.I) or (re.search(r"(?<![A-Za-z0-9])[A-Za-z0-9]{16,40}(?![A-Za-z0-9])", u) if re.search(r"[\u4e00-\u9fff]", u) else None)
-    if m and m.group(0) != u:  # 整句话粘进来（「我的 Key：abc…」「地址 https://… 复制自 Bark」）：只取其中的地址或 Key
-        u = m.group(0)
-    u = u.rstrip(".,;:!?)]}、")  # 句末标点（。，！）不属于地址/Key
-    u = re.sub(r"^(https?):?/{1,2}(?=[^/])", r"\1://", u, flags=re.I)  # https:/、https// 少打了斜杠或冒号
-    if u and "://" not in u and "." in u.split("/")[0]:
-        h = u.split("/")[0]
-        # 漏写协议：域名补 https（api.day.app/KEY）；IP 或带端口的自建服务多半没证书，补 http
-        selfhost = ":" in h or re.fullmatch(r"[\d.]+", h)
-        u = ("http://" if selfhost else "https://") + u
-    u = re.sub(r"^bark:/{0,2}(?=[A-Za-z0-9])", "https://api.day.app/", u, flags=re.I)  # bark://KEY 深链：同官方服务器
-    if re.fullmatch(r"[A-Za-z0-9]{16,40}", u):  # 只粘了设备 Key：默认官方服务器
-        u = "https://api.day.app/" + u
-    sp = urlsplit(u)
-    if not sp.scheme or not sp.netloc:
-        return u.rstrip("/")
-    seg = [x for x in sp.path.split("/") if x]
-    dk = re.search(r"device_key=([A-Za-z0-9]+)", sp.query)
-    if dk and (not seg or seg[-1] == "push"):  # 粘成了 /push?device_key=KEY 这种接口地址（含子路径 /bark/push）
-        seg = seg[:-1] + [dk.group(1)]
-    scheme, host = sp.scheme.lower(), sp.netloc.lower()
-    host = re.sub(r":(443|80)$", lambda m: "" if (m.group(1) == "443") == (scheme == "https") else m.group(0), host)  # 默认端口多余
-    if host == "api.day.app":
-        scheme = "https"  # 官方服务器只认 https，手滑写成 http 会推送失败
-    if len(seg) > 1:  # 自建 Bark 挂在反代子路径下（/bark/KEY/内容）：保留前缀，到 Key 为止
-        i = next((j for j, x in enumerate(seg) if re.fullmatch(r"[A-Za-z0-9]{16,40}", x)), 0)
-        seg = seg[:i + 1]
-    return f"{scheme}://{host}" + ("/" + "/".join(seg) if seg else "")  # 协议/域名不分大小写，统一小写（Key 区分大小写不动）
+from bark_url import norm_bark_url  # noqa: F401  地址清洗在 bark_url.py
 
 
 CQ_LABEL = {"record": "[语音]", "video": "[视频]", "forward": "[卡片]", "json": "[卡片]", "xml": "[卡片]",
