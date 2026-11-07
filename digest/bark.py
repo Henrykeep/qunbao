@@ -9,7 +9,7 @@ import unicodedata
 import httpx
 
 
-from bark_url import norm_bark_url  # noqa: F401  地址清洗在 bark_url.py
+from bark_url import norm_bark_url, has_key  # noqa: F401  地址清洗在 bark_url.py
 
 
 CQ_LABEL = {"record": "[语音]", "video": "[视频]", "forward": "[卡片]", "json": "[卡片]", "xml": "[卡片]",
