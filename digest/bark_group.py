@@ -39,10 +39,11 @@ def group_label(group: str) -> str:
     group = re.sub(r"[・•‧∙●]", "·", group)  # 各种中点写法统一成「·」，「计科・2201」与「计科·2201」同一个群
     group = re.sub(r"(?<=[\u4e00-\u9fff]) | (?=[\u4e00-\u9fff])", "", group)  # 汉字两侧的空格都不算区分（「计科 2201」「Python 学习群」「Python学习群」同一个群）
     group = re.sub(r" ?([-_/·|—–~])(?: ?\1)* ?", r"\1", group)  # 分隔符：两侧空格不算区分、连写折成一个（「计科 - 2201」「计科--2201」都等于「计科-2201」）
-    group = clip(group, 30).strip(" -_.,，。·|~—–:：;；!！、《》「」…")
+    group = clip(group, 30).strip(_EDGE + "!！、《》「」…")
     return _trim_brackets(group).lower() or "群报"
 
 
+_EDGE = " -_.,，。·|~—–:：;；"  # 首尾要剥的标点，两处共用
 _PAIRS = {"(": ")", "[": "]", "【": "】", "〔": "〕", "「": "」", "《": "》"}  # NFKC 后（）已是()
 
 
@@ -50,9 +51,9 @@ def _trim_brackets(g: str) -> str:
     """只去掉没有配对的首尾括号（截断或剥标注留下的残片）；成对的「【通知】群名」「群名(官方群)」原样保留。"""
     closers = set(_PAIRS.values())
     while g and g[-1] in _PAIRS:  # 结尾孤立的开括号
-        g = g[:-1].rstrip(" -_.,，。·|~—–:：;；")
+        g = g[:-1].rstrip(_EDGE)
     while g and g[0] in closers:  # 开头孤立的闭括号
-        g = g[1:].lstrip(" -_.,，。·|~—–:：;；")
+        g = g[1:].lstrip(_EDGE)
     for o, c in _PAIRS.items():
         if g.count(o) < g.count(c):
             g = g.replace(c, "", g.count(c) - g.count(o)) if g.startswith(c) or g.endswith(c) else g
