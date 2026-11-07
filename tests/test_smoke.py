@@ -3232,3 +3232,9 @@ def test_group_label_collapses_repeated_separators():
     from bark_group import group_label
     assert group_label("计科--2201") == group_label("计科-2201")
     assert group_label("计科——2201") == group_label("计科—2201")
+
+
+def test_group_label_plus_amp_spacing():
+    from bark_group import group_label
+    assert group_label("计科 + 软工") == group_label("计科+软工")
+    assert group_label("A & B") == group_label("A&B")
