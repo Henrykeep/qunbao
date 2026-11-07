@@ -3292,3 +3292,10 @@ def test_bark_url_push_endpoint_under_subpath():
     from bark import norm_bark_url
     assert norm_bark_url("https://x.com/bark/push?device_key=ABCDEFGHIJKLMNOP") == "https://x.com/bark/ABCDEFGHIJKLMNOP"
     assert norm_bark_url("https://api.day.app/push?device_key=ABCDEFGHIJKLMNOP") == "https://api.day.app/ABCDEFGHIJKLMNOP"
+
+
+def test_bark_url_default_port_dropped():
+    import bark
+    assert bark.norm_bark_url("https://api.day.app:443/abcdefghij1234567") == "https://api.day.app/abcdefghij1234567"
+    assert bark.norm_bark_url("http://1.2.3.4:80/abcdefghij1234567") == "http://1.2.3.4/abcdefghij1234567"
+    assert bark.norm_bark_url("http://1.2.3.4:8080/abcdefghij1234567") == "http://1.2.3.4:8080/abcdefghij1234567"
