@@ -3285,3 +3285,9 @@ def test_norm_bark_url_table_idempotent():
 def test_bark_url_lowercases_host():
     from bark import norm_bark_url
     assert norm_bark_url("HTTPS://API.Day.App/AbCdEf1234567890") == "https://api.day.app/AbCdEf1234567890"
+
+
+def test_bark_url_push_endpoint_under_subpath():
+    from bark import norm_bark_url
+    assert norm_bark_url("https://x.com/bark/push?device_key=ABCDEFGHIJKLMNOP") == "https://x.com/bark/ABCDEFGHIJKLMNOP"
+    assert norm_bark_url("https://api.day.app/push?device_key=ABCDEFGHIJKLMNOP") == "https://api.day.app/ABCDEFGHIJKLMNOP"
