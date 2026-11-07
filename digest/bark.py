@@ -14,7 +14,7 @@ def norm_bark_url(u: str) -> str:
     from urllib.parse import urlsplit
     u = unicodedata.normalize("NFKC", u or "").replace("。", ".")  # 中文输入法的全角 ：／．等
     u = u.strip().strip("\"'“”‘’<>《》「」").strip()  # 复制时常带引号/书名号
-    u = re.sub(r"\s+", "", u)  # 微信/备忘录复制常夹换行、空格
+    u = re.sub(r"[\s\u200b-\u200f\u2060\ufeff]+", "", u)  # 微信/备忘录复制常夹换行、空格
     u = re.sub(r"^(https?):?/{1,2}(?=[^/])", r"\1://", u, flags=re.I)  # https:/、https// 少打了斜杠或冒号
     if u and "://" not in u and "." in u.split("/")[0]:
         h = u.split("/")[0]
