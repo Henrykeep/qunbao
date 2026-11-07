@@ -3299,3 +3299,9 @@ def test_bark_url_default_port_dropped():
     assert bark.norm_bark_url("https://api.day.app:443/abcdefghij1234567") == "https://api.day.app/abcdefghij1234567"
     assert bark.norm_bark_url("http://1.2.3.4:80/abcdefghij1234567") == "http://1.2.3.4/abcdefghij1234567"
     assert bark.norm_bark_url("http://1.2.3.4:8080/abcdefghij1234567") == "http://1.2.3.4:8080/abcdefghij1234567"
+
+
+def test_bark_has_key():
+    import bark_url
+    assert not bark_url.has_key("https://api.day.app")
+    assert bark_url.has_key("https://api.day.app/abcdEFGH1234abcd")
