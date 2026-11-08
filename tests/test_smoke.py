@@ -3316,3 +3316,9 @@ def test_bark_url_percent_space():
 def test_bark_url_drops_fragment():
     from bark_url import norm_bark_url
     assert norm_bark_url("https://api.day.app/abcdefghijklmnop1234#top") == "https://api.day.app/abcdefghijklmnop1234"
+
+
+def test_bark_url_space_and_www():
+    from bark_url import norm_bark_url as n
+    assert n("api.day.app abcdEFGH1234567890xy") == "https://api.day.app/abcdEFGH1234567890xy"
+    assert n("www.api.day.app/abcdEFGH1234567890xy") == "https://api.day.app/abcdEFGH1234567890xy"
