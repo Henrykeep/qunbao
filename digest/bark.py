@@ -273,8 +273,8 @@ def net_err_text(ex: Exception) -> str:
     return f"连不上 Bark 服务器（{type(ex).__name__}）" + hint
 
 
-async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "", dedupe: bool = True) -> bool:
-    """发一条 Bark。level：timeSensitive / active / passive。"""
+async def send_bark(burl: str, title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "", dedupe: bool = True, once: bool = False) -> bool:
+    """发一条 Bark。level：timeSensitive / active / passive。once=True（测试按钮）只试一次：地址填错时秒回原因，不让人干等重试。"""
     global LAST_ERR
     LAST_ERR = ""
     burl = norm_bark_url(burl)
@@ -291,6 +291,8 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
     async with httpx.AsyncClient(timeout=httpx.Timeout(8, connect=4)) as cl:  # 三次共用一个连接；连不上 4 秒就重试，不干等 8 秒
         wait = 0.0
         tries, step = retry_plan(level)
+        if once:
+            tries = 1
         i, shrunk, shrinks = -1, False, 0
         while i < tries - 1 or shrunk:  # 压短重发不占重试次数，最后一次遇到过大也能再送一次
             i += 1 if not shrunk else 0
