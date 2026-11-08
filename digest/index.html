@@ -743,7 +743,8 @@ const W="日一二三四五六";
 function setDate(){const n=new Date();$("#today").textContent=`${n.getMonth()+1}月${n.getDate()}日`;$("#week").textContent=`星期${W[n.getDay()]}`}
 setDate();
 const greet=()=>{const hr=new Date().getHours();return hr<5?"夜深了":hr<11?"早上好":hr<13?"中午好":hr<18?"下午好":"晚上好"};
-const toast=t=>{const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove("on"),2300)};
+const toast=(t,undo)=>{const e=$("#toast");e.textContent=undo?t+" · 点此撤销":t;e._u=undo||null;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>{e.classList.remove("on");e._u=null},undo?4500:2300)};
+$("#toast").onclick=function(){const u=this._u;if(u){this._u=null;this.classList.remove("on");u()}};
 const pad=n=>String(n).padStart(2,"0");
 const hm=d=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const sameDay=(a,b)=>a.toDateString()===b.toDateString();
@@ -960,13 +961,15 @@ function bindHome(m){
 function bindTodo(el,m){
   const T=m.todos[+el.dataset.i]||{},who={key:el.dataset.k,title:T.title||"",chat:T.chat||"",due:T.due||""};
   const fail=()=>toast("没保存上，网络不太好");
-  el.querySelector(".check").onclick=()=>{
+  const chk=el.querySelector(".check");
+  chk.onclick=()=>{
     const on=!el.classList.contains("done");el.classList.toggle("done",on);el.classList.remove("open");el.querySelector(".snzmenu")?.remove();
     T.done=on;tick();updateProg();
     setTimeout(()=>sortTodos(true),on?420:0);
     if(on)swapHead(T,m.todos.filter(x=>x!==T&&!m.isDone(x)));
     api("/api/todo",{...who,done:on}).then(r=>{if(r&&r.headline){const hd=$("#main .headline");if(hd)hd.textContent=r.headline;if(ST&&ST.digest)ST.digest.headline=r.headline}
       forceQuiet()}).catch(fail);
+    if(on)toast("已完成",()=>chk.onclick());
   };
   el.querySelector(".tbody").addEventListener("click",e=>{if(e.target.closest(".acts2,.snzmenu"))return;
     const on=!el.classList.contains("open");el.classList.toggle("open",on);
