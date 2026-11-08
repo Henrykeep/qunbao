@@ -3322,3 +3322,19 @@ def test_bark_url_space_and_www():
     from bark_url import norm_bark_url as n
     assert n("api.day.app abcdEFGH1234567890xy") == "https://api.day.app/abcdEFGH1234567890xy"
     assert n("www.api.day.app/abcdEFGH1234567890xy") == "https://api.day.app/abcdEFGH1234567890xy"
+
+
+def test_bark_test_push_tries_once(monkeypatch):
+    import asyncio, httpx, bark
+    calls = []
+
+    class C:
+        def __init__(self, *a, **k): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): pass
+        async def post(self, *a, **k):
+            calls.append(1)
+            raise httpx.ConnectTimeout("")
+    monkeypatch.setattr(bark.httpx, "AsyncClient", C)
+    assert not asyncio.run(bark.send_bark("https://api.day.app/abcdefghijk", "t", "b", dedupe=False, once=True))
+    assert len(calls) == 1
