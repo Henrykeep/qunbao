@@ -1634,7 +1634,7 @@ function isStd(){return !!(navigator.standalone||matchMedia("(display-mode: stan
 const WP={key:null,sub:null,n:0,busy:false,ready:false};
 const u8=b=>{const s=atob((b+"=".repeat((4-b.length%4)%4)).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from(s,c=>c.charCodeAt(0))};
 const swReady=()=>Promise.race([navigator.serviceWorker.ready,new Promise((_,j)=>setTimeout(()=>j(new Error("后台服务没准备好，稍后再试")),8000))]);
-function setBadge(n){if(navigator.setAppBadge)(n>0?navigator.setAppBadge(n):navigator.clearAppBadge()).catch(()=>{})}
+function setBadge(n){document.title=(n>0?'('+n+') ':'')+'群报';if(navigator.setAppBadge)(n>0?navigator.setAppBadge(n):navigator.clearAppBadge()).catch(()=>{})}
 function wpState(){
   if(!window.isSecureContext)return"insecure";
   if(isIOS&&!isStd())return"iosweb";
