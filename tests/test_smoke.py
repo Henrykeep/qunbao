@@ -3338,3 +3338,9 @@ def test_bark_test_push_tries_once(monkeypatch):
     monkeypatch.setattr(bark.httpx, "AsyncClient", C)
     assert not asyncio.run(bark.send_bark("https://api.day.app/abcdefghijk", "t", "b", dedupe=False, once=True))
     assert len(calls) == 1
+
+
+def test_bark_net_err_bad_url_hint():
+    import httpx
+    from digest import bark
+    assert "地址格式" in bark.net_err_text(httpx.UnsupportedProtocol("no scheme"))
