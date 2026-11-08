@@ -3305,3 +3305,9 @@ def test_bark_has_key():
     import bark_url
     assert not bark_url.has_key("https://api.day.app")
     assert bark_url.has_key("https://api.day.app/abcdEFGH1234abcd")
+
+
+def test_bark_url_percent_space():
+    import sys; sys.path.insert(0, "digest")
+    from bark_url import norm_bark_url
+    assert norm_bark_url("https://api.day.app/abcdefghij1234567890%20") == "https://api.day.app/abcdefghij1234567890"
