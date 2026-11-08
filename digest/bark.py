@@ -259,6 +259,7 @@ NET_ERR_HINTS = (
     (httpx.ReadTimeout, (), "，已连上但对方响应太慢，会自动重试"),
     (httpx.TimeoutException, (), "，连接超时，会自动重试"),
     (httpx.ReadError, (), "，连接被对方重置（Connection reset），多为防火墙拦截，会自动重试"),
+    ((httpx.UnsupportedProtocol, httpx.InvalidURL), (), "，Bark 地址格式不对，应形如 https://api.day.app/你的Key，到设置里重新粘贴"),
     (httpx.ProxyError, (), "，经代理连接失败，检查服务器 HTTP(S)_PROXY 设置"),
     (httpx.WriteError, (), "，发送数据时连接断开，会自动重试"),
     (httpx.RemoteProtocolError, (), "，对方中途断开连接（常见于被网关/防火墙重置），会自动重试"),
