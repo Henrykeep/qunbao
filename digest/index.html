@@ -743,8 +743,8 @@ const W="日一二三四五六";
 function setDate(){const n=new Date();$("#today").textContent=`${n.getMonth()+1}月${n.getDate()}日`;$("#week").textContent=`星期${W[n.getDay()]}`}
 setDate();
 const greet=()=>{const hr=new Date().getHours();return hr<5?"夜深了":hr<11?"早上好":hr<13?"中午好":hr<18?"下午好":"晚上好"};
-const toast=(t,undo)=>{const e=$("#toast");e.textContent=undo?t+" · 点此撤销":t;e._u=undo||null;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>{e.classList.remove("on");e._u=null},undo?6000:2300)};
-$("#toast").onclick=function(){const u=this._u;if(u){this._u=null;this.classList.remove("on");u()}};
+const toast=(t,undo)=>{const e=$("#toast");e.textContent=undo?t+" · 点此撤销":t;e._u=undo||null;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>{e.classList.remove("on");e._u=null},undo?6000:Math.min(6000,2300+t.length*120))};
+$("#toast").onclick=function(){const u=this._u;this._u=null;this.classList.remove("on");if(u)u()};
 const pad=n=>String(n).padStart(2,"0");
 const hm=d=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const sameDay=(a,b)=>a.toDateString()===b.toDateString();
