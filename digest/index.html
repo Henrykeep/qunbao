@@ -744,7 +744,7 @@ function setDate(){const n=new Date();$("#today").textContent=`${n.getMonth()+1}
 setDate();
 const greet=()=>{const hr=new Date().getHours();return hr<5?"夜深了":hr<11?"早上好":hr<13?"中午好":hr<18?"下午好":"晚上好"};
 const toast=(t,undo)=>{const e=$("#toast");e.textContent=undo?t+" · 点此撤销":t;e._u=undo||null;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>{e.classList.remove("on");e._u=null},undo?6000:Math.min(6000,2300+t.length*120))};
-addEventListener("keydown",e=>{if(e.key==="Escape"){const t=$("#toast");t._u=null;t.classList.remove("on")}});
+addEventListener("keydown",e=>{if(e.key==="/"&&!e.metaKey&&!e.ctrlKey&&!/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)){e.preventDefault();go("msgs");const i=$("#sq");if(i)i.focus();return}if(e.key==="Escape"){const t=$("#toast");t._u=null;t.classList.remove("on")}});
 $("#toast").onclick=function(){const u=this._u;this._u=null;this.classList.remove("on");if(u)u()};
 const pad=n=>String(n).padStart(2,"0");
 const hm=d=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;
