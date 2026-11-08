@@ -7,6 +7,9 @@ def norm_bark_url(u: str) -> str:
     """用户常把 Bark App 里的示例整条粘进来（…/KEY/内容?group=x），只留 服务器/KEY。"""
     from urllib.parse import urlsplit
     u = unicodedata.normalize("NFKC", u or "").replace("。", ".")  # 中文输入法的全角 ：／．等
+    if re.search(r"%(20|0a|0d|09)", u, re.I):  # 从网页/聊天复制出的地址带 %20 等转义空白：先还原再清掉
+        from urllib.parse import unquote
+        u = unquote(u)
     u = u.strip().strip("\"'“”‘’<>《》「」").strip()  # 复制时常带引号/书名号
     u = re.sub(r"[\s\u200b-\u200f\u2060\ufeff]+", "", u)  # 微信/备忘录复制常夹换行、空格
     m = re.search(r"https?:/{0,2}[^\s\u4e00-\u9fff]+", u, re.I) or (re.search(r"(?<![A-Za-z0-9])[A-Za-z0-9]{16,40}(?![A-Za-z0-9])", u) if re.search(r"[\u4e00-\u9fff]", u) else None)
