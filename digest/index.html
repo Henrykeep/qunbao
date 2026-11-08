@@ -731,7 +731,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
   </div>
 </div>
 <div class="offbar" id="offbar" hidden>网络已断开，正在显示上次缓存的内容</div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 function callsText(st){const t=+st.llm_tokens||0;return `${st.llm_calls||0} 次`+(t?` · ${t>=1e4?(t/1e4).toFixed(1)+" 万":t} token`:"")}
@@ -743,7 +743,7 @@ const W="日一二三四五六";
 function setDate(){const n=new Date();$("#today").textContent=`${n.getMonth()+1}月${n.getDate()}日`;$("#week").textContent=`星期${W[n.getDay()]}`}
 setDate();
 const greet=()=>{const hr=new Date().getHours();return hr<5?"夜深了":hr<11?"早上好":hr<13?"中午好":hr<18?"下午好":"晚上好"};
-const toast=(t,undo)=>{const e=$("#toast");e.textContent=undo?t+" · 点此撤销":t;e._u=undo||null;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>{e.classList.remove("on");e._u=null},undo?4500:2300)};
+const toast=(t,undo)=>{const e=$("#toast");e.textContent=undo?t+" · 点此撤销":t;e._u=undo||null;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>{e.classList.remove("on");e._u=null},undo?6000:2300)};
 $("#toast").onclick=function(){const u=this._u;if(u){this._u=null;this.classList.remove("on");u()}};
 const pad=n=>String(n).padStart(2,"0");
 const hm=d=>`${pad(d.getHours())}:${pad(d.getMinutes())}`;
