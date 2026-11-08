@@ -26,6 +26,7 @@ def norm_bark_url(u: str) -> str:
     u = re.sub(r"^bark:/{0,2}(?=[A-Za-z0-9])", "https://api.day.app/", u, flags=re.I)  # bark://KEY 深链：同官方服务器
     if re.fullmatch(r"[A-Za-z0-9]{16,40}", u):  # 只粘了设备 Key：默认官方服务器
         u = "https://api.day.app/" + u
+    u = u.split("#", 1)[0]  # 锚点 #xxx 不属于地址
     sp = urlsplit(u)
     if not sp.scheme or not sp.netloc:
         return u.rstrip("/")
