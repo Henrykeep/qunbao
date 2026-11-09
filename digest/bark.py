@@ -152,7 +152,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
         payload["badge"] = min(badge, 999)  # 角标上限 999，积压再多也不让桌面图标显示一长串； 角标 = 未完成待办数
     if site_url:
         site = site_url.rstrip("/")
-        payload["url"] = site + (path if path.startswith("/") and path != "/" else "/")  # 路径缺斜杠也不拼错
+        payload["url"] = site + ("/" + path.lstrip("/") if path.strip("/") else "/")  # 路径缺斜杠补上，不再悄悄丢成首页
         payload["icon"] = site + "/icon.png"
     return payload
 
