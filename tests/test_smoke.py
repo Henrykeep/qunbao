@@ -3344,3 +3344,10 @@ def test_bark_net_err_bad_url_hint():
     import httpx
     from digest import bark
     assert "地址格式" in bark.net_err_text(httpx.UnsupportedProtocol("no scheme"))
+
+
+def test_bark_long_title_keeps_body():
+    import bark
+    t = "通知" + "很长的标题" * 14
+    p = bark.build_payload(t, t + "：明天下午三点开会")
+    assert p["body"].startswith(t[:20]) and "开会" in p["body"]
