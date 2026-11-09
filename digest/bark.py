@@ -152,7 +152,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
         payload["badge"] = badge  # 角标 = 未完成待办数
     if site_url:
         site = site_url.rstrip("/")
-        payload["url"] = site + path if path != "/" else site_url
+        payload["url"] = site + (path if path.startswith("/") and path != "/" else "/")  # 路径缺斜杠也不拼错
         payload["icon"] = site + "/icon.png"
     return payload
 
