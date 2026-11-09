@@ -747,9 +747,10 @@ const toast=(t,undo)=>{const e=$("#toast");e.textContent=undo?t+" · 点此撤�
 /* 键盘快捷键：一张表管理；输入框内只响应 / 和 Esc */
 const typing=()=>{const a=document.activeElement;return /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable};
 const TABS=["home","msgs","set"],tabStep=d=>go(TABS[(TABS.indexOf(curView)+d+3)%3]);
-const KEYHELP=["快捷键：1今日 2原文 3设置","[ ] 切页","/ 搜索","a 问群报","j/k 翻页","t/b 顶/底","r 刷新","Esc 回今日","Backspace 返回","其余常见键（方向键、空格、Home/End 等）也可用"].join("　");
+const KEYHELP=["快捷键：1今日 2原文 3设置","[ ] 切页","/ 搜索","a 问群报","j/k 翻页","t/b 顶/底","r 或 . 刷新","Esc 回今日","Backspace 返回","其余常见键（方向键、空格、Home/End 等）也可用"].join("　");
 const SCR=f=>()=>scrollBy({top:innerHeight*f,behavior:RPT?"auto":"smooth"});let RPT=false;
-const KEYS={1:()=>go(TABS[0]),2:()=>go(TABS[1]),3:()=>go(TABS[2]),p:()=>tabStep(-1),n:()=>tabStep(1),t:()=>scrollTo({top:0,behavior:"smooth"}),b:()=>scrollTo({top:document.documentElement.scrollHeight,behavior:"smooth"}),j:SCR(.8),k:SCR(-.8),d:SCR(.4),u:SCR(-.4),"?":()=>toast(KEYHELP),F1:()=>toast(KEYHELP),r:()=>{curView==="msgs"?loadChats():curView==="set"?loadSettings():load();toast("已刷新")},g:()=>{go(TABS[0]);KEYS.t()},Backspace:()=>{if(NAV.length)history.back()},"/":()=>{go("msgs");const i=$("#sq");if(i)i.focus()},a:()=>{go(TABS[0]);const i=$("#q");if(i)i.focus()}};
+const REFRESH=()=>{curView==="msgs"?loadChats():curView==="set"?loadSettings():load();toast("已刷新")};
+const KEYS={1:()=>go(TABS[0]),2:()=>go(TABS[1]),3:()=>go(TABS[2]),p:()=>tabStep(-1),n:()=>tabStep(1),t:()=>scrollTo({top:0,behavior:"smooth"}),b:()=>scrollTo({top:document.documentElement.scrollHeight,behavior:"smooth"}),j:SCR(.8),k:SCR(-.8),d:SCR(.4),u:SCR(-.4),"?":()=>toast(KEYHELP),F1:()=>toast(KEYHELP),r:REFRESH,".":REFRESH,g:()=>{go(TABS[0]);KEYS.t()},Backspace:()=>{if(NAV.length)history.back()},"/":()=>{go("msgs");const i=$("#sq");if(i)i.focus()},a:()=>{go(TABS[0]);const i=$("#q");if(i)i.focus()}};
 /* 别名表：同一动作的多个按键只在此登记，不再各写一个函数 */
 for(const[t,ks]of Object.entries({g:"0`",2:"mov",3:",ec",p:["[","<","-","h","ArrowLeft"],n:["]",">","=","l","ArrowRight"],t:["Home","^"],b:["End","$"],j:[" ","PageDown","ArrowDown"],k:["PageUp","ArrowUp","w"],"/":"sfq",a:"i",Backspace:["x","z","Delete"],r:["."]}))for(const k of ks)KEYS[k===" "?"Space":k]=KEYS[t];
 
