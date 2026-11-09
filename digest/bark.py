@@ -149,7 +149,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
         payload.update(sound="alarm", volume=8, call="1")  # 紧急：不同铃声、拉高音量、循环响铃
     payload["copy"] = _copy_for(title, full_body, raw_body, link)  # 不开 autoCopy，用户长按复制
     if badge >= 0:
-        payload["badge"] = badge  # 角标 = 未完成待办数
+        payload["badge"] = min(badge, 999)  # 角标上限 999，积压再多也不让桌面图标显示一长串； 角标 = 未完成待办数
     if site_url:
         site = site_url.rstrip("/")
         payload["url"] = site + (path if path.startswith("/") and path != "/" else "/")  # 路径缺斜杠也不拼错
