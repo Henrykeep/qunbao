@@ -3356,7 +3356,7 @@ def test_bark_long_title_keeps_body():
 def test_bark_url_path_normalized():
     import bark
     assert bark.build_payload("a", "b", site_url="http://1.2.3.4:8000/", path="/x")["url"] == "http://1.2.3.4:8000/x"
-    assert bark.build_payload("a", "b", site_url="http://1.2.3.4:8000", path="x")["url"] == "http://1.2.3.4:8000/"
+    assert bark.build_payload("a", "b", site_url="http://1.2.3.4:8000", path="x")["url"] == "http://1.2.3.4:8000/x"
 
 
 def test_bark_url_encodes_path():
