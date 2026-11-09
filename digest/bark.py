@@ -138,6 +138,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     """纯函数：把标题/正文整理成 Bark 请求体（清理、去重、级别、复制内容、点开地址）。发送与重试在 send_bark。"""
     title, body = str(title or ""), str(body or "")  # None 或非字符串（数字等）都不再抛错拖垮整条推送
     raw_body = body
+    site_url, path = str(site_url or ""), str(path or "/")  # 地址/路径为空值或非字符串也不抛错
     link = LINK_RX.search(body or "")  # 正文里的链接锁屏上折成[链接]，没有口令时改为复制原链接
     title = strip_md(title).strip() or "群报"  # 空标题的推送在锁屏上像乱码，兜底成 App 名
     body = re.sub(r"\n\s*\n+", "\n", strip_md(body).strip()) or title  # 空行折掉
