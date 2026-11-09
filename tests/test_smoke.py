@@ -3351,3 +3351,9 @@ def test_bark_long_title_keeps_body():
     t = "通知" + "很长的标题" * 14
     p = bark.build_payload(t, t + "：明天下午三点开会")
     assert p["body"].startswith(t[:20]) and "开会" in p["body"]
+
+
+def test_bark_url_path_normalized():
+    import bark
+    assert bark.build_payload("a", "b", site_url="http://1.2.3.4:8000/", path="/x")["url"] == "http://1.2.3.4:8000/x"
+    assert bark.build_payload("a", "b", site_url="http://1.2.3.4:8000", path="x")["url"] == "http://1.2.3.4:8000/"
