@@ -747,12 +747,12 @@ const toast=(t,undo)=>{const e=$("#toast");e.textContent=undo?t+" · 点此撤�
 /* 键盘快捷键：一张表管理；输入框内只响应 / 和 Esc */
 const typing=()=>/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
 const TABS=["home","msgs","set"],tabStep=d=>go(TABS[(TABS.indexOf(curView)+d+3)%3]);
-const KEYHELP=["快捷键：1今日 2、m或o原文 3、e、c或,设置","[ ] 、p/n、h/l 或 ←→ 切页","s、f、q 或 / 搜索","a 或 i 问群报","t/Home 回顶部、0 或 g 回今日","b/End/G 到底部","j/k、空格、PageDown/Up 翻页","d/u 翻半页","r 刷新当前页","Esc 收起","Backspace 返回上一层","? 再看本帮助"].join("　");
+const KEYHELP=["快捷键：1今日 2、m或o原文 3、e、c或,设置","[ ] 、p/n、h/l 或 ←→ 切页","s、f、q 或 / 搜索","a 或 i 问群报","t/Home 回顶部、0 或 g 回今日","b/End/G 到底部","j/k、空格、PageDown/Up 翻页","d/u 翻半页","r 刷新当前页","Esc 收起","Backspace 或 x 返回上一层","? 再看本帮助"].join("　");
 const SCR=f=>()=>scrollBy({top:innerHeight*f,behavior:RPT?"auto":"smooth"});let RPT=false;
 const KEYS={1:()=>go(TABS[0]),2:()=>go(TABS[1]),3:()=>go(TABS[2]),p:()=>tabStep(-1),n:()=>tabStep(1),t:()=>scrollTo({top:0,behavior:"smooth"}),b:()=>scrollTo({top:document.documentElement.scrollHeight,behavior:"smooth"}),j:SCR(.8),k:SCR(-.8),d:SCR(.4),u:SCR(-.4),"?":()=>toast(KEYHELP),r:()=>{curView==="msgs"?loadChats():curView==="set"?loadSettings():load();toast("已刷新")},g:()=>{go(TABS[0]);KEYS.t()},Backspace:()=>{if(NAV.length)history.back()},"/":()=>{go("msgs");const i=$("#sq");if(i)i.focus()},a:()=>{go(TABS[0]);const i=$("#q");if(i)i.focus()}};
 /* 别名表：同一动作的多个按键只在此登记，不再各写一个函数 */
 for(const[t,ks]of Object.entries({g:"0",2:"mo",3:",ec",p:"[h",n:"]l",t:["Home"],b:["End"],j:[" ","PageDown"],k:["PageUp"],"/":"sfq",a:"i"}))for(const k of ks)KEYS[k===" "?"Space":k]=KEYS[t];
-KEYS.ArrowLeft=KEYS.p;KEYS.ArrowRight=KEYS.n;
+KEYS.x=KEYS.Backspace;KEYS.ArrowLeft=KEYS.p;KEYS.ArrowRight=KEYS.n;
 addEventListener("keydown",e=>{if(e.metaKey||e.ctrlKey||e.altKey||e.isComposing)return;RPT=e.repeat;if(e.repeat&&!"jkdu ".includes(e.key)&&!/^Page/.test(e.key))return;const k=e.key==="G"?"End":e.key===" "?(e.shiftKey?"k":"Space"):e.key.length===1?e.key.toLowerCase():e.key;if(KEYS[k]&&!typing()){e.preventDefault();KEYS[k]();return}if(e.key==="Escape"&&typing()){const i=document.activeElement;if(i.id==="sq"&&i.value){i.value="";i.dispatchEvent(new Event("input"))}else i.blur();return}if(e.key==="Escape"){const t=$("#toast");t._u=null;t.classList.remove("on");if(curView!==TABS[0])KEYS.g()}});
 $("#toast").onclick=function(){const u=this._u;this._u=null;this.classList.remove("on");if(u)u()};
 const pad=n=>String(n).padStart(2,"0");
