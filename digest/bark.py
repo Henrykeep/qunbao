@@ -136,6 +136,7 @@ def _copy_for(title: str, full_body: str, raw_body: str, link) -> str:
 
 def build_payload(title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> dict:
     """纯函数：把标题/正文整理成 Bark 请求体（清理、去重、级别、复制内容、点开地址）。发送与重试在 send_bark。"""
+    title, body = title or "", body or ""  # None 不再抛错拖垮整条推送
     raw_body = body
     link = LINK_RX.search(body or "")  # 正文里的链接锁屏上折成[链接]，没有口令时改为复制原链接
     title = strip_md(title).strip() or "群报"  # 空标题的推送在锁屏上像乱码，兜底成 App 名
@@ -149,7 +150,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     if level == "timeSensitive":
         payload.update(sound="alarm", volume=8, call="1")  # 紧急：不同铃声、拉高音量、循环响铃
     payload["copy"] = _copy_for(title, full_body, raw_body, link)  # 不开 autoCopy，用户长按复制
-    if isinstance(badge, (int, float)) and badge >= 0:  # None/字符串不再抛 TypeError 拖垮整条推送
+    if isinstance(badge, (int, float)) and badge >= 0 and badge < 1e9:  # None/字符串不再抛 TypeError 拖垮整条推送
         payload["badge"] = min(int(badge), 999)  # 角标上限 999，积压再多也不让桌面图标显示一长串； 角标 = 未完成待办数
     if site_url:
         site = site_url.rstrip("/")
