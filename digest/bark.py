@@ -140,7 +140,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     title = strip_md(title).strip() or "群报"  # 空标题的推送在锁屏上像乱码，兜底成 App 名
     body = re.sub(r"\n\s*\n+", "\n", strip_md(body).strip()) or title  # 空行折掉
     full_body = body  # 去标题前缀前的正文：复制内容要在完整文字里找（「取件」+「取件码：123」去重后只剩「码：123」会认不出）
-    if body != title and body.startswith(title) and len(body) > len(title) + 2:
+    if len(title) <= 60 and body != title and body.startswith(title) and len(body) > len(title) + 2:
         body = body[len(title):].lstrip("：:，,。 \n") or body  # 正文以标题开头时去掉重复
     payload = {"title": clip(title, 60), "body": clip(body, 300), "group": group_label(group), "isArchive": "1"}  # 存进 Bark 历史
     if level in ("timeSensitive", "passive"):
