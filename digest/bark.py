@@ -5,6 +5,7 @@ import random
 import re
 import time
 import unicodedata
+from urllib.parse import quote
 
 import httpx
 
@@ -152,7 +153,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
         payload["badge"] = min(badge, 999)  # 角标上限 999，积压再多也不让桌面图标显示一长串； 角标 = 未完成待办数
     if site_url:
         site = site_url.rstrip("/")
-        payload["url"] = site + ("/" + path.lstrip("/") if path.strip("/") else "/")  # 路径缺斜杠补上，不再悄悄丢成首页
+        payload["url"] = site + ("/" + quote(path.lstrip("/"), safe="/?&=#%:@+,;~") if path.strip("/") else "/")  # 路径缺斜杠补上；中文/空格编码，Bark 点开不再丢链接
         payload["icon"] = site + "/icon.png"
     return payload
 
