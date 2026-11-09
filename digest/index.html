@@ -745,7 +745,7 @@ setDate();
 const greet=()=>{const hr=new Date().getHours();return hr<5?"夜深了":hr<11?"早上好":hr<13?"中午好":hr<18?"下午好":"晚上好"};
 const toast=(t,undo)=>{const e=$("#toast");e.textContent=undo?t+" · 点此撤销":t;e._u=undo||null;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>{e.classList.remove("on");e._u=null},undo?6000:Math.min(12000,2300+t.length*120))};
 /* 键盘快捷键：一张表管理；输入框内只响应 / 和 Esc */
-const typing=()=>/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+const typing=()=>{const a=document.activeElement;return /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable};
 const TABS=["home","msgs","set"],tabStep=d=>go(TABS[(TABS.indexOf(curView)+d+3)%3]);
 const KEYHELP=["快捷键：1今日 2、m或o原文 3、e、c或,设置","[ ] 、p/n、h/l 或 ←→ 切页","s、f、q、/ 或 Ctrl/⌘+K 搜索","a 或 i 问群报","t/Home 回顶部、0 或 g 回今日","b/End/G 到底部","j/k、↑↓、空格、PageDown/Up 翻页","d/u 翻半页","r 刷新当前页","Esc 收起","Backspace、Delete、x 或 z 返回上一层","? 或 F1 再看本帮助"].join("　");
 const SCR=f=>()=>scrollBy({top:innerHeight*f,behavior:RPT?"auto":"smooth"});let RPT=false;
