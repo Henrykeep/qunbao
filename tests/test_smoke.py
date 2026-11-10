@@ -3379,3 +3379,9 @@ def test_bark_path_whitespace_trimmed():
     import bark
     p = bark.build_payload("a", "b", site_url="http://x.com", path=" /today \n")
     assert p["url"] == "http://x.com/today"
+
+
+def test_bark_site_url_query_stripped():
+    from digest import bark
+    p = bark.build_payload("t", "b", site_url="http://1.2.3.4:8100/?x=1#a", path="/chat/1")
+    assert p["url"] == "http://1.2.3.4:8100/chat/1"
