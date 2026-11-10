@@ -141,7 +141,7 @@ def _s(v) -> str:
 def build_payload(title: str, body: str, level: str = "active", site_url: str = "", path: str = "/", badge: int = -1, group: str = "") -> dict:
     """纯函数：把标题/正文整理成 Bark 请求体（清理、去重、级别、复制内容、点开地址）。发送与重试在 send_bark。"""
     # 入参先统一成文字：空值/数字不抛错；站点地址去首尾空白（粘贴常带）
-    title, body, site_url, path = _s(title), _s(body), _s(site_url).strip(), _s(path) or "/"
+    title, body, site_url, path = _s(title), _s(body), _s(site_url).strip(), _s(path).strip() or "/"
     if re.match(r"\s*[a-z][a-z0-9+.-]*://", path, re.I):
         path = "/"  # 路径误传成整条网址：回首页，免得拼成「站点/http://…」
     level = {"timesensitive": "timeSensitive", "passive": "passive"}.get(_s(level).strip().lower(), level)  # 级别大小写写错（timesensitive）也认，不再静默降成普通推送
