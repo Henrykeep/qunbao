@@ -3363,3 +3363,8 @@ def test_bark_url_encodes_path():
     import bark
     p = bark.build_payload("t", "b", site_url="http://1.2.3.4:8000", path="/chat/测 试?x=1")
     assert p["url"] == "http://1.2.3.4:8000/chat/%E6%B5%8B%20%E8%AF%95?x=1"
+
+
+def test_bark_site_url_whitespace_trimmed():
+    import bark
+    assert bark.build_payload("t", "b", site_url="  http://1.2.3.4:8000/\n").get("url", "").startswith("http://1.2.3.4:8000")
