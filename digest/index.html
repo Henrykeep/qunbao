@@ -1616,7 +1616,7 @@ fill("#s-hour2",[[-1,"关闭"],...hs],s.digest_hour2??-1);fill("#s-qs",[[-1,"关
     const S=st.status||{};
     const dot=(id,o)=>{const e=$(id);e.className="stat-dot "+(o?.online?"ok":o?.seen?"bad":"");e.querySelector("span").textContent=o?.online?"在线":o?.seen?`离线 · ${ago(o.seen)}`:"未连接"};
     dot("#st-qq",S.qq);dot("#st-wx",S.wx);$("#st-ver span").textContent=S.version?`v${S.version}`:"—";
-    api("/api/ingest").then(r=>{$("#wx-url").textContent=r.ready?`${location.origin}/ingest?token=${r.token}`:"服务器 .env 里还没设置 INGEST_TOKEN";$("#wx-copy").disabled=!r.ready}).catch(()=>{});
+    api("/api/ingest").then(r=>{$("#wx-url").textContent=r.ready?`${location.origin}/ingest?token=${r.token}`:"服务器 .env 里还没设置 INGEST_TOKEN";$("#wx-copy").disabled=!r.ready}).catch(()=>{$("#wx-url").textContent="读取失败，刷新后重试";$("#wx-copy").disabled=true});
     $("#st-last span").textContent=S.last_msg?ago(S.last_msg):"还没有";
     $("#st-calls span").textContent=callsText(st);
     const lh=st.llm_hour||{};$("#st-hour span").textContent=`${lh.total||0} 次`;
