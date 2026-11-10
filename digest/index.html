@@ -1711,7 +1711,7 @@ async function wpOff(){
   try{if(sub){await fetch("/api/push/sub",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({endpoint:sub.endpoint})});await sub.unsubscribe()}}catch(e){}
   WP.n=Math.max(0,WP.n-1);wpRender();toast("已关闭这台设备的通知")
 }
-$("#wp-btn").onclick=()=>{tick();if($("#wp-btn").dataset.st==="on")wpTest();else wpEnable()};
+$("#wp-btn").onclick=e=>{tick();if($("#wp-btn").dataset.st==="on")busy(e.currentTarget,"发送中",()=>wpTest());else wpEnable()};
 
 /* 底栏实际高度：问答栏只在今日页出现，其他页只留标签栏的高度 */
 const dockH=()=>{const d=$("#dock");if(d.classList.contains("compact"))return;document.documentElement.style.setProperty("--dockh",d.getBoundingClientRect().height+"px")};
