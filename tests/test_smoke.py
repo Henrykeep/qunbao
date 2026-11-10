@@ -3391,3 +3391,8 @@ def test_bark_path_dot_segments():
     from digest import bark
     p = bark.build_payload("t", "b", site_url="http://a.com", path="/x/../y/./z")
     assert p["url"] == "http://a.com/x/y/z"
+
+
+def test_bark_url_percent_encoded_slash():
+    from digest.bark_url import norm_bark_url
+    assert norm_bark_url("https%3A%2F%2Fapi.day.app%2FABCDEFGHIJKLMNOP1234") == "https://api.day.app/ABCDEFGHIJKLMNOP1234"
