@@ -3408,3 +3408,10 @@ def test_bark_url_trailing_dot_and_userinfo():
 def test_bark_official_port_dropped():
     from bark import norm_bark_url
     assert norm_bark_url("https://api.day.app:8080/ABCDEFGHIJKLMNOP1234") == "https://api.day.app/ABCDEFGHIJKLMNOP1234"
+
+
+def test_bark_has_key_rejects_placeholder():
+    from bark_url import has_key
+    assert not has_key("http://10.0.0.5:8080/yourkey")
+    assert not has_key("https://bark.example.com/YOUR_KEY")
+    assert has_key("http://10.0.0.5:8080/abcd1234")
