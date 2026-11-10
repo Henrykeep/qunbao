@@ -467,6 +467,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .dragging{position:relative;z-index:2;min-height:100vh;background:var(--bg);box-shadow:-10px 0 28px rgba(0,0,0,.35);will-change:transform}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .gd-top{margin-top:var(--s3)}.ci2.qq{background:var(--qq)}.ci2.wx{background:var(--wx)}.row.last{border:0}
+.sr-copy{position:fixed;left:-9999px;top:0;opacity:0}
 </style>
 </head>
 <body>
@@ -1223,7 +1224,11 @@ const AK=()=>"qb_ask:"+(ASKSCOPE.chat?(ASKSCOPE.source||"")+"|"+ASKSCOPE.chat:"*
 const histLoad=()=>{try{return JSON.parse(localStorage[AK()]||"[]")}catch(e){return[]}};
 const histSave=h=>{localStorage[AK()]=JSON.stringify(h.slice(-8))};  // 每个范围保留最近 4 轮
 function qaHtml(q,a,cites){return `<div class="qq">${esc(q)}</div><div class="aa">${mdCite(a,cites)}<div class="acts"><button class="btn ghost sm cp">${ICON.copy}复制</button></div></div>`}
-function bindQa(el,a,cites){bindCites(el,cites);el.querySelector(".cp")&&(el.querySelector(".cp").onclick=()=>{navigator.clipboard?.writeText(a.replace(/\[\d+\]/g,""));toast("已复制")})}
+async function copyText(t){ // 无 HTTPS 时 navigator.clipboard 不存在，回退 execCommand
+  try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(t);return true}}catch(e){}
+  const x=document.createElement("textarea");x.value=t;x.setAttribute("readonly","");x.className="sr-copy";document.body.appendChild(x);x.select();
+  let ok=false;try{ok=document.execCommand("copy")}catch(e){}x.remove();return ok}
+function bindQa(el,a,cites){bindCites(el,cites);el.querySelector(".cp")&&(el.querySelector(".cp").onclick=async()=>toast(await copyText(a.replace(/\[\d+\]/g,""))?"已复制":"复制失败，请长按选中文字"))}
 function openAsk(scope){
   const sh=$("#askSheet"),same=sh.classList.contains("on")&&ASKSCOPE.chat===scope.chat&&ASKSCOPE.source===scope.source;
   ASKSCOPE=scope;$("#askttl").textContent=scope.chat?`问「${scope.chat.length>10?scope.chat.slice(0,10)+"…":scope.chat}」`:"问 群 报";
@@ -1640,7 +1645,7 @@ $("#s-keep").onchange=e=>{tick();SET.keep_days=+e.target.value;saveSet()};
 $("#s-wk").onchange=e=>{tick();SET.weekly_digest=e.target.checked;saveSet()};
 $("#s-pushdg").onchange=e=>{tick();SET.push_digest=e.target.checked;saveSet()};
 $("#wx-copy").onclick=async()=>{tick();const t=$("#wx-url").textContent;
-  try{await navigator.clipboard.writeText(t);toast("已复制接收地址")}catch(e){const r=document.createRange();r.selectNodeContents($("#wx-url"));getSelection().removeAllRanges();getSelection().addRange(r);toast("已选中，长按复制")}};
+  try{if(!await copyText(t))throw 0;toast("已复制接收地址")}catch(e){const r=document.createRange();r.selectNodeContents($("#wx-url"));getSelection().removeAllRanges();getSelection().addRange(r);toast("已选中，长按复制")}};
 $("#s-test").onclick=e=>{tick();busy(e.currentTarget,"发送中",async()=>{try{SET=await api("/api/settings",SET);await api("/api/push/test",{channel:"bark"});toast("已发送，看看手机")}catch(x){toast(x.message)}})};
 
 /* ---------- 网页通知（Web Push）：iPhone 从主屏幕打开群报后可收原生通知 ---------- */
