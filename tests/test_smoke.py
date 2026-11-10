@@ -3368,3 +3368,8 @@ def test_bark_url_encodes_path():
 def test_bark_site_url_whitespace_trimmed():
     import bark
     assert bark.build_payload("t", "b", site_url="  http://1.2.3.4:8000/\n").get("url", "").startswith("http://1.2.3.4:8000")
+
+
+def test_bark_full_url_path_falls_back_home():
+    import bark
+    assert bark.build_payload("a", "b", "active", "http://h", "http://x/y")["url"] == "http://h/"
