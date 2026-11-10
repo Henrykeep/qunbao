@@ -157,7 +157,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     payload["copy"] = _copy_for(title, full_body, raw_body, link)  # 不开 autoCopy，用户长按复制
     if isinstance(badge, (int, float)) and not isinstance(badge, bool) and badge >= 0 and badge < 1e9:  # None/字符串不再抛 TypeError 拖垮整条推送
         payload["badge"] = min(int(badge), 999)  # 角标上限 999，积压再多也不让桌面图标显示一长串； 角标 = 未完成待办数
-    if site_url:
+    if re.match(r"https?://", site_url, re.I):  # 没有 http(s):// 开头的地址点开也打不开，不带 url 免得 Bark 报错
         site = site_url.rstrip("/")
         payload["url"] = site + ("/" + quote(path.lstrip("/"), safe="/?&=#%:@+,;~") if path.strip("/") else "/")  # 路径缺斜杠补上；中文/空格编码，Bark 点开不再丢链接
         payload["icon"] = site + "/icon.png"
