@@ -769,6 +769,7 @@ const hue=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;retu
 const avc=s=>`hsl(${hue(s)} 30% 52%)`;
 const first=s=>esc([...String(s||"?")].find(c=>!/[\s·@]/.test(c))||"?");
 const tick=()=>navigator.vibrate&&navigator.vibrate(8);
+const lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}, lsDel=k=>{try{localStorage.removeItem(k)}catch(e){}};  // 隐私模式/存满会抛错：本地偏好写不进去不能打断主流程
 // 按钮忙碌态统一：执行期间禁用并换文案，结束恢复；执行中再点直接忽略
 const busy=async(b,label,fn)=>{if(b.disabled)return;const t=b.textContent;b.disabled=true;b.textContent=label;try{return await fn()}catch(e){toast("没成功："+(e&&e.message||"网络不太好"))}finally{b.disabled=false;b.textContent=t}};
 const doneKey=t=>t.key||t.title+"|"+t.chat;
@@ -851,7 +852,7 @@ $$(".sheet").forEach(sh=>{
 /* ================= 今日 ================= */
 let hours=+(localStorage.qb_hours||24), viewId=null, ST=null;
 function setSeg(h,save=true){
-  hours=h;if(save)localStorage.qb_hours=h;
+  hours=h;if(save)lsSet("qb_hours",h);
   const b=$$("#seg button").find(x=>+x.dataset.h===h)||$$("#seg button")[0];
   $$("#seg button").forEach(x=>x.classList.toggle("on",x===b));
   const i=$("#seg i");i.style.left=b.offsetLeft+"px";i.style.width=b.offsetWidth+"px";
@@ -1027,9 +1028,9 @@ function pushTip(){
 }
 function bindTip(){
   once($("#pushgo"),b=>b.addEventListener("click",()=>{tick();wpEnable()}));
-  once($("#pushx"),b=>b.addEventListener("click",()=>{localStorage.qb_push_tip_off=1;$("#pushtip")?.remove()}));
+  once($("#pushx"),b=>b.addEventListener("click",()=>{lsSet("qb_push_tip_off",1);$("#pushtip")?.remove()}));
   once($("#tipgo"),b=>b.addEventListener("click",()=>{tick();go("set");openSub("groups")}));
-  once($("#tipx"),b=>b.addEventListener("click",()=>{localStorage.qb_tip_off=1;$("#tipcard")?.remove();api("/api/settings",{modes_tip_done:true}).catch(()=>{})}));
+  once($("#tipx"),b=>b.addEventListener("click",()=>{lsSet("qb_tip_off",1);$("#tipcard")?.remove();api("/api/settings",{modes_tip_done:true}).catch(()=>{})}));
 }
 function once(el,fn){if(el&&!el._b){el._b=1;fn(el)}}
 /* 局部更新：只替换变了的区块；待办按 key 对齐，没变的卡片原样保留（展开状态、动画都不动），新出现的轻轻高亮 */
@@ -1236,7 +1237,7 @@ function openAsk(scope){
   if(!same){$("#ti").innerHTML="";for(const x of histLoad()){const d=document.createElement("div");d.innerHTML=qaHtml(x.q,x.a,x.c);$("#ti").appendChild(d);bindQa(d,x.a,x.c)}}
   sheetOn(sh);
 }
-$("#askclr").onclick=()=>{tick();localStorage.removeItem(AK());$("#ti").innerHTML="";toast("已清空这里的对话")};
+$("#askclr").onclick=()=>{tick();lsDel(AK());$("#ti").innerHTML="";toast("已清空这里的对话")};
 async function ask(q,scope,opts={}){
   q=q.trim();if(!q)return;$("#q").value="";$("#q2").value="";$("#cq").value="";document.activeElement?.blur?.();
   openAsk(scope||ASKSCOPE);
@@ -1295,7 +1296,7 @@ function renderSrcs(){
   const n=k=>CHATS.filter(c=>!k||c.source===k).length;
   const opts=[["","全部",""],["QQ","QQ","s-qq"],["微信","微信","s-wx"]];
   $("#srcs").innerHTML=opts.map(([k,l,c])=>`<button data-s="${k}" class="btn line sm ${SRCF===k?"on":""}">${c?`<i class="${c}"></i>`:""}${l}<small>${n(k)}</small></button>`).join("");
-  $$("#srcs button").forEach(b=>b.onclick=()=>{tick();SRCF=b.dataset.s;localStorage.qb_src=SRCF;const q=$("#sq").value.trim();q?search(q):renderChats()});
+  $$("#srcs button").forEach(b=>b.onclick=()=>{tick();SRCF=b.dataset.s;lsSet("qb_src",SRCF);const q=$("#sq").value.trim();q?search(q):renderChats()});
 }
 async function loadChats(){
   const q=$("#sq").value.trim();if(q)return search(q);
@@ -1358,7 +1359,7 @@ $("#sclr").onclick=()=>{$("#sq").value="";$("#sbox").classList.remove("has");sea
 let chatName=null,chatSrc="",oldest=0,chatSeq=0,READ0=0;
 const unreadAts=c=>{const r=readGet("qb_read:"+c.source+"|"+c.chat);return (c.at_ids||[]).filter(i=>i>r).length};
 const RK=()=>"qb_read:"+(chatSrc||"")+"|"+chatName;
-const readGet=k=>+(localStorage[k]||0), readSet=(k,v)=>{if(v>readGet(k))localStorage[k]=v};
+const readGet=k=>+(localStorage[k]||0), readSet=(k,v)=>{if(v>readGet(k))lsSet(k,v)};
 function showChatView(){
   if(curView!=="msgs"){curView="msgs";$$(".view").forEach(e=>e.classList.toggle("on",e.id==="v-msgs"));
     $$(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v==="msgs"))}
@@ -1526,7 +1527,7 @@ async function loadGroups(){
     const sk="qb_sugg_skip",skipped=new Set(JSON.parse(localStorage.getItem(sk)||"[]")),sid=x=>x.source+"|"+x.chat;
     for(let i=sugg.length-1;i>=0;i--)if(skipped.has(sid(sugg[i])))sugg.splice(i,1);
     sb.innerHTML=sugg.length?`<div class="sugg"><b>这 ${sugg.length} 个群很吵，但没什么要紧事</b><div class="sl">${sugg.slice(0,3).map(x=>esc(x.chat.length>12?x.chat.slice(0,12)+"…":x.chat)).join("、")}${sugg.length>3?` 等 ${sugg.length} 个`:""}。${[...new Set(sugg.map(x=>x.why))].map(w=>`${sugg.filter(x=>x.why===w).length} 个${w}`).join("，")}。</div><div class="sacts"><button class="btn" id="g-sapply">全部设为只看@我</button><button class="btn ghost" id="g-sskip">不用了</button></div></div>`:"";
-    $("#g-sskip")?.addEventListener("click",()=>{localStorage.setItem(sk,JSON.stringify([...skipped,...sugg.map(sid)]));sb.innerHTML=""});
+    $("#g-sskip")?.addEventListener("click",()=>{lsSet(sk,JSON.stringify([...skipped,...sugg.map(sid)]));sb.innerHTML=""});
     $("#g-sapply")?.addEventListener("click",e=>busy(e.currentTarget,"设置中…",async()=>{tick();await api("/api/chat_mode",{chats:sugg.map(x=>({source:x.source,chat:x.chat})),mode:"atonly"});toast(`${sugg.length} 个群改为只看@我`);loadGroups()}));
     drawGroups();
   }catch(e){toast(e.message)}
@@ -1704,7 +1705,7 @@ async function wpEnable(){
     let sub=await reg.pushManager.getSubscription();
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(WP.key)});
     WP.n=(await api("/api/push/sub",sub.toJSON())).subs;WP.sub=sub;
-    localStorage.qb_push_tip_off=1;$("#pushtip")?.remove();
+    lsSet("qb_push_tip_off",1);$("#pushtip")?.remove();
     WP.busy=false;wpRender();wpTest(true);
   }catch(e){toast("没开成："+(e.message||e))}finally{WP.busy=false;wpRender()}
 }
