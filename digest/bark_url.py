@@ -2,6 +2,10 @@
 import re
 import unicodedata
 
+_KEY_RE = r"[A-Za-z0-9]{16,40}"  # Bark 设备 Key 的形态，全文件共用
+_API_SEGS = ("push", "ping", "healthz", "register")  # 接口名，不是 Key
+_DEMO_KEY = re.compile(r"(?:your|my)?[-_]?(?:device[-_]?|api[-_]?)?(?:key|token)|xxx+|示例|(?:你的|我的)?(?:设备)?(?:key|密钥|令牌)", re.I)  # App 示例/文档里没换成真 Key 的占位词
+
 
 def norm_bark_url(u: str) -> str:
     """第一阶段：把各种粘贴形态清成地址文本，再交 _canon 规范化。
@@ -27,7 +31,7 @@ def norm_bark_url(u: str) -> str:
         selfhost = (":" in h and not h.endswith(":443")) or re.fullmatch(r"[\d.]+", h)
         u = ("http://" if selfhost else "https://") + u
     u = re.sub(r"^bark:/{0,2}(?=[A-Za-z0-9])", "https://api.day.app/", u, flags=re.I)  # bark://KEY 深链：同官方服务器
-    if re.fullmatch(r"[A-Za-z0-9]{16,40}", u):  # 只粘了设备 Key：默认官方服务器
+    if re.fullmatch(_KEY_RE, u):  # 只粘了设备 Key：默认官方服务器
         u = "https://api.day.app/" + u
     return _canon(u.split("#", 1)[0])  # 锚点 #xxx 不属于地址
 
@@ -54,7 +58,7 @@ def _canon(u: str) -> str:
     if host.rpartition("@")[2] == "api.day.app":
         scheme = "https"  # 官方服务器只认 https，手滑写成 http 会推送失败
     if len(seg) > 1:  # 自建 Bark 挂在反代子路径下（/bark/KEY/内容）：保留前缀，到 Key 为止
-        i = next((j for j, x in enumerate(seg) if re.fullmatch(r"[A-Za-z0-9]{16,40}", x)), 0)
+        i = next((j for j, x in enumerate(seg) if re.fullmatch(_KEY_RE, x)), 0)
         seg = seg[:i + 1]
         if host == "api.day.app":  # 官方服务器没有子路径（/push/KEY 是旧接口写法），只留 Key
             seg = seg[-1:]
@@ -66,12 +70,12 @@ def has_key(u) -> bool:
     from urllib.parse import urlsplit
     sp = urlsplit(norm_bark_url(str(u or "")))
     seg = [x for x in sp.path.split("/") if x]
-    if not seg or seg[-1].lower() in ("push", "ping", "healthz", "register"):  # 接口名不是 Key
+    if not seg or seg[-1].lower() in _API_SEGS:  # 接口名不是 Key
         return False
-    if re.fullmatch(r"(?:your|my)?[-_]?(?:device[-_]?|api[-_]?)?(?:key|token)|xxx+|示例|(?:你的|我的)?(?:设备)?(?:key|密钥|令牌)", seg[-1], re.I):  # Bark App 示例/文档里的占位词，没换成真 Key
+    if _DEMO_KEY.fullmatch(seg[-1]):  # Bark App 示例/文档里的占位词，没换成真 Key
         return False
     if (sp.hostname or "") == "api.day.app":  # 官方服务器的 Key 是 16~40 位字母数字，写短了必定推送失败
-        return bool(re.fullmatch(r"[A-Za-z0-9]{16,40}", seg[-1]))
+        return bool(re.fullmatch(_KEY_RE, seg[-1]))
     return True
 
 
