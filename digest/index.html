@@ -1192,8 +1192,8 @@ async function pollRev(){
   }catch(e){}finally{revBusy=false}
 }
 /* 平时 8 秒一次；有待整理的新消息或正在整理时 2.5 秒一次（整理完马上看到），后台不轮询 */
-(function loop(){const busy=ST&&((ST.pending&&ST.pending.msgs)||(ST.auto&&ST.auto.state==="running"));
-  pollRev().finally(()=>setTimeout(loop,busy?2500:8000))})();
+(function loop(){const working=ST&&((ST.pending&&ST.pending.msgs)||(ST.auto&&ST.auto.state==="running"));
+  pollRev().finally(()=>setTimeout(loop,working?2500:8000))})();
 setInterval(()=>{if(curView==="home")updLabel()},20000);
 
 /* 往期 */
