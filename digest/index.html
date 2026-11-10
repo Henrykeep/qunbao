@@ -1363,7 +1363,9 @@ const search=debounce(async q=>{
       :emptyBox(`没搜到「${esc(q)}」`,"换个关键词试试",SDAYS?`<button class="btn line sm sdf" data-d="0">取消时间限制</button>`:"");
     $$(".sdf").forEach(b=>b.onclick=()=>{SDAYS=+b.dataset.d;search(q)});
     $$(".sres").forEach(r=>r.onclick=()=>openChat(r.dataset.chat,r.dataset.q,r.dataset.src));
-  }catch(e){toast(e.message)}
+  }catch(e){if(my!==searchSeq)return;
+    $("#clist").innerHTML=emptyBox("搜索失败",esc(e.message),`<button class="btn line sm" id="sretry">重试</button>`);
+    $("#sretry").onclick=()=>search(q)}
 },250);
 $("#sq").addEventListener("input",e=>{$("#sbox").classList.toggle("has",!!e.target.value);search(e.target.value.trim())});
 $("#sclr").onclick=()=>{$("#sq").value="";$("#sbox").classList.remove("has");search("")};
