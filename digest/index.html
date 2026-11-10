@@ -796,10 +796,11 @@ const ICON={
   bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/><path d="M3 3l18 18"/></svg>',
 };
 
+const HTTP_MSG={403:"没有权限做这个操作",404:"内容已经不存在了，刷新后再看看",413:"内容太大，发不出去",429:"操作太频繁，请稍等几秒再试"};
 async function api(path,body){
   const r=await fetch(path,body!==undefined?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{}).catch(()=>{throw new Error("连不上服务器，请检查网络后重试")});
   if(r.status===401){location.replace("/login");throw new Error("请先登录")}
-  if(!r.ok){let d=(await r.json().catch(()=>({}))).detail;if(Array.isArray(d))d=d.map(x=>x&&x.msg||"").filter(Boolean).join("；");throw new Error(typeof d==="string"&&d||(r.status===429?"操作太频繁，请稍等几秒再试":r.status>=500?"服务器暂时没响应（"+r.status+"），请稍后重试":"请求失败（"+r.status+"）"))}
+  if(!r.ok){let d=(await r.json().catch(()=>({}))).detail;if(Array.isArray(d))d=d.map(x=>x&&x.msg||"").filter(Boolean).join("；");throw new Error(typeof d==="string"&&d||HTTP_MSG[r.status]||(r.status>=500?"服务器暂时没响应（"+r.status+"），请稍后重试":"请求失败（"+r.status+"）"))}
   return r.json().catch(()=>{throw new Error("服务器返回了无法识别的内容，请稍后重试")});
 }
 
