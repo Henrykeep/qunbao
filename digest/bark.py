@@ -144,6 +144,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     title, body, site_url, path = _s(title), _s(body), _s(site_url).strip(), _s(path).strip() or "/"
     if re.match(r"\s*[a-z][a-z0-9+.-]*://", path, re.I):
         path = "/"  # 路径误传成整条网址：回首页，免得拼成「站点/http://…」
+    path = "/" + "/".join(x for x in path.split("/") if x not in ("", ".", ".."))  if "/." in path else path  # 路径带 ./ ../ 段会让点开落到站点外，丢掉这些段
     level = {"timesensitive": "timeSensitive", "passive": "passive"}.get(_s(level).strip().lower(), level)  # 级别大小写写错（timesensitive）也认，不再静默降成普通推送
     raw_body = body
     link = LINK_RX.search(body or "")  # 正文里的链接锁屏上折成[链接]，没有口令时改为复制原链接
