@@ -1544,8 +1544,8 @@ function drawGroups(){
   const pair=k=>{const i=k.indexOf("|");return{source:k.slice(0,i),chat:k.slice(i+1)}};
   $$("#g-list .grow").forEach(r=>{const k=r.dataset.k;
     r.querySelector("input").onchange=e=>{tick();e.target.checked?GSEL.add(k):GSEL.delete(k);drawBatch()};
-    r.querySelector("select").onchange=async e=>{tick();const m=e.target.value;e.target.className=m;
-      try{await api("/api/chat_mode",{chats:[pair(k)],mode:m});const c=SCHATS.find(x=>x.source+"|"+x.chat===k);if(c)c.mode=m;CHATS=[];setSummary();toast(`改为${MODE[m][0]}`)}catch(err){toast(err.message)}};
+    r.querySelector("select").onchange=async e=>{tick();const sel=e.target,m=sel.value,old=sel.className;sel.className=m;
+      try{await api("/api/chat_mode",{chats:[pair(k)],mode:m});const c=SCHATS.find(x=>x.source+"|"+x.chat===k);if(c)c.mode=m;CHATS=[];setSummary();toast(`改为${MODE[m][0]}`)}catch(err){sel.value=old;sel.className=old;toast("没改成："+err.message)}};
   });
   drawBatch();
   function drawBatch(){const b=$("#g-batch");b.hidden=!GSEL.size;
