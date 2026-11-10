@@ -1636,7 +1636,7 @@ $("#s-wk").onchange=e=>{tick();SET.weekly_digest=e.target.checked;saveSet()};
 $("#s-pushdg").onchange=e=>{tick();SET.push_digest=e.target.checked;saveSet()};
 $("#wx-copy").onclick=async()=>{tick();const t=$("#wx-url").textContent;
   try{await navigator.clipboard.writeText(t);toast("已复制接收地址")}catch(e){const r=document.createRange();r.selectNodeContents($("#wx-url"));getSelection().removeAllRanges();getSelection().addRange(r);toast("已选中，长按复制")}};
-$("#s-test").onclick=async()=>{tick();try{SET=await api("/api/settings",SET);await api("/api/push/test",{channel:"bark"});toast("已发送，看看手机")}catch(e){toast(e.message)}};
+$("#s-test").onclick=async e=>{const b=e.currentTarget;if(b.disabled)return;tick();b.disabled=true;const t=b.textContent;b.textContent="发送中";try{SET=await api("/api/settings",SET);await api("/api/push/test",{channel:"bark"});toast("已发送，看看手机")}catch(x){toast(x.message)}finally{b.disabled=false;b.textContent=t}};
 
 /* ---------- 网页通知（Web Push）：iPhone 从主屏幕打开群报后可收原生通知 ---------- */
 const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
