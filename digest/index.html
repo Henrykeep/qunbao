@@ -1110,7 +1110,7 @@ function sortTodos(animate){
   items.forEach(e=>{const dy=f.get(e)-e.getBoundingClientRect().top;if(dy)e.animate([{transform:`translateY(${dy}px)`},{transform:"none"}],{duration:420,easing:"cubic-bezier(.2,.9,.25,1)"})});
 }
 async function load(){skeleton();try{render(await api("/api/state"+(viewId?`?id=${viewId}`:`?hours=${hours}`)))}
-  catch(e){$("#main").innerHTML=`<div class="empty"><div class="big">${navigator.onLine?"连不上群报服务器":"没有网络"}</div>${navigator.onLine?"服务器可能在重启或宕机了，检查 docker 容器 qunbao 是否在运行。":"连上网络后会自动刷新。"}<br><small>${esc(e.message)}</small><br><button class="btn line sm more-btn" id="retry">重试</button></div>`;
+  catch(e){$("#main").innerHTML=`<div class="empty"><div class="big">${navigator.onLine?"连不上群报服务器":"没有网络"}</div>${navigator.onLine?"服务器可能正在重启，稍等几秒会自动重试；一直不行再检查服务器是否在运行。":"连上网络后会自动刷新。"}<br><small>${esc(e.message)}</small><br><button class="btn line sm more-btn" id="retry">重试</button></div>`;
     $("#retry").onclick=()=>{tick();load()}}}
 async function regen(){
   const b=$("#regen");if(b.classList.contains("spin"))return;b.classList.add("spin");
@@ -1808,7 +1808,7 @@ document.addEventListener("visibilitychange",()=>{if(!document.hidden){pollRev()
 $("#s-logout").onclick=async e=>{if(!confirm("退出登录？这台设备下次打开要重新输入密码。"))return;
   await busy(e.currentTarget,"退出中…",async()=>{await fetch("/api/logout",{method:"POST"}).catch(()=>{});location.replace("/login")})};
 function netUI(){$("#offbar").hidden=navigator.onLine}
-window.addEventListener("online",()=>{netUI();pollRev()});
+window.addEventListener("online",()=>{netUI();pollRev();const r=$("#retry");if(r)r.click()});
 window.addEventListener("offline",netUI);netUI();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});
 wpInit();
