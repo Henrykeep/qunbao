@@ -1353,9 +1353,12 @@ let SDAYS=0;
 const sFilter=n=>`<div class="sfilter"><span>找到 ${n} 条${n>=80?"（最近 80 条）":""}</span>${[[0,"全部"],[1,"今天"],[7,"7天"],[30,"30天"]].map(([d,t])=>`<button class="btn line sm sdf ${SDAYS==d?"on":""}" data-d="${d}">${t}</button>`).join("")}</div>`;
 const sHit=(m,q)=>`<div class="sres lrow" data-chat="${esc(m.chat)}" data-src="${esc(m.source)}" data-q="${esc(q)}"><div class="lh"><span><b>${esc(m.sender)}</b>${srcTag(m.source)}</span><span>${ago(m.ts)}</span></div><div class="st">${hlQ(m.text,q)}</div></div>`;
 const sGroups=(rs,q)=>Object.entries(rs.reduce((g,m)=>((g[m.chat]=g[m.chat]||[]).push(m),g),{})).map(([chat,ms])=>`<div class="sgh">${esc(chat)} · ${ms.length}</div>${ms.map(m=>sHit(m,q)).join("")}`).join("");
+let searchSeq=0;
 const search=debounce(async q=>{
+  const my=++searchSeq;
   if(!q){renderChats();return}
   try{const rs=await api(`/api/messages?q=${encodeURIComponent(q)}&limit=80${SDAYS?`&since=${Math.floor(Date.now()/1000)-SDAYS*86400}`:""}${SRCF?`&source=${encodeURIComponent(SRCF)}`:""}`);
+    if(my!==searchSeq)return;
     $("#clist").innerHTML=rs.length?sFilter(rs.length)+sGroups(rs.reverse(),q)
       :emptyBox(`没搜到「${esc(q)}」`,"换个关键词试试",SDAYS?`<button class="btn line sm sdf" data-d="0">取消时间限制</button>`:"");
     $$(".sdf").forEach(b=>b.onclick=()=>{SDAYS=+b.dataset.d;search(q)});
