@@ -3416,3 +3416,10 @@ def test_bark_has_key_rejects_placeholder():
     assert not has_key("https://bark.example.com/YOUR_KEY")
     assert not has_key("https://bark.example.com/你的密钥")
     assert has_key("http://10.0.0.5:8080/abcd1234")
+
+
+def test_bark_fake_key_rejected():
+    from digest.bark_url import has_key
+    assert not has_key("https://api.day.app/1234567890123456")
+    assert not has_key("https://api.day.app/aaaaaaaaaaaaaaaa")
+    assert has_key("https://api.day.app/AbCdEfGhIjKlMnOp1234")
