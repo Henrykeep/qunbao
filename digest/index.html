@@ -745,6 +745,7 @@ function setDate(){const n=new Date();$("#today").textContent=`${n.getMonth()+1}
 setDate();
 const greet=()=>{const hr=new Date().getHours();return hr<5?"夜深了":hr<11?"早上好":hr<13?"中午好":hr<18?"下午好":"晚上好"};
 const toast=(t,undo)=>{const e=$("#toast");e.textContent=undo?t+" · 点此撤销":t;e._u=undo||null;e.classList.add("on");clearTimeout(e._t);e._t=setTimeout(()=>{e.classList.remove("on");e._u=null},undo?6000:Math.min(12000,2300+t.length*120))};
+let _rejAt=0;addEventListener("unhandledrejection",ev=>{ev.preventDefault();if(Date.now()-_rejAt>3000){_rejAt=Date.now();toast("操作没完成，请稍后再试")}});  // 兜底：任何漏掉 catch 的异步错误都给提示，不再静默
 /* 键盘快捷键：一张表管理；输入框内只响应 / 和 Esc */
 const typing=()=>{const a=document.activeElement;return /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable};
 const TABS=["home","msgs","set"],tabStep=d=>go(TABS[(TABS.indexOf(curView)+d+3)%3]);
