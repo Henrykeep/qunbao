@@ -1,10 +1,10 @@
-const C="qunbao-v0.39.371";
+const C="qunbao-v0.39.372";
 self.addEventListener("install",e=>{self.skipWaiting()});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener("fetch",e=>{
   const r=e.request,u=new URL(r.url);
   if(r.method!=="GET"||u.origin!==location.origin)return;
-  if(!(u.pathname==="/"||u.pathname==="/icon.png"||u.pathname==="/manifest.json"||u.pathname.startsWith("/api/state")||u.pathname.startsWith("/api/digest")||u.pathname.startsWith("/api/messages")))return;
+  if(!(u.pathname==="/"||u.pathname==="/icon.png"||u.pathname==="/manifest.json"||u.pathname.startsWith("/api/state")||u.pathname.startsWith("/api/digest")||u.pathname.startsWith("/api/messages")||u.pathname==="/api/chats"||u.pathname==="/api/chat_brief"))return;
   e.respondWith(fetch(r).then(res=>{if(res.ok&&res.status===200){const cp=res.clone();caches.open(C).then(c=>c.put(r,cp))}return res}).catch(()=>caches.match(r).then(m=>m||new Response("离线且无缓存",{status:503}))));
 });
 /* Web Push：服务器发来的通知。iOS 要求每条推送都必须弹出通知，不能静默 */
