@@ -32,7 +32,7 @@ def norm_bark_url(u: str) -> str:
     sp = urlsplit(u)
     if not sp.scheme or not sp.netloc:
         return u.rstrip("/")
-    seg = [x for x in sp.path.split("/") if x]
+    seg = [x for x in sp.path.split("/") if x and x not in (".", "..")]  # ./ ../ 段无意义
     dk = re.search(r"device_key=([A-Za-z0-9]+)", sp.query)
     if dk and (not seg or seg[-1] == "push"):  # 粘成了 /push?device_key=KEY 这种接口地址（含子路径 /bark/push）
         seg = seg[:-1] + [dk.group(1)]
