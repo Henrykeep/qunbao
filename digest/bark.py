@@ -154,7 +154,7 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     if level == "timeSensitive":
         payload.update(sound="alarm", volume=8, call="1")  # 紧急：不同铃声、拉高音量、循环响铃
     payload["copy"] = _copy_for(title, full_body, raw_body, link)  # 不开 autoCopy，用户长按复制
-    if isinstance(badge, (int, float)) and badge >= 0 and badge < 1e9:  # None/字符串不再抛 TypeError 拖垮整条推送
+    if isinstance(badge, (int, float)) and not isinstance(badge, bool) and badge >= 0 and badge < 1e9:  # None/字符串不再抛 TypeError 拖垮整条推送
         payload["badge"] = min(int(badge), 999)  # 角标上限 999，积压再多也不让桌面图标显示一长串； 角标 = 未完成待办数
     if site_url:
         site = site_url.rstrip("/")
