@@ -3385,3 +3385,9 @@ def test_bark_site_url_query_stripped():
     from digest import bark
     p = bark.build_payload("t", "b", site_url="http://1.2.3.4:8100/?x=1#a", path="/chat/1")
     assert p["url"] == "http://1.2.3.4:8100/chat/1"
+
+
+def test_bark_path_dot_segments():
+    from digest import bark
+    p = bark.build_payload("t", "b", site_url="http://a.com", path="/x/../y/./z")
+    assert p["url"] == "http://a.com/x/y/z"
