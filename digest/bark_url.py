@@ -45,6 +45,8 @@ def norm_bark_url(u: str) -> str:
     if len(seg) > 1:  # 自建 Bark 挂在反代子路径下（/bark/KEY/内容）：保留前缀，到 Key 为止
         i = next((j for j, x in enumerate(seg) if re.fullmatch(r"[A-Za-z0-9]{16,40}", x)), 0)
         seg = seg[:i + 1]
+        if host == "api.day.app":  # 官方服务器没有子路径（/push/KEY 是旧接口写法），只留 Key
+            seg = seg[-1:]
     return f"{scheme}://{host}" + ("/" + "/".join(seg) if seg else "")  # 协议/域名不分大小写，统一小写（Key 区分大小写不动）
 
 
