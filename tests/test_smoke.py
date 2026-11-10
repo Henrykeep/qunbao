@@ -3423,3 +3423,10 @@ def test_bark_fake_key_rejected():
     assert not has_key("https://api.day.app/1234567890123456")
     assert not has_key("https://api.day.app/aaaaaaaaaaaaaaaa")
     assert has_key("https://api.day.app/AbCdEfGhIjKlMnOp1234")
+
+
+def test_logout_clears_local_cache():
+    html = open("digest/index.html", encoding="utf-8").read()
+    i = html.index('$("#s-logout").onclick')
+    seg = html[i:i + 700]
+    assert "caches.delete" in seg and 'startsWith("qb_")' in seg
