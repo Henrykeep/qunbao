@@ -768,6 +768,8 @@ const hue=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;retu
 const avc=s=>`hsl(${hue(s)} 30% 52%)`;
 const first=s=>esc([...String(s||"?")].find(c=>!/[\s·@]/.test(c))||"?");
 const tick=()=>navigator.vibrate&&navigator.vibrate(8);
+// 按钮忙碌态统一：执行期间禁用并换文案，结束恢复；执行中再点直接忽略
+const busy=async(b,label,fn)=>{if(b.disabled)return;const t=b.textContent;b.disabled=true;b.textContent=label;try{return await fn()}finally{b.disabled=false;b.textContent=t}};
 const doneKey=t=>t.key||t.title+"|"+t.chat;
 const SRC={"QQ":"s-qq","微信":"s-wx"};
 const srcTag=src=>src?`<span class="tag ${SRC[src]||""}">${esc(src)}</span>`:"";
@@ -1619,9 +1621,9 @@ fill("#s-hour2",[[-1,"关闭"],...hs],s.digest_hour2??-1);fill("#s-qs",[[-1,"关
 $("#s-profile").oninput=e=>{SET.profile=e.target.value;saveSet()};
 $("#s-defmode").onchange=e=>{tick();SET.default_mode=e.target.value;saveSet()};
 $("#s-hour").onchange=e=>{SET.digest_hour=+e.target.value;saveSet()};
-$("#s-full").onclick=async e=>{if(!confirm("完整重新整理最近 24 小时的消息？已完成和置顶的事项会保留。"))return;tick();const b=e.currentTarget;b.disabled=true;b.textContent="整理中…";
+$("#s-full").onclick=e=>{if(!confirm("完整重新整理最近 24 小时的消息？已完成和置顶的事项会保留。"))return;tick();busy(e.currentTarget,"整理中…",async()=>{
   try{const r=await api("/api/digest",{hours:24,full:true});const x=r.stats||{};toast(`完成：送模型 ${x.sent||0} 条 · 调用 ${x.calls||0} 次 · ${(+x.secs||0).toFixed(1)} 秒`);ST=null;$("#st-calls span").textContent=callsText(await api("/api/state"))}
-  catch(err){toast("失败："+err.message)}finally{b.disabled=false;b.textContent="重新整理"}};
+  catch(err){toast("失败："+err.message)}})};
 $("#s-auto").onchange=e=>{tick();SET.auto_on=e.target.checked;saveSet();setTimeout(()=>pollRev(),600)};
 $("#s-hour2").onchange=e=>{SET.digest_hour2=+e.target.value;saveSet()};
 $("#s-qs").onchange=e=>{SET.quiet_start=+e.target.value;saveSet()};
@@ -1636,7 +1638,7 @@ $("#s-wk").onchange=e=>{tick();SET.weekly_digest=e.target.checked;saveSet()};
 $("#s-pushdg").onchange=e=>{tick();SET.push_digest=e.target.checked;saveSet()};
 $("#wx-copy").onclick=async()=>{tick();const t=$("#wx-url").textContent;
   try{await navigator.clipboard.writeText(t);toast("已复制接收地址")}catch(e){const r=document.createRange();r.selectNodeContents($("#wx-url"));getSelection().removeAllRanges();getSelection().addRange(r);toast("已选中，长按复制")}};
-$("#s-test").onclick=async e=>{const b=e.currentTarget;if(b.disabled)return;tick();b.disabled=true;const t=b.textContent;b.textContent="发送中";try{SET=await api("/api/settings",SET);await api("/api/push/test",{channel:"bark"});toast("已发送，看看手机")}catch(x){toast(x.message)}finally{b.disabled=false;b.textContent=t}};
+$("#s-test").onclick=e=>{tick();busy(e.currentTarget,"发送中",async()=>{try{SET=await api("/api/settings",SET);await api("/api/push/test",{channel:"bark"});toast("已发送，看看手机")}catch(x){toast(x.message)}})};
 
 /* ---------- 网页通知（Web Push）：iPhone 从主屏幕打开群报后可收原生通知 ---------- */
 const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
