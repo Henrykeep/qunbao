@@ -114,3 +114,8 @@ def test_has_key_rejects_endpoint_names():
     from bark_url import has_key
     assert not has_key("https://api.day.app/push")
     assert has_key("https://api.day.app/abcdefghijklmnop")
+
+
+def test_open_url_drops_encoded_dot_segments():
+    from digest import bark_url
+    assert bark_url.open_url("https://a.com", "/x/%2e%2e/y")[0] == "https://a.com/x/y"
