@@ -5,12 +5,12 @@ import random
 import re
 import time
 import unicodedata
-from urllib.parse import quote
+from urllib.parse import quote  # noqa: F401
 
 import httpx
 
 
-from bark_url import norm_bark_url, has_key  # noqa: F401  地址清洗在 bark_url.py
+from bark_url import norm_bark_url, has_key, open_url  # noqa: F401  地址清洗在 bark_url.py
 
 
 CQ_LABEL = {"record": "[语音]", "video": "[视频]", "forward": "[卡片]", "json": "[卡片]", "xml": "[卡片]",
@@ -142,9 +142,6 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     """纯函数：把标题/正文整理成 Bark 请求体（清理、去重、级别、复制内容、点开地址）。发送与重试在 send_bark。"""
     # 入参先统一成文字：空值/数字不抛错；站点地址去首尾空白（粘贴常带）
     title, body, site_url, path = _s(title), _s(body), _s(site_url).strip(), _s(path).strip() or "/"
-    if re.match(r"\s*[a-z][a-z0-9+.-]*://", path, re.I):
-        path = "/"  # 路径误传成整条网址：回首页，免得拼成「站点/http://…」
-    path = "/" + "/".join(x for x in path.split("/") if x not in ("", ".", ".."))  if "/." in path else path  # 路径带 ./ ../ 段会让点开落到站点外，丢掉这些段
     level = {"timesensitive": "timeSensitive", "passive": "passive"}.get(_s(level).strip().lower(), level)  # 级别大小写写错（timesensitive）也认，不再静默降成普通推送
     raw_body = body
     link = LINK_RX.search(body or "")  # 正文里的链接锁屏上折成[链接]，没有口令时改为复制原链接
@@ -161,10 +158,9 @@ def build_payload(title: str, body: str, level: str = "active", site_url: str = 
     payload["copy"] = _copy_for(title, full_body, raw_body, link)  # 不开 autoCopy，用户长按复制
     if isinstance(badge, (int, float)) and not isinstance(badge, bool) and badge >= 0 and badge < 1e9:  # None/字符串不再抛 TypeError 拖垮整条推送
         payload["badge"] = min(int(badge), 999)  # 角标上限 999，积压再多也不让桌面图标显示一长串； 角标 = 未完成待办数
-    if re.match(r"https?://", site_url, re.I):  # 没有 http(s):// 开头的地址点开也打不开，不带 url 免得 Bark 报错
-        site = re.split(r"[?#]", site_url, 1)[0].rstrip("/")  # 站点地址带 ?参数/#锚点会拼出「站点?x/路径」，先剪掉
-        payload["url"] = site + ("/" + quote(path.lstrip("/"), safe="/?&=#%:@+,;~") if path.strip("/") else "/")  # 路径缺斜杠补上；中文/空格编码，Bark 点开不再丢链接
-        payload["icon"] = site + "/icon.png"
+    url, icon = open_url(site_url, path)
+    if url:
+        payload["url"], payload["icon"] = url, icon
     return payload
 
 
