@@ -184,7 +184,7 @@ def retry_plan(level: str) -> tuple:
 
 def redact(t: str, burl: str) -> str:
     """日志/错误提示里抹掉 Bark Key（地址最后一段路径），docker logs 和测试推送回显都不泄露设备密钥。"""
-    key = burl.rstrip("/").rsplit("/", 1)[-1]
+    key = burl.strip().split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1]  # 地址若还带 ?query，Key 仍是路径最后一段
     return t.replace(key, "***") if len(key) >= 6 else t
 
 
