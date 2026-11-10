@@ -68,6 +68,6 @@ def open_url(site_url: str, path: str = "/") -> tuple:
         return "", ""
     if re.match(r"[a-z][a-z0-9+.-]*://", path, re.I):
         path = "/"
-    path = "/".join(x for x in path.split("/") if x not in ("", ".", ".."))
+    path = "/".join(x for x in path.split("/") if re.sub(r"%2e", ".", x, flags=re.I) not in ("", ".", ".."))  # %2e%2e 同样是上跳段
     site = re.split(r"[?#]", site_url, 1)[0].rstrip("/")
     return site + ("/" + quote(path, safe="/?&=#%:@+,;~") if path else "/"), site + "/icon.png"
