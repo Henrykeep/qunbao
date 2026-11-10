@@ -1197,7 +1197,9 @@ async function pollRev(){
 setInterval(()=>{if(curView==="home")updLabel()},20000);
 
 /* 往期 */
+let histLoading=false;
 $("#histbtn").onclick=async()=>{
+  if(histLoading)return;histLoading=true;
   tick();const sh=$("#histSheet");sheetOn(sh);$("#hist").innerHTML=skel("hist",3);
   try{const list=await api("/api/digests");
     $("#hist").innerHTML=list.length?list.map(x=>`<button class="hrow lrow ${(viewId?x.id===viewId:x===list[0])?"cur":""}" data-id="${x.id}">
@@ -1205,6 +1207,7 @@ $("#histbtn").onclick=async()=>{
       :emptyBox("还没有往期群报","有了整理结果会按天存在这里");
     $$(".hrow").forEach(b=>b.onclick=()=>{viewId=+b.dataset.id===list[0].id?null:+b.dataset.id;sheetOff(sh);load();window.scrollTo(0,0)});
   }catch(e){$("#hist").innerHTML=emptyBox("往期群报加载失败",esc(e.message),"")}
+  finally{histLoading=false}
 };
 
 /* 问答 */
