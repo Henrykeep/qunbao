@@ -1736,6 +1736,7 @@ async function wpOff(){
   const sub=WP.sub;
   try{
     if(sub){const r=await fetch("/api/push/sub",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({endpoint:sub.endpoint})});
+      if(r.status===401){location.href="/login";return}
       if(!r.ok)throw new Error("服务器返回 "+r.status);await sub.unsubscribe()}
     WP.sub=null;WP.n=Math.max(0,WP.n-1);wpRender();toast("已关闭这台设备的通知")
   }catch(e){wpRender();toast("没关成，通知仍开着："+(e.message||e))}
