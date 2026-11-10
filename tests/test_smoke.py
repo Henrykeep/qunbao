@@ -3414,4 +3414,5 @@ def test_bark_has_key_rejects_placeholder():
     from bark_url import has_key
     assert not has_key("http://10.0.0.5:8080/yourkey")
     assert not has_key("https://bark.example.com/YOUR_KEY")
+    assert not has_key("https://bark.example.com/你的密钥")
     assert has_key("http://10.0.0.5:8080/abcd1234")
