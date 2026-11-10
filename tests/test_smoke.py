@@ -3403,3 +3403,8 @@ def test_bark_url_trailing_dot_and_userinfo():
     k = "abcdefghijklmnopqrstuv"
     assert n(f"https://api.day.app./{k}") == f"https://api.day.app/{k}"
     assert n(f"https://user@api.day.app/{k}") == f"https://api.day.app/{k}"
+
+
+def test_bark_official_port_dropped():
+    from bark import norm_bark_url
+    assert norm_bark_url("https://api.day.app:8080/ABCDEFGHIJKLMNOP1234") == "https://api.day.app/ABCDEFGHIJKLMNOP1234"
