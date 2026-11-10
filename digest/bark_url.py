@@ -68,7 +68,7 @@ def has_key(u) -> bool:
     seg = [x for x in sp.path.split("/") if x]
     if not seg or seg[-1].lower() in ("push", "ping", "healthz", "register"):  # 接口名不是 Key
         return False
-    if re.fullmatch(r"(?:your|my)?[-_]?(?:device[-_]?)?(?:key|token)|xxx+|示例|(?:你的|我的)?(?:设备)?(?:key|密钥|令牌)", seg[-1], re.I):  # Bark App 示例/文档里的占位词，没换成真 Key
+    if re.fullmatch(r"(?:your|my)?[-_]?(?:device[-_]?|api[-_]?)?(?:key|token)|xxx+|示例|(?:你的|我的)?(?:设备)?(?:key|密钥|令牌)", seg[-1], re.I):  # Bark App 示例/文档里的占位词，没换成真 Key
         return False
     if (sp.hostname or "") == "api.day.app":  # 官方服务器的 Key 是 16~40 位字母数字，写短了必定推送失败
         return bool(re.fullmatch(r"[A-Za-z0-9]{16,40}", seg[-1]))
