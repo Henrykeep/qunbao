@@ -770,6 +770,7 @@ const avc=s=>`hsl(${hue(s)} 30% 52%)`;
 const first=s=>esc([...String(s||"?")].find(c=>!/[\s·@]/.test(c))||"?");
 const tick=()=>navigator.vibrate&&navigator.vibrate(8);
 const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const lsJson=(k,d)=>{try{const v=JSON.parse(lsGet(k));return Array.isArray(d)&&!Array.isArray(v)?d:(v??d)}catch(e){return d}};  // 值损坏也不抛错
 const lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}, lsDel=k=>{try{localStorage.removeItem(k)}catch(e){}};  // 隐私模式/存满会抛错：本地偏好写不进去不能打断主流程
 // 按钮忙碌态统一：执行期间禁用并换文案，结束恢复；执行中再点直接忽略
 const busy=async(b,label,fn)=>{if(b.disabled)return;const t=b.textContent;b.disabled=true;b.textContent=label;try{return await fn()}catch(e){toast("没成功："+(e&&e.message||"网络不太好"))}finally{b.disabled=false;b.textContent=t}};
@@ -1223,7 +1224,7 @@ function md(s){
 }
 let ASKSCOPE={chat:"",source:""};
 const AK=()=>"qb_ask:"+(ASKSCOPE.chat?(ASKSCOPE.source||"")+"|"+ASKSCOPE.chat:"*");
-const histLoad=()=>{try{return JSON.parse(lsGet(AK())||"[]")}catch(e){return[]}};
+const histLoad=()=>lsJson(AK(),[]);
 const histSave=h=>lsSet(AK(),JSON.stringify(h.slice(-8)));  // 每个范围保留最近 4 轮
 function qaHtml(q,a,cites){return `<div class="qq">${esc(q)}</div><div class="aa">${mdCite(a,cites)}<div class="acts"><button class="btn ghost sm cp">${ICON.copy}复制</button></div></div>`}
 async function copyText(t){ // 无 HTTPS 时 navigator.clipboard 不存在，回退 execCommand
@@ -1525,7 +1526,7 @@ let GSEL=new Set();
 async function loadGroups(){
   try{const [chats,sugg]=await Promise.all([api("/api/chats?hours=720"),api("/api/chat_suggest")]);SCHATS=chats;CHATS=[];setSummary();
     const sb=$("#g-sugg");
-    const sk="qb_sugg_skip",skipped=new Set(JSON.parse(lsGet(sk)||"[]")),sid=x=>x.source+"|"+x.chat;
+    const sk="qb_sugg_skip",skipped=new Set(lsJson(sk,[])),sid=x=>x.source+"|"+x.chat;
     for(let i=sugg.length-1;i>=0;i--)if(skipped.has(sid(sugg[i])))sugg.splice(i,1);
     sb.innerHTML=sugg.length?`<div class="sugg"><b>这 ${sugg.length} 个群很吵，但没什么要紧事</b><div class="sl">${sugg.slice(0,3).map(x=>esc(x.chat.length>12?x.chat.slice(0,12)+"…":x.chat)).join("、")}${sugg.length>3?` 等 ${sugg.length} 个`:""}。${[...new Set(sugg.map(x=>x.why))].map(w=>`${sugg.filter(x=>x.why===w).length} 个${w}`).join("，")}。</div><div class="sacts"><button class="btn" id="g-sapply">全部设为只看@我</button><button class="btn ghost" id="g-sskip">不用了</button></div></div>`:"";
     $("#g-sskip")?.addEventListener("click",()=>{lsSet(sk,JSON.stringify([...skipped,...sugg.map(sid)]));sb.innerHTML=""});
