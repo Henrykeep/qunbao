@@ -3373,3 +3373,9 @@ def test_bark_site_url_whitespace_trimmed():
 def test_bark_full_url_path_falls_back_home():
     import bark
     assert bark.build_payload("a", "b", "active", "http://h", "http://x/y")["url"] == "http://h/"
+
+
+def test_bark_path_whitespace_trimmed():
+    import bark
+    p = bark.build_payload("a", "b", site_url="http://x.com", path=" /today \n")
+    assert p["url"] == "http://x.com/today"
