@@ -770,7 +770,7 @@ const avc=s=>`hsl(${hue(s)} 30% 52%)`;
 const first=s=>esc([...String(s||"?")].find(c=>!/[\s·@]/.test(c))||"?");
 const tick=()=>navigator.vibrate&&navigator.vibrate(8);
 // 按钮忙碌态统一：执行期间禁用并换文案，结束恢复；执行中再点直接忽略
-const busy=async(b,label,fn)=>{if(b.disabled)return;const t=b.textContent;b.disabled=true;b.textContent=label;try{return await fn()}finally{b.disabled=false;b.textContent=t}};
+const busy=async(b,label,fn)=>{if(b.disabled)return;const t=b.textContent;b.disabled=true;b.textContent=label;try{return await fn()}catch(e){toast("没成功："+(e&&e.message||"网络不太好"))}finally{b.disabled=false;b.textContent=t}};
 const doneKey=t=>t.key||t.title+"|"+t.chat;
 const SRC={"QQ":"s-qq","微信":"s-wx"};
 const srcTag=src=>src?`<span class="tag ${SRC[src]||""}">${esc(src)}</span>`:"";
