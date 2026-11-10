@@ -1782,8 +1782,8 @@ if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("messag
   document.addEventListener("touchend",end,{capture:true});document.addEventListener("touchcancel",end,{capture:true});
 })();
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){pollRev();refreshQuiet()}});
-$("#s-logout").onclick=async()=>{if(!confirm("退出登录？这台设备下次打开要重新输入密码。"))return;
-  await fetch("/api/logout",{method:"POST"}).catch(()=>{});location.replace("/login")};
+$("#s-logout").onclick=async e=>{if(!confirm("退出登录？这台设备下次打开要重新输入密码。"))return;
+  e.currentTarget.disabled=true;await fetch("/api/logout",{method:"POST"}).catch(()=>{});location.replace("/login")};
 function netUI(){$("#offbar").hidden=navigator.onLine}
 window.addEventListener("online",()=>{netUI();pollRev()});
 window.addEventListener("offline",netUI);netUI();
