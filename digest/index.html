@@ -1814,7 +1814,8 @@ if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("messag
 })();
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){pollRev();refreshQuiet()}});
 $("#s-logout").onclick=async e=>{if(!confirm("退出登录？这台设备下次打开要重新输入密码。"))return;
-  await busy(e.currentTarget,"退出中…",async()=>{await fetch("/api/logout",{method:"POST"}).catch(()=>{});
+  await busy(e.currentTarget,"退出中…",async()=>{const r=await fetch("/api/logout",{method:"POST"}).catch(()=>null);
+    if(!r||r.status>=500)throw new Error("网络不通，没退出成功，连上网再试");  // 服务器没确认就清本地，会话还在却丢了缓存
     try{await Promise.all((await caches.keys()).map(k=>caches.delete(k)))}catch(e){}  // 退出后离线缓存里的群消息也要清掉，别留给下一个用这台设备的人
     try{Object.keys(localStorage).filter(k=>k.startsWith("qb_")).forEach(lsDel)}catch(e){}
     location.replace("/login")})};
