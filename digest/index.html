@@ -1204,7 +1204,7 @@ $("#histbtn").onclick=async()=>{
       <div class="lh"><b>${ago(x.ts)} · ${{24:"日报",72:"3 天合订",168:"周报"}[x.hours]||x.hours+" 小时"}${x.auto?" · 自动":""}</b><span>${x.count} 条 · ${x.todos} 件待办</span></div><div class="ht">${esc(x.headline)}</div></button>`).join("")
       :emptyBox("还没有往期群报","有了整理结果会按天存在这里");
     $$(".hrow").forEach(b=>b.onclick=()=>{viewId=+b.dataset.id===list[0].id?null:+b.dataset.id;sheetOff(sh);load();window.scrollTo(0,0)});
-  }catch(e){$("#hist").innerHTML=`<div class="empty">${esc(e.message)}</div>`}
+  }catch(e){$("#hist").innerHTML=emptyBox("往期群报加载失败",esc(e.message),"")}
 };
 
 /* 问答 */
