@@ -72,7 +72,7 @@ def has_key(u) -> bool:
     seg = [x for x in sp.path.split("/") if x]
     if not seg or seg[-1].lower() in _API_SEGS:  # 接口名不是 Key
         return False
-    if _DEMO_KEY.fullmatch(seg[-1]):  # Bark App 示例/文档里的占位词，没换成真 Key
+    if _DEMO_KEY.fullmatch(seg[-1]) or re.fullmatch(r"(.)\1{7,}|(?:0123456789|1234567890)+\d*", seg[-1]):  # 占位词，或 xxxxxxxx / 1111111111 / 1234567890… 这类凑数的假 Key  # Bark App 示例/文档里的占位词，没换成真 Key
         return False
     if (sp.hostname or "") == "api.day.app":  # 官方服务器的 Key 是 16~40 位字母数字，写短了必定推送失败
         return bool(re.fullmatch(_KEY_RE, seg[-1]))
