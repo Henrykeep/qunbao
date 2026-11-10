@@ -3396,3 +3396,10 @@ def test_bark_path_dot_segments():
 def test_bark_url_percent_encoded_slash():
     from digest.bark_url import norm_bark_url
     assert norm_bark_url("https%3A%2F%2Fapi.day.app%2FABCDEFGHIJKLMNOP1234") == "https://api.day.app/ABCDEFGHIJKLMNOP1234"
+
+
+def test_bark_url_trailing_dot_and_userinfo():
+    from bark_url import norm_bark_url as n
+    k = "abcdefghijklmnopqrstuv"
+    assert n(f"https://api.day.app./{k}") == f"https://api.day.app/{k}"
+    assert n(f"https://user@api.day.app/{k}") == f"https://api.day.app/{k}"
