@@ -38,7 +38,12 @@ def norm_bark_url(u: str) -> str:
         seg = seg[:-1] + [dk.group(1)]
     scheme = sp.scheme.lower()
     ui, _, hp = sp.netloc.rpartition("@")  # 反代 Basic 认证 user:pass@ 区分大小写，只小写主机部分
-    host = (ui + "@" if ui else "") + hp.lower()
+    hp = hp.lower().replace(".:", ":") if ".:" in hp else hp.lower()
+    if hp.endswith("."):  # 完整域名写法 api.day.app. 末尾多一个点
+        hp = hp[:-1]
+    if hp.split(":")[0] == "api.day.app":  # 官方服务器不认 Basic 认证，user@ 是误粘
+        ui = ""
+    host = (ui + "@" if ui else "") + hp
     host = re.sub(r":(443|80)$", lambda m: "" if (m.group(1) == "443") == (scheme == "https") else m.group(0), host)  # 默认端口多余
     if host.rpartition("@")[2] == "api.day.app":
         scheme = "https"  # 官方服务器只认 https，手滑写成 http 会推送失败
