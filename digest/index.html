@@ -798,7 +798,9 @@ const ICON={
 
 const HTTP_MSG={403:"没有权限做这个操作",404:"内容已经不存在了，刷新后再看看",413:"内容太大，发不出去",429:"操作太频繁，请稍等几秒再试"};
 async function api(path,body){
-  const r=await fetch(path,body!==undefined?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{}).catch(()=>{throw new Error("连不上服务器，请检查网络后重试")});
+  const o=body!==undefined?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{};
+  if(window.AbortSignal&&AbortSignal.timeout)o.signal=AbortSignal.timeout(path.startsWith("/api/ask")?120000:40000);
+  const r=await fetch(path,o).catch(e=>{throw new Error(e&&e.name==="TimeoutError"?"服务器响应太慢，请稍后重试":"连不上服务器，请检查网络后重试")});
   if(r.status===401){location.replace("/login");throw new Error("请先登录")}
   if(!r.ok){let d=(await r.json().catch(()=>({}))).detail;if(Array.isArray(d))d=d.map(x=>x&&x.msg||"").filter(Boolean).join("；");throw new Error(typeof d==="string"&&d||HTTP_MSG[r.status]||(r.status>=500?"服务器暂时没响应（"+r.status+"），请稍后重试":"请求失败（"+r.status+"）"))}
   return r.json().catch(()=>{throw new Error("服务器返回了无法识别的内容，请稍后重试")});
