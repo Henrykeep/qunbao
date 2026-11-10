@@ -1715,9 +1715,12 @@ async function wpTest(first){
 }
 async function wpOff(){
   if(!confirm("这台设备不再接收群报通知？"))return;
-  const sub=WP.sub;WP.sub=null;
-  try{if(sub){await fetch("/api/push/sub",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({endpoint:sub.endpoint})});await sub.unsubscribe()}}catch(e){}
-  WP.n=Math.max(0,WP.n-1);wpRender();toast("已关闭这台设备的通知")
+  const sub=WP.sub;
+  try{
+    if(sub){const r=await fetch("/api/push/sub",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({endpoint:sub.endpoint})});
+      if(!r.ok)throw new Error("服务器返回 "+r.status);await sub.unsubscribe()}
+    WP.sub=null;WP.n=Math.max(0,WP.n-1);wpRender();toast("已关闭这台设备的通知")
+  }catch(e){wpRender();toast("没关成，通知仍开着："+(e.message||e))}
 }
 $("#wp-btn").onclick=e=>{tick();if($("#wp-btn").dataset.st==="on")busy(e.currentTarget,"发送中",()=>wpTest());else busy(e.currentTarget,"开启中…",wpEnable)};
 
