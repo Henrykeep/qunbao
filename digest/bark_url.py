@@ -58,3 +58,16 @@ def has_key(u) -> bool:
     if (sp.hostname or "") == "api.day.app":  # 官方服务器的 Key 是 16~40 位字母数字，写短了必定推送失败
         return bool(re.fullmatch(r"[A-Za-z0-9]{16,40}", seg[-1]))
     return True
+
+
+def open_url(site_url: str, path: str = "/") -> tuple:
+    """推送点开地址与图标：站点地址去 ?参数/#锚点，路径去 ./ ../ 段、整条网址退回首页、中文/空格编码。站点不是 http(s) 返回 ("", "")。"""
+    from urllib.parse import quote
+    site_url, path = (site_url or "").strip(), (path or "").strip() or "/"
+    if not re.match(r"https?://", site_url, re.I):
+        return "", ""
+    if re.match(r"[a-z][a-z0-9+.-]*://", path, re.I):
+        path = "/"
+    path = "/".join(x for x in path.split("/") if x not in ("", ".", ".."))
+    site = re.split(r"[?#]", site_url, 1)[0].rstrip("/")
+    return site + ("/" + quote(path, safe="/?&=#%:@+,;~") if path else "/"), site + "/icon.png"
