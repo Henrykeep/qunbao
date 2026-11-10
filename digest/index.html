@@ -800,7 +800,7 @@ async function api(path,body){
   const r=await fetch(path,body!==undefined?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{});
   if(r.status===401){location.replace("/login");throw new Error("请先登录")}
   if(!r.ok)throw new Error((await r.json().catch(()=>({}))).detail||r.statusText);
-  return r.json();
+  return r.json().catch(()=>{throw new Error("服务器返回了无法识别的内容，请稍后重试")});
 }
 
 /* ---------- 返回栈：群聊 / 弹层 / 设置子页 / 待办详情 都进浏览器历史 ----------
