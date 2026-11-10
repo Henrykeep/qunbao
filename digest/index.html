@@ -992,7 +992,7 @@ function bindTodo(el,m){
     setTimeout(()=>sortTodos(true),on?420:0);
     if(on)swapHead(T,m.todos.filter(x=>x!==T&&!m.isDone(x)));
     api("/api/todo",{...who,done:on}).then(r=>{if(r&&r.headline){const hd=$("#main .headline");if(hd)hd.textContent=r.headline;if(ST&&ST.digest)ST.digest.headline=r.headline}
-      forceQuiet()}).catch(fail);
+      forceQuiet()}).catch(()=>{el.classList.toggle("done",!on);T.done=!on;tick();updateProg();sortTodos(true);fail()});
     if(on)toast("已完成",()=>chk.onclick());
   };
   el.querySelector(".tbody").addEventListener("click",e=>{if(e.target.closest(".acts2,.snzmenu"))return;
