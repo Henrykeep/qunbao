@@ -47,10 +47,8 @@ def _canon(u: str) -> str:
     hp = hp.lower().replace(".:", ":") if ".:" in hp else hp.lower()
     if hp.endswith("."):  # 完整域名写法 api.day.app. 末尾多一个点
         hp = hp[:-1]
-    if hp.split(":")[0] == "api.day.app":  # 官方服务器不认 Basic 认证，user@ 是误粘
-        ui = ""
-    if hp.split(":")[0] == "api.day.app":  # 官方服务器没有自定义端口（:8080 等是误粘）
-        hp = "api.day.app"
+    if hp.split(":")[0] == "api.day.app":  # 官方服务器不认 Basic 认证、没有自定义端口，user@ 与 :8080 都是误粘
+        ui, hp = "", "api.day.app"
     host = (ui + "@" if ui else "") + hp
     host = re.sub(r":(443|80)$", lambda m: "" if (m.group(1) == "443") == (scheme == "https") else m.group(0), host)  # 默认端口多余
     if host.rpartition("@")[2] == "api.day.app":
