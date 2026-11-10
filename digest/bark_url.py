@@ -4,7 +4,8 @@ import unicodedata
 
 
 def norm_bark_url(u: str) -> str:
-    """用户常把 Bark App 里的示例整条粘进来（…/KEY/内容?group=x），只留 服务器/KEY。"""
+    """第一阶段：把各种粘贴形态清成地址文本，再交 _canon 规范化。
+    用户常把 Bark App 里的示例整条粘进来（…/KEY/内容?group=x），只留 服务器/KEY。"""
     from urllib.parse import urlsplit
     u = unicodedata.normalize("NFKC", u or "").replace("。", ".")  # 中文输入法的全角 ：／．等
     if re.search(r"%(20|0a|0d|09|2f|3a|3f|23)", u, re.I):  # 从网页/聊天复制出的地址带 %20 等转义空白：先还原再清掉
@@ -28,7 +29,12 @@ def norm_bark_url(u: str) -> str:
     u = re.sub(r"^bark:/{0,2}(?=[A-Za-z0-9])", "https://api.day.app/", u, flags=re.I)  # bark://KEY 深链：同官方服务器
     if re.fullmatch(r"[A-Za-z0-9]{16,40}", u):  # 只粘了设备 Key：默认官方服务器
         u = "https://api.day.app/" + u
-    u = u.split("#", 1)[0]  # 锚点 #xxx 不属于地址
+    return _canon(u.split("#", 1)[0])  # 锚点 #xxx 不属于地址
+
+
+def _canon(u: str) -> str:
+    """第二阶段：已是 协议://主机/路径 形态，统一主机/端口/路径段。"""
+    from urllib.parse import urlsplit
     sp = urlsplit(u)
     if not sp.scheme or not sp.netloc:
         return u.rstrip("/")
