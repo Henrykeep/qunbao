@@ -783,7 +783,7 @@ const srcIcon=src=>ICON.chat.replace("<svg",`<svg class="${SRC[src]||""}" aria-l
 const srcBadge=src=>SRC[src]?`<span class="sb ${SRC[src]}">${src==="QQ"?"Q":"微"}</span>`:"";
 const hlAt=s=>esc(s).replace(/(@我|@全体成员|@所有人)/g,'<em class="at-hl">$1</em>');
 const hlQ=(s,q)=>{const e=hlAt(s);if(!q)return e;const qq=esc(q).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");return e.split(/(<[^>]*>|&(?:amp|lt|gt|quot|#39);)/).map((x,i)=>i%2?x:x.replace(new RegExp(qq,"gi"),m=>`<mark>${m}</mark>`)).join("")};
-const debounce=(f,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>f(...a),ms)}};
+const debounce=(f,ms)=>{let t,args=null;const d=(...a)=>{args=a;clearTimeout(t);t=setTimeout(()=>{args=null;f(...a)},ms)};d.flush=()=>{if(args){clearTimeout(t);const a=args;args=null;f(...a)}};return d};
 const ICON={
   pin:'<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M9 3h6l-1 6 3 3v2h-4v6l-1 1-1-1v-6H7v-2l3-3z"/></svg>',
   clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
@@ -1533,6 +1533,9 @@ const saveSet=debounce(async()=>{
   try{const {modes,...rest}=SET;SET=await api("/api/settings",rest);setSummary();if(SILENT){SILENT=false;return}const h=$("#savehint");h.textContent="已保存";h.style.opacity=1;clearTimeout(h._t);h._t=setTimeout(()=>h.style.opacity=0,1500)}
   catch(e){toast("保存失败："+e.message)}
 },500);
+/* 切到后台/关页时把还没发出去的设置改动立刻存掉（iOS 主屏应用常被直接挂起） */
+document.addEventListener("visibilitychange",()=>{if(document.hidden)saveSet.flush()});
+addEventListener("pagehide",()=>saveSet.flush());
 /* 群设置：搜索、按 QQ/微信分组、按消息量排序、多选批量设档、吵闹群建议 */
 let GSEL=new Set();
 async function loadGroups(){
