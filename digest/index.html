@@ -769,6 +769,7 @@ const hue=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;retu
 const avc=s=>`hsl(${hue(s)} 30% 52%)`;
 const first=s=>esc([...String(s||"?")].find(c=>!/[\s·@]/.test(c))||"?");
 const tick=()=>navigator.vibrate&&navigator.vibrate(8);
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
 const lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}, lsDel=k=>{try{localStorage.removeItem(k)}catch(e){}};  // 隐私模式/存满会抛错：本地偏好写不进去不能打断主流程
 // 按钮忙碌态统一：执行期间禁用并换文案，结束恢复；执行中再点直接忽略
 const busy=async(b,label,fn)=>{if(b.disabled)return;const t=b.textContent;b.disabled=true;b.textContent=label;try{return await fn()}catch(e){toast("没成功："+(e&&e.message||"网络不太好"))}finally{b.disabled=false;b.textContent=t}};
@@ -850,7 +851,7 @@ $$(".sheet").forEach(sh=>{
 });
 
 /* ================= 今日 ================= */
-let hours=+(localStorage.qb_hours||24), viewId=null, ST=null;
+let hours=+(lsGet("qb_hours")||24), viewId=null, ST=null;
 function setSeg(h,save=true){
   hours=h;if(save)lsSet("qb_hours",h);
   const b=$$("#seg button").find(x=>+x.dataset.h===h)||$$("#seg button")[0];
@@ -1018,12 +1019,12 @@ function render(st,live){
   bindTip();bindHome(m);
 }
 function tipCard(st){
-  if(!st.modes_tip||localStorage.qb_tip_off)return"";
+  if(!st.modes_tip||lsGet("qb_tip_off"))return"";
   return `<div class="tipcard card fade" data-sec="tip" id="tipcard"><div class="lb"><b>${st.nchats} 个群在发消息，给群分个档？</b>不重要的设成「只看@我」，这里更清爽</div><button class="btn" id="tipgo">去分档</button><button class="x0" id="tipx" aria-label="不再提示">×</button></div>`;
 }
 /* 首次从主屏幕打开、还没开通知：顶部一条可关的提示（iOS 必须用户点按钮才能申请通知权限） */
 function pushTip(){
-  if(!isStd()||!window.isSecureContext||!("PushManager" in window)||!("Notification" in window)||Notification.permission!=="default"||localStorage.qb_push_tip_off)return"";
+  if(!isStd()||!window.isSecureContext||!("PushManager" in window)||!("Notification" in window)||Notification.permission!=="default"||lsGet("qb_push_tip_off"))return"";
   return `<div class="tipcard card fade" data-sec="pushtip" id="pushtip"><div class="lb"><b>有新待办时直接通知你？</b>不用再自己打开群报看</div><button class="btn" id="pushgo">开启</button><button class="x0" id="pushx" aria-label="不再提示">×</button></div>`;
 }
 function bindTip(){
@@ -1222,8 +1223,8 @@ function md(s){
 }
 let ASKSCOPE={chat:"",source:""};
 const AK=()=>"qb_ask:"+(ASKSCOPE.chat?(ASKSCOPE.source||"")+"|"+ASKSCOPE.chat:"*");
-const histLoad=()=>{try{return JSON.parse(localStorage[AK()]||"[]")}catch(e){return[]}};
-const histSave=h=>{localStorage[AK()]=JSON.stringify(h.slice(-8))};  // 每个范围保留最近 4 轮
+const histLoad=()=>{try{return JSON.parse(lsGet(AK())||"[]")}catch(e){return[]}};
+const histSave=h=>lsSet(AK(),JSON.stringify(h.slice(-8)));  // 每个范围保留最近 4 轮
 function qaHtml(q,a,cites){return `<div class="qq">${esc(q)}</div><div class="aa">${mdCite(a,cites)}<div class="acts"><button class="btn ghost sm cp">${ICON.copy}复制</button></div></div>`}
 async function copyText(t){ // 无 HTTPS 时 navigator.clipboard 不存在，回退 execCommand
   try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(t);return true}}catch(e){}
@@ -1291,7 +1292,7 @@ function modeSheet(src,chat){
 }
 
 /* ================= 原文 ================= */
-let CHATS=[],SRCF=localStorage.qb_src||"";
+let CHATS=[],SRCF=lsGet("qb_src")||"";
 function renderSrcs(){
   const n=k=>CHATS.filter(c=>!k||c.source===k).length;
   const opts=[["","全部",""],["QQ","QQ","s-qq"],["微信","微信","s-wx"]];
@@ -1359,7 +1360,7 @@ $("#sclr").onclick=()=>{$("#sq").value="";$("#sbox").classList.remove("has");sea
 let chatName=null,chatSrc="",oldest=0,chatSeq=0,READ0=0;
 const unreadAts=c=>{const r=readGet("qb_read:"+c.source+"|"+c.chat);return (c.at_ids||[]).filter(i=>i>r).length};
 const RK=()=>"qb_read:"+(chatSrc||"")+"|"+chatName;
-const readGet=k=>+(localStorage[k]||0), readSet=(k,v)=>{if(v>readGet(k))lsSet(k,v)};
+const readGet=k=>+(lsGet(k)||0), readSet=(k,v)=>{if(v>readGet(k))lsSet(k,v)};
 function showChatView(){
   if(curView!=="msgs"){curView="msgs";$$(".view").forEach(e=>e.classList.toggle("on",e.id==="v-msgs"));
     $$(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v==="msgs"))}
@@ -1524,7 +1525,7 @@ let GSEL=new Set();
 async function loadGroups(){
   try{const [chats,sugg]=await Promise.all([api("/api/chats?hours=720"),api("/api/chat_suggest")]);SCHATS=chats;CHATS=[];setSummary();
     const sb=$("#g-sugg");
-    const sk="qb_sugg_skip",skipped=new Set(JSON.parse(localStorage.getItem(sk)||"[]")),sid=x=>x.source+"|"+x.chat;
+    const sk="qb_sugg_skip",skipped=new Set(JSON.parse(lsGet(sk)||"[]")),sid=x=>x.source+"|"+x.chat;
     for(let i=sugg.length-1;i>=0;i--)if(skipped.has(sid(sugg[i])))sugg.splice(i,1);
     sb.innerHTML=sugg.length?`<div class="sugg"><b>这 ${sugg.length} 个群很吵，但没什么要紧事</b><div class="sl">${sugg.slice(0,3).map(x=>esc(x.chat.length>12?x.chat.slice(0,12)+"…":x.chat)).join("、")}${sugg.length>3?` 等 ${sugg.length} 个`:""}。${[...new Set(sugg.map(x=>x.why))].map(w=>`${sugg.filter(x=>x.why===w).length} 个${w}`).join("，")}。</div><div class="sacts"><button class="btn" id="g-sapply">全部设为只看@我</button><button class="btn ghost" id="g-sskip">不用了</button></div></div>`:"";
     $("#g-sskip")?.addEventListener("click",()=>{lsSet(sk,JSON.stringify([...skipped,...sugg.map(sid)]));sb.innerHTML=""});
