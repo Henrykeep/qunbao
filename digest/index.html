@@ -796,7 +796,7 @@ const ICON={
   bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/><path d="M3 3l18 18"/></svg>',
 };
 
-const HTTP_MSG={403:"没有权限做这个操作",404:"内容已经不存在了，刷新后再看看",413:"内容太大，发不出去",429:"操作太频繁，请稍等几秒再试"};
+const HTTP_MSG={403:"没有权限做这个操作",404:"内容已经不存在了，刷新后再看看",408:"请求超时了，请稍后重试",413:"内容太大，发不出去",429:"操作太频繁，请稍等几秒再试"};
 async function api(path,body){
   const o=body!==undefined?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{};
   if(window.AbortSignal&&AbortSignal.timeout)o.signal=AbortSignal.timeout(path.startsWith("/api/ask")?120000:40000);
