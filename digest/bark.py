@@ -61,6 +61,11 @@ EXT_WORDS = {
 }
 EXT_LABELS = [(label, "|".join(words)) for label, words in EXT_WORDS.items()]
 
+def _this_year(m) -> str:
+    import datetime
+    return "" if int(m.group(1)) == datetime.date.today().year else m.group(0)
+
+
 STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"[\u200b-\u200d\u2060\ufeff\u00ad\u180e\u200e\u200f\u202a-\u202e]", "", 0),  # 零宽字符：锁屏是看不见的空档，还会让取件码匹配失败
     (r"\r\n?|[\u2028\u2029\x0b\x0c\x85]", "\n", 0),  # 换行统一（含 Unicode 行/段分隔符、垂直制表），免得重复行折叠和列表符匹配被 \r 挡住
@@ -103,6 +108,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"(?<=\S)\s*[(（]\s*\d+(?:\.\d+)?\s*(?:[KMG]B|字节)\s*[)）]", "", re.I),  # 文件消息「期末.pdf (2.3MB)」的大小括号对锁屏没用，文件名留着
     (r"(\.[A-Za-z0-9]{2,4})\s+\d+(?:\.\d+)?\s*[KMG]B\b", r"\1", re.I),  # 无括号的「期末.pdf 2.3MB」也只留文件名
     (r"[０-９Ａ-Ｚａ-ｚ]+", lambda m: m.group(0).translate({c: c - 0xFEE0 for c in range(0xFF01, 0xFF5F)}), 0),  # 全角数字/字母转半角：「验证码：１２３４５６」才匹配得上复制
+    (r"(?<![\d.\-/])(\d{4})(?:年\s*|[-/.])(?=\d{1,2}(?:月|[-/.]\d{1,2}(?!\d)))", _this_year, 0),  # 本年日期的年份对锁屏是冗余：「2026年11月13日」「2026-11-13」只留月日（往年/明年保留）
     (r"[\u2002-\u200a\u00a0\u202f]", " ", 0),  # 特殊空格统一成普通空格
     (r"[ \u3000\t]{2,}", " ", 0),  # 连续空格折成一个
     (r" +(?=[，。、；：！？）」』》】])", "", 0),  # 网址/代码被换成占位后留下的「[链接] ，」空格，中文标点前不该有空格
