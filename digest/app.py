@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.428"
+VERSION="0.39.429"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -383,14 +383,14 @@ async def push_new_todos(todos, s=None) -> bool:
         return False
     one = lambda t: t.get("title", "") + (f"（{t['due']}）" if t.get("due") else "")
     chats = {(t.get("source") or "QQ", t.get("chat") or "") for t in fresh}
+    more = f" 等 {len(fresh)} 件" if len(fresh) > 3 else ""  # 超过三件时说清还有几件，不让人以为只有三件
     if len(fresh) == 1:
         t = fresh[0]
         title, body, url = (t.get("chat") or "新待办"), "新待办：" + one(t), f"/#todo/{t['id']}"
     elif len(chats) == 1:
-        title, body, url = (fresh[0].get("chat") or "新待办"), f"{len(fresh)} 件新待办：" + "；".join(one(t) for t in fresh[:3]), "/"
+        title, body, url = (fresh[0].get("chat") or "新待办"), f"{len(fresh)} 件新待办：" + "；".join(one(t) for t in fresh[:3]) + more, "/"
     else:
-        title, body, url = "新待办", "；".join(f"{one(t)} · {t.get('chat', '')}" for t in fresh[:3]) + (
-            f" 等 {len(fresh)} 件" if len(fresh) > 3 else ""), "/"
+        title, body, url = "新待办", "；".join(f"{one(t)} · {t.get('chat', '')}" for t in fresh[:3]) + more, "/"
     lvl = "timeSensitive" if any(t.get("at_me") or t.get("urgency") == "high" for t in fresh) else "active"
     return await push(title, body, force=True, level=lvl, url=url, tag=f"todo-{fresh[0]['id']}")
 
