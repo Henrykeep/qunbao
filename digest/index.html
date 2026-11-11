@@ -1110,11 +1110,11 @@ function sortTodos(animate){
   if(!animate)return;
   items.forEach(e=>{const dy=f.get(e)-e.getBoundingClientRect().top;if(dy)e.animate([{transform:`translateY(${dy}px)`},{transform:"none"}],{duration:420,easing:"cubic-bezier(.2,.9,.25,1)"})});
 }
-let loadRetryT=0;
-async function load(){clearTimeout(loadRetryT);skeleton();try{render(await api("/api/state"+(viewId?`?id=${viewId}`:`?hours=${hours}`)))}
-  catch(e){const on=navigator.onLine;$("#main").innerHTML=`<div class="empty"><div class="big">${on?"连不上群报服务器":"没有网络"}</div>${on?`服务器可能正在重启，稍等几秒会自动重试；一直不行再检查服务器是否在运行。<br><small>${esc(e.message)}</small>`:"连上网络后会自动刷新。"}<br><button class="btn line sm more-btn" id="retry">重试</button></div>`;
+let loadRetryT=0,loadFails=0;
+async function load(){clearTimeout(loadRetryT);skeleton();try{render(await api("/api/state"+(viewId?`?id=${viewId}`:`?hours=${hours}`)));loadFails=0}
+  catch(e){loadFails++;const on=navigator.onLine;$("#main").innerHTML=`<div class="empty"><div class="big">${on?"连不上群报服务器":"没有网络"}</div>${on?`服务器可能正在重启，稍等几秒会自动重试；一直不行再检查服务器是否在运行。<br><small>${esc(e.message)}</small>`:"连上网络后会自动刷新。"}<br><button class="btn line sm more-btn" id="retry">重试</button></div>`;
     $("#retry").onclick=()=>{tick();load()};
-    if(on){clearTimeout(loadRetryT);loadRetryT=setTimeout(()=>{if($("#retry"))load()},8000)}}}  // 页面承诺「自动重试」：8 秒后真的重试（失败页还在才重试）
+    if(on){clearTimeout(loadRetryT);loadRetryT=setTimeout(()=>{if($("#retry"))load()},Math.min(60,8*2**(loadFails-1))*1000)}}}  // 页面承诺「自动重试」：8 秒后真的重试（失败页还在才重试）
 async function regen(){
   const b=$("#regen");if(b.classList.contains("spin"))return;b.classList.add("spin");
   const p=ST&&ST.pending;$("#updated").textContent=p&&p.msgs?`正在整理 ${p.msgs} 条…`:"正在整理…";
