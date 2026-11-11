@@ -1002,7 +1002,8 @@ function bindHome(m){
 }
 function bindTodo(el,m){
   const T=m.todos[+el.dataset.i]||{},who={key:el.dataset.k,title:T.title||"",chat:T.chat||"",due:T.due||""};
-  const fail=()=>toast("没保存上，网络不太好");
+  const why=e=>e&&e.message||"网络不太好";
+  const fail=e=>toast("没保存上："+why(e));
   const chk=el.querySelector(".check");
   chk.onclick=()=>{
     const on=!el.classList.contains("done");el.classList.toggle("done",on);el.classList.remove("open");el.querySelector(".snzmenu")?.remove();
@@ -1010,7 +1011,7 @@ function bindTodo(el,m){
     setTimeout(()=>sortTodos(true),on?420:0);
     if(on)swapHead(T,m.todos.filter(x=>x!==T&&!m.isDone(x)));
     api("/api/todo",{...who,done:on}).then(r=>{if(r&&r.headline){const hd=$("#main .headline");if(hd)hd.textContent=r.headline;if(ST&&ST.digest)ST.digest.headline=r.headline}
-      forceQuiet()}).catch(()=>{el.classList.toggle("done",!on);T.done=!on;tick();updateProg();sortTodos(true);fail()});
+      forceQuiet()}).catch(e=>{el.classList.toggle("done",!on);T.done=!on;tick();updateProg();sortTodos(true);fail(e)});
     if(on)toast("已完成",()=>chk.onclick());
   };
   el.querySelector(".tbody").addEventListener("click",e=>{if(e.target.closest(".acts2,.snzmenu"))return;
@@ -1023,7 +1024,7 @@ function bindTodo(el,m){
     el.querySelector(".acts2").after(sm);
     sm.onclick=ev=>{const b=ev.target.closest("button");if(!b)return;ev.stopPropagation();sm.remove();if(!b.dataset.h)return;tick();
       const h=b.dataset.h==="tomorrow"?"tomorrow":+b.dataset.h;
-      api("/api/todo/snooze",{...who,hours:h}).then(r=>toast(r.warn||r.msg||"已设好提醒")).catch(()=>toast("没设上，网络不太好"))};
+      api("/api/todo/snooze",{...who,hours:h}).then(r=>toast(r.warn||r.msg||"已设好提醒")).catch(e=>toast("没设上："+why(e)))};
   });
   el.querySelector(".pinb")?.addEventListener("click",e=>{
     e.stopPropagation();const on=!el.classList.contains("pinned");el.classList.toggle("pinned",on);
