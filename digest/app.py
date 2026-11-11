@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.429"
+VERSION="0.39.430"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -381,6 +381,7 @@ async def push_new_todos(todos, s=None) -> bool:
         fresh.append(t)
     if not fresh:
         return False
+    fresh.sort(key=lambda t: not (t.get("at_me") or t.get("urgency") == "high"))  # 只列前三件时，@我/紧急的排最前（稳定排序，其余保持原序）
     one = lambda t: t.get("title", "") + (f"（{t['due']}）" if t.get("due") else "")
     chats = {(t.get("source") or "QQ", t.get("chat") or "") for t in fresh}
     more = f" 等 {len(fresh)} 件" if len(fresh) > 3 else ""  # 超过三件时说清还有几件，不让人以为只有三件
