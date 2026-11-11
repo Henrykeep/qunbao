@@ -820,8 +820,8 @@ const HTTP_MSG={
 async function httpErrMsg(r){
   let d=(await r.json().catch(()=>({}))).detail;
   if(Array.isArray(d))d="填写的内容格式不对，请检查后再试";
-  const w=r.status===429?+r.headers.get("Retry-After")||0:0;
-  if(w>0)return"操作太频繁，请"+(w>=60?Math.ceil(w/60)+" 分钟":w+" 秒")+"后再试";
+  const w=r.status===429||r.status===423?+r.headers.get("Retry-After")||0:0;
+  if(w>0)return(r.status===423?"账号暂时被锁定，请":"操作太频繁，请")+(w>=60?Math.ceil(w/60)+" 分钟":w+" 秒")+"后再试";
   if(typeof d==="string"&&/[\u4e00-\u9fff]/.test(d))return d;
   return HTTP_MSG[r.status]||(r.status>=500?"服务器暂时没响应（"+r.status+"），请稍后重试":"请求没成功（"+r.status+"），刷新页面后再试");
 }
