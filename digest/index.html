@@ -824,7 +824,7 @@ async function api(path,body){
   if(body===undefined&&(r instanceof Error||RETRY_HTTP.includes(r.status))){const ra=r instanceof Error?0:+r.headers.get("Retry-After")||0;await new Promise(f=>setTimeout(f,Math.min(5000,Math.max(800,ra*1000))));r=await send().catch(e=>e)}  // 读取类请求遇到瞬时网络抖动/网关错误/限流：自动重试一次
   if(r instanceof Error)throw new Error(navigator.onLine===false?"手机现在没有网络，联网后再试":r.name==="TimeoutError"?"服务器响应太慢，请稍后重试":"连不上服务器，请检查网络后重试");
   if(r.status===401){location.replace("/login");throw new Error("请先登录")}
-  if(!r.ok){let d=(await r.json().catch(()=>({}))).detail;if(Array.isArray(d))d="填写的内容格式不对，请检查后再试";throw new Error(typeof d==="string"&&d||HTTP_MSG[r.status]||(r.status>=500?"服务器暂时没响应（"+r.status+"），请稍后重试":"请求没成功（"+r.status+"），刷新页面后再试"))}
+  if(!r.ok){let d=(await r.json().catch(()=>({}))).detail;if(Array.isArray(d))d="填写的内容格式不对，请检查后再试";throw new Error(typeof d==="string"&&/[\u4e00-\u9fff]/.test(d)&&d||HTTP_MSG[r.status]||(r.status>=500?"服务器暂时没响应（"+r.status+"），请稍后重试":"请求没成功（"+r.status+"），刷新页面后再试"))}
   return r.json().catch(()=>{throw new Error("服务器返回了无法识别的内容，请稍后重试")});
 }
 
