@@ -55,9 +55,9 @@ PLACEHOLDER_KEYWORDS = [
 
 # 扩展名按「一行一类」登记成列表（mpe?g/jpe?g/tiff?/aiff? 是可选字母写法），生成正则与测试都读这张表
 EXT_WORDS = {
-    "[视频]": "mp4 mov avi mkv flv wmv m4v 3gp webm mpe?g rmvb f4v mts vob ogv rm asf divx m2ts ts mxf 3g2 wtv dvr-ms mod".split(),
-    "[语音]": "mp3 m4a wav flac aac amr silk ogg opus wma ape m4r mid midi aiff? mka m4b weba ac3 dts amr-wb caf aif mp2 wv 3gpp mpga pcm spx ra".split(),
-    "[图片]": "jpe?g png gif webp heic bmp tiff? svg avif ico dng raw psd heif jfif jp2 heics tga apng jxl pcx cr2 nef arw webp2 orf rw2 raf pef srw".split(),
+    "[视频]": "mp4 mov avi mkv flv wmv m4v 3gp webm mpe?g rmvb f4v mts vob ogv rm".split(),
+    "[语音]": "mp3 m4a wav flac aac amr silk ogg opus wma ape m4r mid midi aiff? mka m4b weba".split(),
+    "[图片]": "jpe?g png gif webp heic bmp tiff? svg avif ico dng raw psd heif jfif jp2 heics tga apng jxl pcx".split(),
 }
 EXT_LABELS = [(label, "|".join(words)) for label, words in EXT_WORDS.items()]
 
