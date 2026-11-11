@@ -774,7 +774,8 @@ const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
 const lsJson=(k,d)=>{try{const v=JSON.parse(lsGet(k));return Array.isArray(d)&&!Array.isArray(v)?d:(v??d)}catch(e){return d}};  // 值损坏也不抛错
 const lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}, lsDel=k=>{try{localStorage.removeItem(k)}catch(e){}};  // 隐私模式/存满会抛错：本地偏好写不进去不能打断主流程
 // 按钮忙碌态统一：执行期间禁用并换文案，结束恢复；执行中再点直接忽略
-const busy=async(b,label,fn)=>{if(b.disabled)return;const t=b.textContent;b.disabled=true;b.textContent=label;try{return await fn()}catch(e){toast("没成功："+(e&&e.message||"网络不太好"))}finally{b.disabled=false;b.textContent=t}};
+const why=e=>e&&e.message||"网络不太好";
+const busy=async(b,label,fn)=>{if(b.disabled)return;const t=b.textContent;b.disabled=true;b.textContent=label;try{return await fn()}catch(e){toast("没成功："+why(e))}finally{b.disabled=false;b.textContent=t}};
 const doneKey=t=>t.key||t.title+"|"+t.chat;
 const SRC={"QQ":"s-qq","微信":"s-wx"};
 const srcTag=src=>src?`<span class="tag ${SRC[src]||""}">${esc(src)}</span>`:"";
@@ -1002,7 +1003,6 @@ function bindHome(m){
 }
 function bindTodo(el,m){
   const T=m.todos[+el.dataset.i]||{},who={key:el.dataset.k,title:T.title||"",chat:T.chat||"",due:T.due||""};
-  const why=e=>e&&e.message||"网络不太好";
   const fail=e=>toast("没保存上："+why(e));
   const chk=el.querySelector(".check");
   chk.onclick=()=>{
