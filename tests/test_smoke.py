@@ -3430,3 +3430,14 @@ def test_logout_clears_local_cache():
     i = html.index('$("#s-logout").onclick')
     seg = html[i:i + 700]
     assert "caches.delete" in seg and 'startsWith("qb_")' in seg
+
+
+def test_bark_drops_current_year_in_dates():
+    import datetime, sys
+    sys.path.insert(0, "digest")
+    from bark import strip_md
+    y = datetime.date.today().year
+    assert strip_md(f"截止 {y}-11-13 18:00") == "截止 11-13 18:00"
+    assert strip_md(f"{y}年11月13日报名") == "11月13日报名"
+    assert strip_md(f"{y + 1}年1月2日") == f"{y + 1}年1月2日"
+    assert strip_md("版本 1.2026.5") == "版本 1.2026.5"
