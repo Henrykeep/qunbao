@@ -1816,7 +1816,8 @@ if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("messag
   };
   document.addEventListener("touchend",end,{capture:true});document.addEventListener("touchcancel",end,{capture:true});
 })();
-document.addEventListener("visibilitychange",()=>{if(!document.hidden){pollRev();refreshQuiet()}});
+const retryNow=()=>{const r=$("#retry");if(r)r.click()};  // 首页停在「连不上服务器」时，网络恢复/切回前台立刻重试
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){pollRev();refreshQuiet();retryNow()}});
 $("#s-logout").onclick=async e=>{if(!confirm("退出登录？这台设备下次打开要重新输入密码。"))return;
   await busy(e.currentTarget,"退出中…",async()=>{const r=await fetch("/api/logout",{method:"POST"}).catch(()=>null);
     if(!r||r.status>=500)throw new Error("网络不通，没退出成功，连上网再试");  // 服务器没确认就清本地，会话还在却丢了缓存
@@ -1824,7 +1825,7 @@ $("#s-logout").onclick=async e=>{if(!confirm("退出登录？这台设备下次�
     try{Object.keys(localStorage).filter(k=>k.startsWith("qb_")).forEach(lsDel)}catch(e){}
     location.replace("/login")})};
 function netUI(){$("#offbar").hidden=navigator.onLine}
-window.addEventListener("online",()=>{netUI();pollRev();const r=$("#retry");if(r)r.click()});
+window.addEventListener("online",()=>{netUI();pollRev();retryNow()});
 window.addEventListener("offline",netUI);netUI();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});
 wpInit();
