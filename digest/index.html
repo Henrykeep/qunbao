@@ -802,7 +802,7 @@ async function api(path,body){
   if(window.AbortSignal&&AbortSignal.timeout)o.signal=AbortSignal.timeout(path.startsWith("/api/ask")?120000:40000);
   const send=()=>fetch(path,o);
   let r=await send().catch(e=>e);
-  if(body===undefined&&(r instanceof Error||r.status>=502&&r.status<=504)){await new Promise(f=>setTimeout(f,800));r=await send().catch(e=>e)}  // 读取类请求遇到瞬时网络抖动/网关错误：自动重试一次
+  if(body===undefined&&(r instanceof Error||r.status===429||r.status>=502&&r.status<=504)){await new Promise(f=>setTimeout(f,800));r=await send().catch(e=>e)}  // 读取类请求遇到瞬时网络抖动/网关错误/限流：自动重试一次
   if(r instanceof Error)throw new Error(navigator.onLine===false?"手机现在没有网络，联网后再试":r.name==="TimeoutError"?"服务器响应太慢，请稍后重试":"连不上服务器，请检查网络后重试");
   if(r.status===401){location.replace("/login");throw new Error("请先登录")}
   if(!r.ok){let d=(await r.json().catch(()=>({}))).detail;if(Array.isArray(d))d=d.map(x=>x&&x.msg||"").filter(Boolean).join("；");throw new Error(typeof d==="string"&&d||HTTP_MSG[r.status]||(r.status>=500?"服务器暂时没响应（"+r.status+"），请稍后重试":"请求失败（"+r.status+"）"))}
