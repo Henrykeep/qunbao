@@ -163,7 +163,7 @@ def test_new_todo_push_once_and_skip_already_notified(clean):
     asyncio.run(app_mod.push_new_todos([{"id": i3, "title": "交班费", "chat": "推送测试群B"},
                                         {"id": i4, "title": "填表", "chat": "推送测试群C"}]))
     d = sent[-1][1]
-    assert d["title"] == "新待办" and "交班费" in d["body"] and "填表" in d["body"] and len(sent) == n + 1
+    assert "件新待办" in d["title"] and "交班费" in d["body"] and "填表" in d["body"] and len(sent) == n + 1
 
 
 def test_refresh_live_pushes_only_watched_groups(clean, monkeypatch):
