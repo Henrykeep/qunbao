@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.430"
+VERSION="0.39.431"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -391,7 +391,7 @@ async def push_new_todos(todos, s=None) -> bool:
     elif len(chats) == 1:
         title, body, url = (fresh[0].get("chat") or "新待办"), f"{len(fresh)} 件新待办：" + "；".join(one(t) for t in fresh[:3]) + more, "/"
     else:
-        title, body, url = "新待办", "；".join(f"{one(t)} · {t.get('chat', '')}" for t in fresh[:3]) + more, "/"
+        title, body, url = f"{len(fresh)} 件新待办 · {len(chats)} 个群", "；".join(f"{one(t)} · {t.get('chat', '')}" for t in fresh[:3]) + more, "/"
     lvl = "timeSensitive" if any(t.get("at_me") or t.get("urgency") == "high" for t in fresh) else "active"
     return await push(title, body, force=True, level=lvl, url=url, tag=f"todo-{fresh[0]['id']}")
 
