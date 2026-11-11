@@ -3441,3 +3441,9 @@ def test_bark_drops_current_year_in_dates():
     assert strip_md(f"{y}年11月13日报名") == "11月13日报名"
     assert strip_md(f"{y + 1}年1月2日") == f"{y + 1}年1月2日"
     assert strip_md("版本 1.2026.5") == "版本 1.2026.5"
+
+
+def test_bark_drops_seconds_in_times():
+    from digest import bark
+    assert "18:00:00" not in bark.strip_md("截止 2025-01-02 18:00:00 前交")
+    assert "18:00" in bark.strip_md("截止 18:00:00 前交")
