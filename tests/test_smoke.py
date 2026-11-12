@@ -3519,3 +3519,11 @@ def test_bark_guo_ling_minutes():
     import bark
     assert bark.build_payload("t", "下午3点过5分开会")["body"] == "15:05开会"
     assert "3:05" not in bark.build_payload("t", "3点过5分钟再说")["body"].replace("钟再", "")
+
+
+def test_bark_hanzi_minutes():
+    from digest import bark
+    b = lambda s: bark.build_payload("t", s)["body"]
+    assert b("晚上八点四十五分开会") == "20:45开会"
+    assert b("八点十五分") == "8:15"
+    assert b("8点零五分") == "8:05"
