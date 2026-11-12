@@ -3508,3 +3508,8 @@ def test_bark_range_same_day_once():
     b = bark.build_payload("t", "明天下午3点到明天下午5点开会")["body"]
     assert b == "明天15点-17点开会"
     assert "后天9点" in bark.build_payload("t", "明天9点到后天9点")["body"]
+
+
+def test_bark_cha_yike():
+    from digest import bark
+    assert bark.build_payload("t", "下午3点差一刻集合")["body"] == "14:45集合"
