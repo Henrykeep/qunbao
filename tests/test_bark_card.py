@@ -126,3 +126,9 @@ def test_bark_time_range_shares_period_and_kedu():
     assert strip_md("下午3点半到5点半") == "15:30-17:30"
     assert strip_md("晚上8点到10点半") == "20点-22:30"
     assert strip_md("上午十点一刻") == "10:15"
+
+
+def test_bark_date_then_period_not_glued():
+    from bark import strip_md
+    assert strip_md("11月13日下午3:00-5:00") == "11/13 15:00-17:00"
+    assert strip_md("下午三点到五点半") == "15点-17:30"
