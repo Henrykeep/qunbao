@@ -3513,6 +3513,7 @@ def test_bark_range_same_day_once():
 def test_bark_cha_yike():
     from digest import bark
     assert bark.build_payload("t", "下午3点差一刻集合")["body"] == "14:45集合"
+    assert bark.build_payload("t", "下午3点差5分到")["body"] == "14:55到" and bark.build_payload("t", "晚上8点差十分")["body"] == "19:50"
 
 
 def test_bark_guo_ling_minutes():
