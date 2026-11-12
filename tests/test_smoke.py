@@ -3464,3 +3464,4 @@ def test_bark_short_month_day():
 def test_bark_strip_zheng_clock():
     from digest.bark import strip_md
     assert strip_md("18:00整截止") == "18:00截止"
+    assert strip_md("18:30分截止") == "18:30截止"
