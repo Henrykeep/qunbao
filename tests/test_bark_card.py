@@ -9,7 +9,7 @@ def test_bank_card_copied_whole():
 
 
 def test_bark_placeholder_case_insensitive():
-    from digest import bark
+    import bark
     assert bark.strip_md("[PHOTO] [voice message]") == "[图片] [语音]"
 
 
@@ -24,7 +24,7 @@ def test_group_label_strips_stacked_counts():
 
 
 def test_group_name_strips_mute_tag():
-    from digest import bark
+    import bark
     assert bark.MEMBER_COUNT.sub("", "计算机2班(免打扰)") == "计算机2班"
 
 
@@ -117,7 +117,7 @@ def test_has_key_rejects_endpoint_names():
 
 
 def test_open_url_drops_encoded_dot_segments():
-    from digest import bark_url
+    import bark_url
     assert bark_url.open_url("https://a.com", "/x/%2e%2e/y")[0] == "https://a.com/x/y"
 
 
@@ -132,3 +132,8 @@ def test_bark_date_then_period_not_glued():
     from bark import strip_md
     assert strip_md("11月13日下午3:00-5:00") == "11/13 15:00-17:00"
     assert strip_md("下午三点到五点半") == "15:00-17:30"
+
+
+def test_bark_date_then_time_keeps_space():
+    import bark
+    assert bark.build_payload("x", "11月13日14:00在图书馆")["body"] == "11/13 14:00在图书馆"
