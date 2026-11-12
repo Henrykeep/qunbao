@@ -3528,3 +3528,9 @@ def test_bark_hanzi_minutes():
     assert b("晚上八点四十五分开会") == "20:45开会"
     assert b("八点十五分") == "8:15"
     assert b("8点零五分") == "8:05"
+
+
+def test_bark_chinese_hour_cha():
+    import bark
+    assert bark.build_payload("t", "下午三点差五分")["body"] == "14:55"
+    assert bark.build_payload("t", "下午两点差一刻")["body"] == "13:45"
