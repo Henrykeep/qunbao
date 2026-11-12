@@ -3490,3 +3490,8 @@ def test_bark_english_12am_is_midnight():
     import bark
     assert bark.strip_md("12am开会") == "凌晨12点开会"
     assert bark.strip_md("12pm 吃饭") == "12点 吃饭"
+
+
+def test_bark_range_end_hour_aligned():
+    from digest import bark
+    assert bark.build_payload("t", "下午3点半到5点")["body"] == "15:30-17:00"
