@@ -3459,3 +3459,8 @@ def test_bark_short_month_day():
     from digest import bark
     out = bark.strip_md("11月13日18点交材料，12月5号截止，2026年11月20日也行")
     assert "11/13" in out and "12/5" in out and "11/20" in out and "月" not in out
+
+
+def test_bark_strip_zheng_clock():
+    from digest.bark import strip_md
+    assert strip_md("18:00整截止") == "18:00截止"
