@@ -3501,3 +3501,10 @@ def test_bark_duration_minutes_not_clock():
     import bark
     assert bark.strip_md("下午3点40分钟内") == "15点40分钟内"
     assert bark.strip_md("下午3点40分开始") == "15:40开始"
+
+
+def test_bark_range_same_day_once():
+    from digest import bark
+    b = bark.build_payload("t", "明天下午3点到明天下午5点开会")["body"]
+    assert b == "明天15点-17点开会"
+    assert "后天9点" in bark.build_payload("t", "明天9点到后天9点")["body"]
