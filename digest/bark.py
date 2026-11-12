@@ -81,6 +81,11 @@ def _hour24(period, h):
     return str(h)
 
 
+def _en_period(ap, h):
+    """英文 AM/PM → 中文时段词再走 _hour24：12am 是午夜（保留「凌晨12点」免得读成中午），12pm 是正午。"""
+    return _hour24("下午" if ap in "Pp" else "凌晨" if h == 12 else "上午", h)
+
+
 _PERIOD_RX = r"(上午|早上|早晨|清晨|凌晨|深夜|半夜|中午|下午|晚上|晚间|傍晚|(?<![今明昨后前每])[早晚])"  # 时段词（单字「早/晚」放最后；前面是今明后等时「明早8点」保留，免得变成「明8点」）
 
 STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
@@ -141,7 +146,7 @@ STRIP_RULES = [(re.compile(p, f), r) for p, r, f in [
     (r"(?<![\d:])([01]?\d|2[0-3]):([0-5]\d):[0-5]\d(?![\d:])", r"\1:\2", 0),  # 时间的秒数对锁屏是噪点：「18:00:00」只留「18:00」
     (_PERIOD_RX + r"\s*(\d{1,2})(:[0-5]\d|[点時时])?\s*[~～至到-]\s*(\d{1,2})(?=[点時时:])", lambda m: _sep(m) + _hour24(m.group(1), int(m.group(2))) + (m.group(3) or "") + "-" + _hour24(m.group(1), int(m.group(4))), 0),  # 时段+钟点区间共用时段：「下午3点到5点」→「15点-17点」，否则 5点 会被读成凌晨
     (_PERIOD_RX + r"\s*(\d{1,2})(?=[点時时:：])", lambda m: _sep(m) + _hour24(m.group(1), int(m.group(2))), 0),  # 时段+钟点统一 24 小时制：「下午3点」→「15点」「上午9点」→「9点」「中午12点」→「12点」「晚上20:00」→「20:00」
-    (r"(?<![A-Za-z\d:])(?:(?P<pre>[AaPp])\.?[Mm]\.?\s*(?P<h1>\d{1,2})(?P<m1>:[0-5]\d)?|(?P<h2>\d{1,2})(?P<m2>:[0-5]\d)?\s*(?P<post>[AaPp])\.?[Mm]\.?)(?![A-Za-z\d点時时])", lambda m: _hour24("下午" if (m.group("pre") or m.group("post")) in "Pp" else "上午", int(m.group("h1") or m.group("h2"))) + ((m.group("m1") or m.group("m2")) or "点"), 0),  # 英文 AM/PM：「PM 3:00」「3pm」→「15:00」「15点」，与中文时段统一 24 小时制
+    (r"(?<![A-Za-z\d:])(?:(?P<pre>[AaPp])\.?[Mm]\.?\s*(?P<h1>\d{1,2})(?P<m1>:[0-5]\d)?|(?P<h2>\d{1,2})(?P<m2>:[0-5]\d)?\s*(?P<post>[AaPp])\.?[Mm]\.?)(?![A-Za-z\d点時时])", lambda m: _en_period(m.group("pre") or m.group("post"), int(m.group("h1") or m.group("h2"))) + ((m.group("m1") or m.group("m2")) or "点"), 0),  # 英文 AM/PM：「PM 3:00」「3pm」→「15:00」「15点」，与中文时段统一 24 小时制
     (r"[\u2002-\u200a\u00a0\u202f]", " ", 0),  # 特殊空格统一成普通空格
     (r"[ \u3000\t]{2,}", " ", 0),  # 连续空格折成一个
     (r" +(?=[，。、；：！？）」』》】])", "", 0),  # 网址/代码被换成占位后留下的「[链接] ，」空格，中文标点前不该有空格
