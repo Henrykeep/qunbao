@@ -76,7 +76,7 @@ def _hour24(period, h):
     pm = period in ("下午", "晚上", "晚间", "傍晚", "晚") or period in ("深夜", "半夜") and 6 <= h <= 11 or period == "中午" and 1 <= h <= 3  # 「深夜11点」=23点；「半夜3点」仍是凌晨；「中午1点」=13点（「中午11点」「中午12点」不加）
     if pm and 1 <= h <= 11:
         h += 12
-    elif pm and h == 12 or period in ("凌晨", "深夜", "半夜") and h == 12:  # 「晚上12点」是午夜、「凌晨12点」同，24 小时制没有 12 点这个午夜：保留时段免得读成中午
+    elif period in ("晚上", "晚间", "晚") and h == 12 or period in ("凌晨", "深夜", "半夜") and h == 12:  # 「晚上12点」是午夜、「凌晨12点」同，24 小时制没有 12 点这个午夜：保留时段免得读成中午
         return period + str(h)
     return str(h)
 
