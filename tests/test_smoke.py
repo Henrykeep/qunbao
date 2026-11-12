@@ -3495,3 +3495,9 @@ def test_bark_english_12am_is_midnight():
 def test_bark_range_end_hour_aligned():
     from digest import bark
     assert bark.build_payload("t", "下午3点半到5点")["body"] == "15:30-17:00"
+
+
+def test_bark_duration_minutes_not_clock():
+    import bark
+    assert bark.strip_md("下午3点40分钟内") == "15点40分钟内"
+    assert bark.strip_md("下午3点40分开始") == "15:40开始"
