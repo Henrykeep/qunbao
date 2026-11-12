@@ -3472,3 +3472,9 @@ def test_bark_hanzi_minutes():
     assert bark.strip_md("下午三点十分集合") == "15:10集合"
     assert bark.strip_md("十点五十分") == "10:50"
     assert bark.strip_md("三点十个人") == "三点十个人"
+
+
+def test_bark_period_range_shares_period():
+    from bark import strip_md
+    assert strip_md("下午3点到5点") == "15点-17点"
+    assert strip_md("上午9点至11点开会") == "9点-11点开会"
