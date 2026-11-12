@@ -119,3 +119,10 @@ def test_has_key_rejects_endpoint_names():
 def test_open_url_drops_encoded_dot_segments():
     from digest import bark_url
     assert bark_url.open_url("https://a.com", "/x/%2e%2e/y")[0] == "https://a.com/x/y"
+
+
+def test_bark_time_range_shares_period_and_kedu():
+    from bark import strip_md
+    assert strip_md("下午3点半到5点半") == "15:30-17:30"
+    assert strip_md("晚上8点到10点半") == "20点-22:30"
+    assert strip_md("上午十点一刻") == "10:15"
