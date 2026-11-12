@@ -2728,7 +2728,7 @@ def test_bark_strips_wechat_quote_block():
 
 def test_bark_strip_empty_brackets():
     import bark
-    assert bark.strip_md("开会【】 改到三点") == "开会 改到三点"
+    assert bark.strip_md("开会【】 改到三点") == "开会 改到3点"
 
 
 def test_bark_unicode_linebreaks():
@@ -3447,3 +3447,9 @@ def test_bark_drops_seconds_in_times():
     from digest import bark
     assert "18:00:00" not in bark.strip_md("截止 2025-01-02 18:00:00 前交")
     assert "18:00" in bark.strip_md("截止 18:00:00 前交")
+
+
+def test_bark_cn_numeral_hours():
+    import bark
+    assert bark.strip_md("晚上八点半开会") == "20:30开会"
+    assert bark.strip_md("十二点交材料") == "12点交材料"
