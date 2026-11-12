@@ -3478,3 +3478,9 @@ def test_bark_period_range_shares_period():
     from bark import strip_md
     assert strip_md("下午3点到5点") == "15点-17点"
     assert strip_md("上午9点至11点开会") == "9点-11点开会"
+
+
+def test_bark_english_ampm():
+    from bark import build_payload
+    assert build_payload("t", "周三 PM 3:00")["body"] == "周三 15:00"
+    assert build_payload("t", "3pm集合")["body"] == "15点集合"
