@@ -3465,3 +3465,10 @@ def test_bark_strip_zheng_clock():
     from digest.bark import strip_md
     assert strip_md("18:00整截止") == "18:00截止"
     assert strip_md("18:30分截止") == "18:30截止"
+
+
+def test_bark_hanzi_minutes():
+    from digest import bark
+    assert bark.strip_md("下午三点十分集合") == "15:10集合"
+    assert bark.strip_md("十点五十分") == "10:50"
+    assert bark.strip_md("三点十个人") == "三点十个人"
