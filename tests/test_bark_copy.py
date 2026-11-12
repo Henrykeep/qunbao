@@ -19,3 +19,8 @@ def test_meeting_id_before_password():
     from bark_copy import pick_copy
     assert pick_copy("Zoom 会议号 8123456789 密码 abc123", None, "") == "8123456789"
     assert pick_copy("会议ID 987 654 321 密码 1234", None, "") == "987654321"
+
+
+def test_period_range_without_first_unit():
+    import bark
+    assert bark.strip_md("下午3-5点开会") == "15-17点开会"
