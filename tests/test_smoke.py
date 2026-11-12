@@ -3484,3 +3484,9 @@ def test_bark_english_ampm():
     from bark import build_payload
     assert build_payload("t", "周三 PM 3:00")["body"] == "周三 15:00"
     assert build_payload("t", "3pm集合")["body"] == "15点集合"
+
+
+def test_bark_english_12am_is_midnight():
+    import bark
+    assert bark.strip_md("12am开会") == "凌晨12点开会"
+    assert bark.strip_md("12pm 吃饭") == "12点 吃饭"
