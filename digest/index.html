@@ -148,6 +148,7 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .spin svg{animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .fade{animation:fi .5s var(--ease) both}
+.todo.fade:nth-child(n+2){animation-delay:30ms}.todo.fade:nth-child(n+3){animation-delay:60ms}.todo.fade:nth-child(n+4){animation-delay:90ms}.todo.fade:nth-child(n+5){animation-delay:120ms}.todo.fade:nth-child(n+6){animation-delay:150ms}.todo.fade:nth-child(n+7){animation-delay:180ms}
 @keyframes fi{from{opacity:0;transform:translateY(8px)}}
 .quiet .fade,.quiet.fade{animation:none!important}
 
@@ -986,7 +987,7 @@ setInterval(()=>{// 页面开着时每分钟刷新「还剩/已过」，不用�
 function todoCard(m,t,i){
   const {st,now,isDone,isPin,atBy}=m,dn=isDone(t),pin=isPin(t),src=t.source||(st.chat_src||{})[t.chat],late=t.due_ts&&t.due_ts<now&&!dn;
   const det=t.detail&&!dupText(t.title,t.detail)?t.detail:"";
-  return `<div class="todo card ${esc(t.urgency||"mid")} ${dn?"done":""} ${pin?"pinned":""} fade" style="animation-delay:${i*30}ms" data-i="${i}" data-k="${esc(doneKey(t))}" data-ik="${esc(t.key||"")}" data-due="${t.due_ts||""}" data-first="${t.first_ts||""}" data-chat="${esc(t.chat)}" data-src="${esc(src||"")}" data-mid="${esc(String(t.msg_ids||"").split(" ")[0]||"")}" data-q="${esc(t.quote||"")}">
+  return `<div class="todo card ${esc(t.urgency||"mid")} ${dn?"done":""} ${pin?"pinned":""} fade" data-i="${i}" data-k="${esc(doneKey(t))}" data-ik="${esc(t.key||"")}" data-due="${t.due_ts||""}" data-first="${t.first_ts||""}" data-chat="${esc(t.chat)}" data-src="${esc(src||"")}" data-mid="${esc(String(t.msg_ids||"").split(" ")[0]||"")}" data-q="${esc(t.quote||"")}">
     <button class="check" aria-label="完成"><i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></i></button>
     <div class="tbody"><div class="t">${pin?'<span class="pinmark">置顶</span>':""}${esc(t.title)}</div>${det?`<div class="d">${esc(det)}</div>`:""}
     <div class="meta">${t.due?`<span class="chip due ${late?"late":""}">${ICON.clock}${esc(t.due)}<span class="lt" data-ts="${t.due_ts||""}">${leftTxt(t.due_ts,now,dn)}</span></span>`:""}<span class="mi" title="${esc(src||"")}">${srcIcon(src)}<span class="cn2">${esc(t.chat)}</span>${(t.also||[]).length?`<span class="tag" title="${esc(t.also.join("、"))}">另 ${t.also.length} 个群也提到</span>`:""}${atBy.has(t.key)?'<span class="tag at">@我</span>':""}</span></div>
@@ -1099,10 +1100,10 @@ function bindTip(){
 function once(el,fn){if(el&&!el._b){el._b=1;fn(el)}}
 /* 局部更新：只替换变了的区块；待办按 key 对齐，没变的卡片原样保留（展开状态、动画都不动），新出现的轻轻高亮 */
 function skel(k,n=1){return `<div class="sk k-${k}"></div>`.repeat(n)}
-const normH=n=>n.outerHTML.replace(/ style="animation-delay:\d+ms"/g,"").replace(/ data-i="\d+"/g,"")
+const normH=n=>n.outerHTML.replace(/ data-i="\d+"/g,"")
   .replace(/class="([^"]*)"/g,(m,c)=>'class="'+c.split(/\s+/).filter(x=>x&&!["open","fresh","fade"].includes(x)).join(" ")+'"');
 const secKey=e=>e.dataset.sec||e.className.split(" ")[0]||e.tagName;
-function unfade(n){n.classList.remove("fade");n.style.animationDelay="";n.querySelectorAll(".fade").forEach(x=>{x.classList.remove("fade");x.style.animationDelay=""})}
+function unfade(n){n.classList.remove("fade");n.querySelectorAll(".fade").forEach(x=>x.classList.remove("fade"))}
 function placeAll(box,list){list.forEach((n,i)=>{if(box.children[i]!==n)box.insertBefore(n,box.children[i]||null)});while(box.children.length>list.length)box.lastElementChild.remove()}
 function morph(box,html){
   const t=document.createElement("div");t.innerHTML=html;
