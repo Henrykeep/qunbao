@@ -16,7 +16,7 @@
    间距 --s1..--s7 = 4/8/12/16/20/24/32；字号 --t-2xs..--t-2xl；圆角 --r-*；点击区 --hit */
 :root{
   --kb:0;
-  --dy:0;
+  --dy:0;--dx:0;
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s7:32px;
   --t-2xs:.6176rem; --t-xs:.7059rem; --t-sm:.7941rem; --t-md:.8824rem; --t-lg:.9412rem; --t-xl:1.2353rem; --t-2xl:1.7647rem; /* rem 基准 17px = iOS 默认正文，跟随系统字号 */
   --r-xs:5px; --r-sm:10px; --r-md:14px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
@@ -268,7 +268,7 @@ footer{margin-top:var(--s7);text-align:center;font-size:var(--t-2xs);color:var(-
 .sres .st{margin-top:2px;font-size:var(--t-md)}
 .sres{display:block}
 .clist{margin-top:var(--s2)}
-.crow{display:flex;gap:var(--s3);align-items:center;width:100%;padding:var(--s3) 0;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;touch-action:pan-y;transition:transform .2s var(--ease);cursor:pointer}
+.crow{transform:translateX(calc(1px*var(--dx)));display:flex;gap:var(--s3);align-items:center;width:100%;padding:var(--s3) 0;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;touch-action:pan-y;transition:transform .2s var(--ease);cursor:pointer}
 .crow:active{opacity:.6}
 .crow.muted{opacity:.45}
 .crow .gav{position:relative;flex:none;width:44px;height:44px;border-radius:var(--r-sm);display:grid;place-items:center;color:#fff;font-weight:700;font-size:var(--t-lg);font-family:var(--serif)}
@@ -1415,9 +1415,9 @@ function renderChats(){
 /* 原文群列表：左滑一行 → 怎么盯 */
 function swipeRow(b){let x0=null,y0=0,dx=0;
   b.addEventListener("touchstart",e=>{x0=e.touches[0].clientX;y0=e.touches[0].clientY;dx=0},{passive:true});
-  b.addEventListener("touchmove",e=>{if(x0==null)return;dx=e.touches[0].clientX-x0;if(Math.abs(e.touches[0].clientY-y0)>Math.abs(dx)){x0=null;b.style.transform="";return}
-    if(dx<0)b.style.transform=`translateX(${Math.max(dx,-90)}px)`},{passive:true});
-  b.addEventListener("touchend",()=>{b.style.transform="";if(x0!=null&&dx<-60){b._sw=1;tick();modeSheet(b.dataset.src,b.dataset.chat)}x0=null});
+  b.addEventListener("touchmove",e=>{if(x0==null)return;dx=e.touches[0].clientX-x0;if(Math.abs(e.touches[0].clientY-y0)>Math.abs(dx)){x0=null;b.style.removeProperty("--dx");return}
+    if(dx<0)b.style.setProperty("--dx",Math.max(dx,-90))},{passive:true});
+  b.addEventListener("touchend",()=>{b.style.removeProperty("--dx");if(x0!=null&&dx<-60){b._sw=1;tick();modeSheet(b.dataset.src,b.dataset.chat)}x0=null});
 }
 const emptyBox=(title,sub="",btn="")=>`<div class="empty"><div class="big">${title}</div>${sub?`<div>${sub}</div>`:""}${btn}</div>`;
 let SDAYS=0;
