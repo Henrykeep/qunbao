@@ -3567,3 +3567,4 @@ def test_bark_dian_zheng():
 def test_bark_weekday_range():
     import bark
     assert bark.strip_md("星期一至星期五 18点前交") == "周一-周五 18点前交"
+    assert bark.strip_md("周六、周日 加班") == "周六日 加班"
