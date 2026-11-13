@@ -157,8 +157,9 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .bar{display:flex;justify-content:space-between;align-items:center;gap:var(--s2);padding-top:var(--s3)}
 .tools{display:flex;align-items:center;gap:2px;min-width:0}
 #updated.err{color:var(--danger)}
-.pend{display:flex;align-items:center;gap:6px;margin-top:var(--s2);font-size:var(--t-xs);color:var(--sub)}
-.pend i{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none}
+.pend{display:flex;align-items:flex-start;gap:6px;margin-top:var(--s2);font-size:var(--t-xs);color:var(--sub)}
+.pend>span{min-width:0;text-wrap:balance} .pend .nb{white-space:nowrap}  /* 折行时两行匀开，不留孤字 */
+.pend i{width:6px;height:6px;margin-top:calc((1.55em - 6px)/2);border-radius:50%;background:var(--accent);flex:none}
 .pend i.bad{background:var(--danger)} .pend i.ok{background:var(--calm)} .pend i.wait{background:var(--amber)}
 /* 头条 + 三个数字 */
 .greet{margin:var(--s5) 0 var(--s1);font-size:var(--t-xs);color:var(--sub);letter-spacing:.04em}
@@ -1172,16 +1173,17 @@ const runInfo=(x,mode)=>`${mode==="full"?"完整重新整理":mode==="weekly"?"�
 // 待办为空时的那句话跟着新鲜度走：还有新消息没整理进来，就不能说「放心不看群」
 const emptySub=st=>{const n=st&&st.is_latest!==false&&!viewId&&st.pending&&st.pending.msgs;return n?`还有 ${n} 条新消息没整理进来，有事会自动出现在这里`:"放心不看群 ☕"};
 function renderPend(st){
-  const p=(st&&st.pending)||{},a=(st&&st.auto)||{},e=$("#pend");let h="";
+  const p=(st&&st.pending)||{},a=(st&&st.auto)||{},e=$("#pend");let dot="",txt="";
   if(st&&st.is_latest!==false&&!viewId){
-    if(a.state==="failed")h=`<i class="bad"></i>${a.fatal?"自动整理已暂停":"自动整理失败，稍后自动重试"}：${esc(a.reason||"")}${a.fatal?` · <button class="plink" id="pendset">去设置</button>`:""}`;
-    else if(p.msgs&&a.state==="off")h=`<i></i>新消息 ${p.msgs} 条 · 自动整理已关闭，点「整理」看看`;
+    if(a.state==="failed"){dot="bad";txt=`${a.fatal?"自动整理已暂停":"自动整理失败，稍后自动重试"}：${esc(a.reason||"")}${a.fatal?` · <button class="plink" id="pendset">去设置</button>`:""}`}
+    else if(p.msgs&&a.state==="off"){dot="";txt=`新消息 ${p.msgs} 条 · 自动整理已关闭，点「整理」看看`}
     else{  // 新鲜度一行：一眼看出是不是最新、几分钟前整理的
       const ts=st.updated_ts||st.digest_ts;
-      if(ts){const sec=Date.now()/1000-ts,d=new Date(ts*1000),rel=sec<60?"刚刚":sec<3600?`${sec/60|0} 分钟前`:sameDay(d,new Date())?`今天 ${hm(d)} `:ago(ts);
-        h=p.msgs?`<i class="wait"></i>下面是${rel}整理的 · `+pendText(p):`<i class="ok"></i>已是最新 · 所有消息都已整理（${rel.trim()}）`}
+      if(ts){const sec=Date.now()/1000-ts,d=new Date(ts*1000),rel=sec<60?"刚刚":sec<3600?`${sec/60|0} 分钟前`:sameDay(d,new Date())?`今天 ${hm(d)}`:ago(ts).trim();
+        if(p.msgs){dot="wait";txt=pendText(p,rel)}else{dot="ok";txt=`已是最新 · 所有消息都已整理（${rel}）`}}
     }
   }
+  const h=txt?`<i${dot?` class="${dot}"`:""}></i><span>${txt}</span>`:"";
   const es=$("#emptysub");if(es)es.textContent=emptySub(st);
   if(st&&st.digest)setHead(st.digest.headline);  // 待整理数/@我 变了，「没什么要你管的」要跟着改口
   e.hidden=!h;if(e._h===h)return;e._h=h;e.innerHTML=h;
@@ -1192,13 +1194,13 @@ function renderPend(st){
    后端兜底保证 30 秒内开始整理；数字超过 75 秒没变（后端旧版本或网络问题）也不再说「正在」 */
 let PEND_N=-1,PEND_T=0;
 const dur=s=>s<60?`${s|0} 秒`:`${s/60|0} 分钟`;
-function pendText(p){
+function pendText(p,rel){  // 正常等待时带「几分钟前整理的」；失败/等太久时那句话已经够了，不再叠一层
   const n=p.msgs,now=Date.now()/1000;
   if(n!==PEND_N){PEND_N=n;PEND_T=now}
   const age=Math.max(p.oldest||0,now-PEND_T);
-  if(p.running)return `正在整理 ${n} 条新消息…`;
-  if(p.failing)return `${n} 条新消息这次没整理成（${esc(p.reason||"大模型出错")}），${p.retry_in?`${p.retry_in} 秒后`:"马上"}自动重试 · <button class="plink" id="pendgo">立刻整理</button>`;
-  if(age<75)return `还有 ${n} 条新消息没整理进来，正在自动整理`;
+  if(p.running)return `${rel}整理的 · 正在整理 ${n} 条新消息…`;
+  if(p.failing)return `${n} 条新消息这次没整理成（<span class="nb">${esc((p.reason||"大模型出错").slice(0,14))}</span>），${p.retry_in?`${p.retry_in} 秒后`:"马上"}自动重试 · <button class="plink" id="pendgo">立刻整理</button>`;
+  if(age<75)return `${rel}整理的 · 还有 ${n} 条新消息，正在自动整理`;
   return `还有 ${n} 条新消息等着整理（已等 ${dur(age)}） · <button class="plink" id="pendgo">立刻整理</button>`;
 }
 /* 顶部状态：只显示「刚刚更新 / x 分钟前更新」，持续失败才显示原因；后台整理过程不打扰用户 */
