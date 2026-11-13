@@ -1456,7 +1456,7 @@ async function openChat(chat,focus,src,msgId){
   setCmode(c?.mode||"normal");
   READ0=readGet(RK());
   const box=$("#cmsgs");box.classList.add("pos");box.innerHTML=skel("msg",4);
-  const my=++chatSeq;window.scrollTo(0,0);
+  const my=++chatSeq;NEWBELOW=0;window.scrollTo(0,0);
   loadBrief(my);
   try{const base=`/api/messages?chat=${encodeURIComponent(chat)}${chatSrc?`&source=${encodeURIComponent(chatSrc)}`:""}`;
     let ms;
@@ -1516,7 +1516,8 @@ function bindCites(root,cites){
 function setCmode(m){const b=$("#cmode");b.dataset.m=m;b.textContent=MODE[m]?.[0]||"正常"}
 $("#cmode").onclick=()=>{tick();modeSheet(chatSrc,chatName)};
 const atBottom=()=>window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-80;
-function updToLatest(){const b=$("#tolatestmsg");b.hidden=curView!=="msgs"||$("#msgs-chat").hidden||atBottom()||document.documentElement.scrollHeight<window.innerHeight*1.6}
+let NEWBELOW=0;
+function updToLatest(){const b=$("#tolatestmsg");if(atBottom())NEWBELOW=0;b.textContent=NEWBELOW?`↓ ${NEWBELOW} 条新消息`:"↓ 最新";b.hidden=curView!=="msgs"||$("#msgs-chat").hidden||atBottom()||(!NEWBELOW&&document.documentElement.scrollHeight<window.innerHeight*1.6)}
 $("#tolatestmsg").onclick=()=>{tick();window.scrollTo({top:document.documentElement.scrollHeight,behavior:"smooth"})};
 window.addEventListener("scroll",debounce(updToLatest,120),{passive:true});
 /* 群聊打开时每 20 秒只拉新消息并追加；用户不在底部就不跳 */
@@ -1528,7 +1529,7 @@ async function pollChat(){
     const stick=atBottom(),r=msgHtml(ms,CHATTAIL);CHATTAIL=r.st;
     $("#cmsgs").insertAdjacentHTML("beforeend",r.h);if(SENDERF)applySF();
     readSet(RK(),CHATTAIL.id);
-    if(stick)window.scrollTo(0,document.documentElement.scrollHeight);else{toast(`有 ${ms.length} 条新消息`);updToLatest()}
+    if(stick)window.scrollTo(0,document.documentElement.scrollHeight);else{NEWBELOW+=ms.length;updToLatest()}
   }catch(e){}
 }
 setInterval(pollChat,20000);
