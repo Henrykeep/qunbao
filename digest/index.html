@@ -790,6 +790,7 @@ const dayLabel=ts=>{const d=new Date(ts*1000),t=new Date();if(sameDay(d,t))retur
   return`${d.getMonth()+1}月${d.getDate()}日 星期${W[d.getDay()]}`};
 const hue=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;return h};
 const avc=s=>`hsl(${hue(s)} 30% 52%)`;
+const tok=k=>getComputedStyle(document.documentElement).getPropertyValue(k).trim();
 const sv=(el,k,v)=>v==null?el.style.removeProperty(k):el.style.setProperty(k,v);
 const avEl=(n,c="av",x="")=>`<div class="${c}" style="--c:${avc(n)}">${first(n)}${x}</div>`;
 const first=s=>esc([...String(s||"?")].find(c=>!/[\s·@]/.test(c))||"?");
@@ -1180,7 +1181,7 @@ function sortTodos(animate){
   const f=new Map(items.map(e=>[e,e.getBoundingClientRect().top]));
   [...items.filter(e=>!e.classList.contains("done")&&e.classList.contains("pinned")),...items.filter(e=>!e.classList.contains("done")&&!e.classList.contains("pinned")),...items.filter(e=>e.classList.contains("done"))].forEach(e=>box.appendChild(e));
   if(!animate)return;
-  items.forEach(e=>{const dy=f.get(e)-e.getBoundingClientRect().top;if(dy)e.animate([{transform:`translateY(${dy}px)`},{transform:"none"}],{duration:420,easing:"cubic-bezier(.2,.9,.25,1)"})});
+  items.forEach(e=>{const dy=f.get(e)-e.getBoundingClientRect().top;if(dy)e.animate([{transform:`translateY(${dy}px)`},{transform:"none"}],{duration:parseFloat(tok("--dur-slow"))*1000,easing:tok("--ease")})});
 }
 let loadRetryT=0,loadFails=0;
 async function load(){clearTimeout(loadRetryT);skeleton();try{render(await api("/api/state"+(viewId?`?id=${viewId}`:`?hours=${hours}`)));loadFails=0}
