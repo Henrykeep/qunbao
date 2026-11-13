@@ -773,6 +773,7 @@ const dayLabel=ts=>{const d=new Date(ts*1000),t=new Date();if(sameDay(d,t))retur
   return`${d.getMonth()+1}月${d.getDate()}日 星期${W[d.getDay()]}`};
 const hue=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;return h};
 const avc=s=>`hsl(${hue(s)} 30% 52%)`;
+const avEl=(n,c="av")=>`<div class="${c}" style="background:${avc(n)}">${first(n)}</div>`;
 const first=s=>esc([...String(s||"?")].find(c=>!/[\s·@]/.test(c))||"?");
 const tick=()=>navigator.vibrate&&navigator.vibrate(8);
 const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
@@ -996,7 +997,7 @@ function todoSection(m){
   const body=m.todos.length?m.todos.map((t,i)=>todoCard(m,t,i)).join(""):`<div class="empty"><div class="big">没有要你动手的事</div><span id="emptysub">${emptySub(m.st)}</span></div>`;
   return `<section data-sec="todo">${secHead("要你做的",m.open.length)}<div class="diffline" hidden></div><div class="todos" id="todos">${body}</div><button class="donebar" id="donebar"></button></section>`;
 }
-const atRow=a=>`<div class="at lrow" data-chat="${esc(a.chat)}" data-src="${esc(a.source)}" data-id="${a.id}"><div class="av" style="background:${avc(a.sender)}">${first(a.sender)}</div>
+const atRow=a=>`<div class="at lrow" data-chat="${esc(a.chat)}" data-src="${esc(a.source)}" data-id="${a.id}">${avEl(a.sender)}
   <div class="lb"><div class="lh"><span><b>${esc(a.sender)}</b> · ${esc(a.chat)}${srcTag(a.source)}</span><span class="tm">${ago(a.ts)}</span></div>
   <div class="msg">${hlAt(a.text)}</div></div></div>`;
 function atSection({ats}){
@@ -1546,7 +1547,7 @@ function msgHtml(ms,st){
     if(READ0&&m.id>READ0&&!st.rl&&!(window._rlDone)){h+=`<div class="readline">上次看到这里</div>`;st.rl=1;window._rlDone=1;lastSender=""}
     const dl=dayLabel(m.ts);if(dl!==lastDay){h+=`<div class="day">${dl}</div>`;lastDay=dl;lastSender=""}
     const cont=m.sender===lastSender&&m.ts-lastTs<300;lastSender=m.sender;lastTs=m.ts;
-    h+=`<div class="m ${cont?"cont":""} ${m.at_me?"atme":""}" data-s="${esc(m.sender)}" data-t="${esc(m.text)}" data-id="${m.id}"><div class="av sm" style="background:${avc(m.sender)}">${first(m.sender)}</div>
+    h+=`<div class="m ${cont?"cont":""} ${m.at_me?"atme":""}" data-s="${esc(m.sender)}" data-t="${esc(m.text)}" data-id="${m.id}">${avEl(m.sender,"av sm")}
       <div class="mb">${cont?"":`<div class="who">${esc(m.sender)} · ${hm(new Date(m.ts*1000))}</div>`}<div class="bub">${bubText(m)}${m.imgs&&m.imgs.length?`<div class="thumbs">${m.imgs.map(u=>`<img loading="lazy" decoding="async" width="120" height="120" referrerpolicy="no-referrer" src="${esc(u)}" alt="图片" onerror="imgGone(this)">`).join("")}</div>`:""}</div></div></div>`;
   }
   return {h,st:{day:lastDay,sender:lastSender,ts:lastTs,id:ms.length?Math.max(st.id||0,...ms.map(m=>m.id)):st.id}};
