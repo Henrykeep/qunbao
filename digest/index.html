@@ -114,7 +114,7 @@ h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
 .lh>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lh b{color:var(--sub);font-weight:600}
 .tm{flex:none;color:var(--faint);white-space:nowrap;font-size:var(--t-xs)}
-.av{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:var(--t-md);font-weight:600;color:#fff}
+.av{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:var(--t-md);font-weight:600;color:#fff;background:var(--c)}
 .av.sm{width:30px;height:30px;font-size:var(--t-xs)}
 em.at-hl{font-style:normal;color:var(--accent);font-weight:600}
 a.ulk{padding:var(--s2) 0;color:var(--sub);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;white-space:nowrap}
@@ -775,7 +775,7 @@ const dayLabel=ts=>{const d=new Date(ts*1000),t=new Date();if(sameDay(d,t))retur
   return`${d.getMonth()+1}月${d.getDate()}日 星期${W[d.getDay()]}`};
 const hue=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;return h};
 const avc=s=>`hsl(${hue(s)} 30% 52%)`;
-const avEl=(n,c="av",x="")=>`<div class="${c}" style="background:${avc(n)}">${first(n)}${x}</div>`;
+const avEl=(n,c="av",x="")=>`<div class="${c}" style="--c:${avc(n)}">${first(n)}${x}</div>`;
 const first=s=>esc([...String(s||"?")].find(c=>!/[\s·@]/.test(c))||"?");
 const tick=()=>navigator.vibrate&&navigator.vibrate(8);
 const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
