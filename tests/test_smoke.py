@@ -3098,9 +3098,16 @@ def test_bark_clip_keeps_emoji_sequences_whole():
     assert clip("x" * 8 + "\U0001f44d\U0001f3fd" + "y" * 9, 10) == "x" * 8 + "…"
 
 
+def test_bark_text_stages_cover_strip_rules():
+    import bark_text as bt
+    stages = (bt.NORMALIZE_RULES, bt.MARKUP_RULES, bt.PLACEHOLDER_RULES, bt.WORDING_RULES, bt.SPACE_RULES)
+    assert all(stages) and len(bt.STRIP_RULES) == sum(map(len, stages))
+    assert bt.strip_md("**明天（周六）**下午3点30分 <b>集合地点：A楼</b>") == "明天15:30 集合 A楼"
+
+
 def test_bark_ext_table_classifies_every_word():
-    import bark
-    for label, words in bark.EXT_WORDS.items():
+    import bark, bark_text
+    for label, words in bark_text.EXT_WORDS.items():
         for w in words:
             ext = w.replace("e?", "e").replace("f?", "f")
             assert bark.strip_md(f"[文件名.{ext}]") == label, (label, ext)
