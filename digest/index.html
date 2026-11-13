@@ -16,6 +16,7 @@
    间距 --s1..--s7 = 4/8/12/16/20/24/32；字号 --t-2xs..--t-2xl；圆角 --r-*；点击区 --hit */
 :root{
   --kb:0;
+  --dy:0;
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s7:32px;
   --t-2xs:.6176rem; --t-xs:.7059rem; --t-sm:.7941rem; --t-md:.8824rem; --t-lg:.9412rem; --t-xl:1.2353rem; --t-2xl:1.7647rem; /* rem 基准 17px = iOS 默认正文，跟随系统字号 */
   --r-xs:5px; --r-sm:10px; --r-md:14px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
@@ -444,7 +445,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .panel{position:absolute;left:0;right:0;bottom:0;height:84vh;display:flex;flex-direction:column;background:var(--bg);border-radius:var(--r-xl) var(--r-xl) 0 0;transform:translateY(100%);transition:transform .42s var(--ease)}
 .panel.short{height:72vh}
 .panel.auto{height:auto;max-height:80vh}
-.sheet.on .panel{transform:translateY(calc(1px*var(--dy,0)))}
+.sheet.on .panel{transform:translateY(calc(1px*var(--dy)))}
 .sheet.on .panel.drag{transition:none}
 .sheet .panel{margin-bottom:calc(1px*var(--kb,0))}
 .ph{flex:none;width:100%;max-width:648px;margin:0 auto;padding:10px var(--s5) 6px;touch-action:none}
