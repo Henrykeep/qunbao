@@ -417,10 +417,11 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .send{flex:none;width:44px;height:44px;border:0;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;transition:transform .15s}
 .send:active{transform:scale(.9)}
 .send svg{width:18px;height:18px}
-.suggest{display:flex;gap:6px;max-width:608px;margin:0 auto var(--s2);overflow-x:auto;scrollbar-width:none;
+.suggest{display:none;gap:6px;max-width:608px;margin:0 auto var(--s2);overflow-x:auto;scrollbar-width:none;
   -webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
 .suggest::-webkit-scrollbar{display:none}
-.askbox:focus-within .suggest{display:none}  /* 键盘弹出时收起快捷问题，底栏只剩输入框，给消息留空间 */
+.dock.typing:not(.filled) .suggest{display:flex}  /* 快捷问题平时收起，让出首屏；点进输入框且还没打字时才出现 */
+.dock.typing .tabs{display:none}  /* 打字时标签栏也让位：键盘上方只剩 快捷问题 + 输入框 */
 .tabs{display:flex;max-width:640px;height:var(--tab);margin:0 auto env(safe-area-inset-bottom)}
 .tabs button{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:none;font-size:var(--t-2xs);color:var(--faint);letter-spacing:.06em;transition:color .2s}
 .tabs button svg{width:22px;height:22px}
@@ -868,7 +869,7 @@ function showView(v){
   if(v!=="msgs"){$("#dock").classList.remove("chat");$("#tolatestmsg").hidden=true}else if(!$("#msgs-chat").hidden)$("#dock").classList.add("chat");
   curView=v;$$(".view").forEach(e=>e.classList.toggle("on",e.id==="v-"+v));
   $$(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
-  $("#dock").classList.toggle("home",v==="home");$("#dock").classList.remove("compact");window.scrollTo(0,0);
+  $("#dock").classList.toggle("home",v==="home");window.scrollTo(0,0);
   if(v==="msgs")loadChats();if(v==="set")loadSettings();
   if(v==="home")refreshQuiet();
 }
@@ -1308,8 +1309,14 @@ function chatAsk(q,unread){ask(q,{chat:chatName,source:chatSrc},{since:unread?RE
 $("#askf").onsubmit=e=>{e.preventDefault();ask($("#q").value,{chat:"",source:""})};
 $("#askf2").onsubmit=e=>{e.preventDefault();ask($("#q2").value)};
 $("#caskf").onsubmit=e=>{e.preventDefault();chatAsk($("#cq").value)};
-$$("#sug button").forEach(b=>b.onclick=()=>{tick();ask(b.textContent,{chat:"",source:""})});
-$$("#csug button").forEach(b=>b.onclick=()=>{tick();chatAsk(b.textContent,!!b.dataset.unread)});
+$$("#sug button").forEach(b=>b.onclick=()=>{tick();dockIdle();ask(b.textContent,{chat:"",source:""})});
+$$("#csug button").forEach(b=>b.onclick=()=>{tick();dockIdle();chatAsk(b.textContent,!!b.dataset.unread)});
+/* 底栏两种状态：平时 = 输入框 + 标签栏；打字中(.typing) = 快捷问题(输入为空时) + 输入框，标签栏让位 */
+const dock=$("#dock"),askIn=e=>e.target.classList&&e.target.classList.contains("inp");
+function dockIdle(){const a=document.activeElement;if(a&&a.blur&&a.classList.contains("inp"))a.blur();dock.classList.remove("typing","filled")}
+dock.addEventListener("focusin",e=>{if(!askIn(e))return;dock.classList.add("typing");dock.classList.toggle("filled",!!e.target.value)});
+dock.addEventListener("input",e=>{if(askIn(e))dock.classList.toggle("filled",!!e.target.value)});
+dock.addEventListener("focusout",e=>{if(askIn(e))setTimeout(()=>{if(!document.activeElement.classList.contains("inp"))dock.classList.remove("typing","filled")},200)});  // 延后：点快捷问题时输入框可能先失焦，不能让它在点击前消失
 /* 键盘弹起时，底栏跟着可视区域上移，不被键盘挡住 */
 if(window.visualViewport){const vv=visualViewport,fix=()=>{const a=document.activeElement,kb=a&&/^(INPUT|TEXTAREA)$/.test(a.tagName);  // 只在键盘弹出时挪；滚动时 Safari 工具栏伸缩不算键盘
     const off=kb?Math.max(0,window.innerHeight-vv.height-vv.offsetTop):0;const d=$("#dock"),t=off>40?`translateY(${-off}px)`:"translateZ(0)";if(d.style.transform!==t)d.style.transform=t;$$(".sheet .panel").forEach(p=>p.style.marginBottom=off>40?off+"px":"")};
@@ -1421,7 +1428,7 @@ const readGet=k=>+(lsGet(k)||0), readSet=(k,v)=>{if(v>readGet(k))lsSet(k,v)};
 function showChatView(){
   if(curView!=="msgs"){curView="msgs";$$(".view").forEach(e=>e.classList.toggle("on",e.id==="v-msgs"));
     $$(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.v==="msgs"))}
-  $("#dock").classList.remove("home","compact");$("#dock").classList.add("chat");
+  $("#dock").classList.remove("home");$("#dock").classList.add("chat");
 }
 /* 点开一个群：最上面是助手的「这个群最近聊了啥」，下面是原文（从上次看到的位置起有分隔线）。msgId：直接跳到那条消息 */
 async function openChat(chat,focus,src,msgId){
@@ -1788,7 +1795,8 @@ async function wpOff(){
 $("#wp-btn").onclick=e=>{tick();if($("#wp-btn").dataset.st==="on")busy(e.currentTarget,"发送中",()=>wpTest());else busy(e.currentTarget,"开启中…",wpEnable)};
 
 /* 底栏实际高度：问答栏只在今日页出现，其他页只留标签栏的高度 */
-const dockH=()=>{const d=$("#dock");if(d.classList.contains("compact"))return;document.documentElement.style.setProperty("--dockh",d.getBoundingClientRect().height+"px")};
+/* 打字时底栏变矮，页面留白保持平时的高度，免得正文跟着跳 */
+const dockH=()=>{const d=$("#dock");if(d.classList.contains("typing"))return;document.documentElement.style.setProperty("--dockh",d.getBoundingClientRect().height+"px")};
 if(window.ResizeObserver)new ResizeObserver(dockH).observe($("#dock"));dockH();
 /* ---------- 启动 ---------- */
 setSeg(hours);load();
