@@ -15,6 +15,7 @@
 /* ================= 设计变量（0.34 起所有尺寸只从这里取） =================
    间距 --s1..--s7 = 4/8/12/16/20/24/32；字号 --t-2xs..--t-2xl；圆角 --r-*；点击区 --hit */
 :root{
+  --kb:0;
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s7:32px;
   --t-2xs:.6176rem; --t-xs:.7059rem; --t-sm:.7941rem; --t-md:.8824rem; --t-lg:.9412rem; --t-xl:1.2353rem; --t-2xl:1.7647rem; /* rem 基准 17px = iOS 默认正文，跟随系统字号 */
   --r-xs:5px; --r-sm:10px; --r-md:14px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
@@ -413,7 +414,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 /* ================= 底栏：提问栏 + 标签栏 ================= */
 /* 不透明、独立合成层、不随滚动改样式：iOS 滚动时毛玻璃 + 视口高度变化会让整块底栏抖、闪、散 */
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:5;background:var(--bg);border-top:1px solid var(--line);
-  transform:translateZ(0);-webkit-transform:translateZ(0);will-change:transform;contain:layout paint}
+  transform:translateY(calc(-1px*var(--kb,0)));will-change:transform;contain:layout paint}
 .askbox{display:none;padding:var(--s2) var(--s4) 0}
 .dock.home #homeask,.dock.chat #chatask{display:block}
 .askbox form,.sheet form{display:flex;gap:var(--s2);max-width:608px;margin:0 auto}
@@ -444,6 +445,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .panel.short{height:72vh}
 .panel.auto{height:auto;max-height:80vh}
 .sheet.on .panel{transform:none}
+.sheet .panel{margin-bottom:calc(1px*var(--kb,0))}
 .ph{flex:none;width:100%;max-width:648px;margin:0 auto;padding:10px var(--s5) 6px;touch-action:none}
 .grab{width:38px;height:5px;margin:0 auto 10px;border-radius:3px;background:var(--line)}
 .ph .prow{display:flex;align-items:center;gap:var(--s2)}
@@ -1334,7 +1336,7 @@ dock.addEventListener("input",e=>{if(askIn(e))dock.classList.toggle("filled",!!e
 dock.addEventListener("focusout",e=>{if(askIn(e))setTimeout(()=>{if(!document.activeElement.classList.contains("inp"))dock.classList.remove("typing","filled")},200)});  // 延后：点快捷问题时输入框可能先失焦，不能让它在点击前消失
 /* 键盘弹起时，底栏跟着可视区域上移，不被键盘挡住 */
 if(window.visualViewport){const vv=visualViewport,fix=()=>{const a=document.activeElement,kb=a&&/^(INPUT|TEXTAREA)$/.test(a.tagName);  // 只在键盘弹出时挪；滚动时 Safari 工具栏伸缩不算键盘
-    const off=kb?Math.max(0,window.innerHeight-vv.height-vv.offsetTop):0;const d=$("#dock"),t=off>40?`translateY(${-off}px)`:"translateZ(0)";if(d.style.transform!==t)d.style.transform=t;$$(".sheet .panel").forEach(p=>p.style.marginBottom=off>40?off+"px":"")};
+    const off=kb?Math.max(0,window.innerHeight-vv.height-vv.offsetTop):0;document.documentElement.style.setProperty("--kb",off>40?off:0)};
   vv.addEventListener("resize",fix);document.addEventListener("focusin",fix);document.addEventListener("focusout",()=>setTimeout(fix,60))}
 
 /* ---------- 群档位菜单（今日「各群在聊」⋯/长按、群聊标题栏、原文列表左滑/长按） ---------- */
