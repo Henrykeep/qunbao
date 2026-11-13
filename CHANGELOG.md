@@ -1,3 +1,7 @@
+## 0.39.542 — 2026-11-13
+
+- 返回手势里「下层页面」的定位改走 --ut/--ul/--uw/--uh 变量，脚本不再直接写 style.top/left/width/height，至此脚本里无直接样式赋值。
+
 ## 0.39.541 — 2026-11-13
 
 - 边缘右滑返回的页面位移、回弹动画、遮罩透明度全部走 CSS 变量（--ex、--o）和 .swp/.snap 类，脚本不再直接写 style.transform/transition/opacity。
