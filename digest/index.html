@@ -279,7 +279,7 @@ footer{margin-top:var(--s7);text-align:center;font-size:var(--t-2xs);color:var(-
 .crow .cl span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .mute-ic{width:12px;height:12px;color:var(--faint);flex:none}
 .act .bars{display:flex;align-items:flex-end;gap:2px;height:48px}
-.act .bars i{flex:1;min-height:2px;background:var(--accent);border-radius:2px 2px 0 0;opacity:.8}
+.act .bars i{flex:1;min-height:2px;background:var(--accent);border-radius:2px 2px 0 0;opacity:.8;height:var(--h,0)}
 .act .ax{display:flex;justify-content:space-between;margin-top:2px;font-size:var(--t-2xs);color:var(--sub)}
 .act .tp{margin-top:var(--s2);font-size:var(--t-xs);color:var(--sub);line-height:1.7;overflow-wrap:anywhere}
 .emptywx{margin-top:var(--s4);padding:var(--s5) var(--s4);text-align:center}
@@ -1383,7 +1383,7 @@ async function loadAct(){
   try{const a=await api("/api/activity");
   if(!a.total){el.innerHTML='<div class="row"><span class="rl">还没有足够的消息</span></div>';return}
   const mx=Math.max(...a.hours,1);
-  el.innerHTML=`<div class="act"><div class="bars">${a.hours.map((n,h)=>`<i title="${h}点 ${n}条" style="height:${Math.round(n/mx*100)}%"></i>`).join("")}</div><div class="ax"><span>0时</span><span>12时</span><span>23时</span></div><div class="tp">最吵：${a.top.map(t=>`${esc(t.chat)} ${t.n}`).join(" · ")}</div></div>`}catch(e){}
+  el.innerHTML=`<div class="act"><div class="bars">${a.hours.map((n,h)=>`<i title="${h}点 ${n}条" style="--h:${Math.round(n/mx*100)}%"></i>`).join("")}</div><div class="ax"><span>0时</span><span>12时</span><span>23时</span></div><div class="tp">最吵：${a.top.map(t=>`${esc(t.chat)} ${t.n}`).join(" · ")}</div></div>`}catch(e){}
 }
 function renderChats(){
   renderSrcs();
