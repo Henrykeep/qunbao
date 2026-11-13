@@ -32,7 +32,7 @@
   --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
   --ease:cubic-bezier(.2,.9,.25,1);
   --z-sticky:4;--z-dock:5;--z-hint:6;--z-sheet:10;--z-toast:20;--z-top:99;
-  --dur-fast:.2s;--dur:.3s;--dur-slow:.4s;
+  --dur-fast:.2s;--dur:.3s;--dur-slow:.4s;--dur-hl:2s;
   --dockh:calc(var(--tab) + env(safe-area-inset-bottom));  /* JS 量出底栏实际高度后覆盖 */
 }
 @media (prefers-color-scheme:dark){:root{
@@ -225,7 +225,7 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .todo.done .check svg{stroke-dashoffset:0}
 .todo.done .t{text-decoration:line-through;text-decoration-color:var(--faint)}
 .todo.done .d,.todo.done .meta,.todo.done .quote,.todo.done .acts2{display:none}
-.todo.fresh{animation:fresh 2.4s var(--ease)}
+.todo.fresh{animation:fresh var(--dur-hl) var(--ease)}
 @keyframes fresh{0%{box-shadow:0 0 0 2px var(--accent);transform:translateY(-4px);opacity:.3}25%{opacity:1;transform:none}70%{box-shadow:0 0 0 2px var(--accent)}}
 .donebar{display:none;width:100%;min-height:var(--hit);border:0;background:transparent;color:var(--faint);font-size:var(--t-sm)}
 .donebar.on{display:block}
@@ -330,7 +330,7 @@ button.cite::after{content:"";position:absolute;inset:-10px -6px}
 .m .bub{padding:var(--s2) var(--s3);border-radius:4px var(--r-lg) var(--r-lg) var(--r-lg);background:var(--bubble);box-shadow:var(--shadow);font-size:var(--t-md);line-height:1.55;white-space:pre-wrap}
 .m.cont .bub{border-radius:var(--r-lg)}
 .m.atme .bub{background:var(--mine)}
-.m.flash .bub{animation:flash 1.6s}
+.m.flash .bub{animation:flash var(--dur-hl)}
 @keyframes flash{0%,60%{box-shadow:0 0 0 3px var(--amber)}}
 .bub .thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .bub .thumbs:first-child{margin-top:0}
