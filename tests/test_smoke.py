@@ -3595,6 +3595,7 @@ def test_bark_deadline_and_same_month_range():
     assert bark.strip_md("周五之前务必完成") == "周五前务必完成"
     assert bark.strip_md("今晚8点以前") == "今晚8点前"
     assert bark.strip_md("12月1日至12月5日") == "12/1-5"
+    assert bark.strip_md("12月5日（含）前交") == "12/5前交"
     assert bark.strip_md("2/1-3/5") == "2/1-3/5"
 
 
