@@ -153,7 +153,7 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .plink{font:inherit;border:0;background:none;padding:0;color:var(--accent);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .spin svg{animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.fade{animation:fi .5s var(--ease) both}
+.fade{animation:fi var(--dur-slow) var(--ease) both}
 .todo.fade:nth-child(n+2){animation-delay:30ms}.todo.fade:nth-child(n+3){animation-delay:60ms}.todo.fade:nth-child(n+4){animation-delay:90ms}.todo.fade:nth-child(n+5){animation-delay:120ms}.todo.fade:nth-child(n+6){animation-delay:150ms}.todo.fade:nth-child(n+7){animation-delay:180ms}
 @keyframes fi{from{opacity:0;transform:translateY(8px)}}
 .quiet .fade,.quiet.fade{animation:none!important}
