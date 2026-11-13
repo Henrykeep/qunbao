@@ -49,7 +49,7 @@ html,body{max-width:100%;overscroll-behavior:none}
 body{overflow-x:clip}body.noscroll{overflow:hidden}
 body{font-family:var(--sans);font-size:var(--t-md);color:var(--ink);background:var(--bg);line-height:1.55;font-variant-numeric:tabular-nums;
   -webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top)}
-button{font:inherit;color:inherit;cursor:pointer}
+button,.tabs a{font:inherit;color:inherit;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 /* iOS 输入框字号 <16px 会在聚焦时自动放大页面，放大后页面能左右拖动 */
 input,select,textarea{font:inherit;color:inherit;font-size:max(16px,1rem)!important}
 svg{display:block}
