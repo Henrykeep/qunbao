@@ -3534,3 +3534,10 @@ def test_bark_chinese_hour_cha():
     import bark
     assert bark.build_payload("t", "下午三点差五分")["body"] == "14:55"
     assert bark.build_payload("t", "下午两点差一刻")["body"] == "13:45"
+
+
+def test_bark_zh_minutes_without_fen_and_ban_zhong():
+    from bark import strip_md
+    assert strip_md("晚上八点三十五") == "20:35"
+    assert strip_md("下午3点半钟") == "15:30"
+    assert strip_md("八点三十个人") == "八点三十个人"
