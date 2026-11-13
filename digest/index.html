@@ -201,10 +201,10 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .pinmark{margin-right:var(--s1);font-size:var(--t-xs);font-weight:600;color:var(--accent)}
 /* 尽量一行：截止时间不缩，群名放不下先省略；连 6 个字都放不下（大字号）才换行 */
 .meta{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s2);margin-top:var(--s1h);font-size:var(--t-xs);color:var(--sub);min-width:0}
-.meta .chip{flex:none;padding:2px 8px}
-.meta .mi{flex:1 1 0;display:inline-flex;align-items:center;gap:3px;min-width:min(8.5em,100%)}
+.meta .chip{flex:none;padding:var(--s0) var(--s2)}
+.meta .mi{flex:1 1 0;display:inline-flex;align-items:center;gap:var(--s1);min-width:min(8.5em,100%)}
 .meta .mi svg{width:12px;height:12px;flex:none;color:var(--faint)}
-.meta .mi .tag{margin-left:2px}
+.meta .mi .tag{margin-left:var(--s0)}
 .meta .mi svg.s-qq{color:var(--qq)} .meta .mi svg.s-wx{color:var(--wx)}
 .cn2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chip.due{background:color-mix(in srgb,var(--u) 13%,transparent);color:var(--u);font-weight:600}
@@ -350,7 +350,7 @@ button.cite::after{content:"";position:absolute;inset:-10px -6px}
 /* ================= 设置 ================= */
 .group{margin-top:var(--s2h);overflow:hidden}
 .gl{margin:var(--s6) var(--s1) 0;font-size:var(--t-xs);letter-spacing:var(--ls-l);color:var(--sub);font-weight:600}
-.sub .gl:first-of-type{margin-top:18px}
+.sub .gl:first-of-type{margin-top:var(--s5)}
 .sub .chat-head{margin-bottom:var(--s1h)}
 .row{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);min-height:50px;padding:13px var(--s4);border-bottom:var(--bw) solid var(--line)}
 .row:last-child{border-bottom:0}
