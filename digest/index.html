@@ -1499,7 +1499,7 @@ function pinMsg(el,smooth){
   const ro=new ResizeObserver(()=>at()),stop=()=>{ro.disconnect();removeEventListener("touchstart",stop);removeEventListener("wheel",stop)};
   ro.observe($("#cmsgs"));ro.observe($("#brief"));addEventListener("touchstart",stop,{passive:true});addEventListener("wheel",stop,{passive:true});setTimeout(stop,3000);
 }
-function flashMsg(el){el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash");setTimeout(()=>el.classList.remove("flash"),2100)}
+function flashMsg(el){el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash");el.addEventListener("animationend",()=>el.classList.remove("flash"),{once:true})}
 /* 跳到某条消息：已加载就滚过去高亮 2 秒，没加载就按 id 取它前后的上下文 */
 async function jumpTo(id,chat,src){
   if(chat&&(chat!==chatName||(src&&src!==chatSrc)||$("#msgs-chat").hidden))return openChat(chat,null,src,id);
