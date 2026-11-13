@@ -43,7 +43,7 @@ html{font-size:17px}
 html{background:var(--bg);overflow-x:hidden;-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation}
 html,body{max-width:100%;overscroll-behavior:none}
 /* 只在 html 上 hidden（传给视口）；body 用 clip：body 设 hidden 会变成滚动容器，导致 position:sticky 失效（标题栏滚走） */
-body{overflow-x:clip}
+body{overflow-x:clip}body.noscroll{overflow:hidden}
 body{font-family:var(--sans);font-size:var(--t-md);color:var(--ink);background:var(--bg);line-height:1.55;font-variant-numeric:tabular-nums;
   -webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top)}
 button{font:inherit;color:inherit;cursor:pointer}
@@ -890,9 +890,9 @@ function showView(v){
 $$(".tabs button").forEach(b=>b.onclick=()=>{tick();go(b.dataset.v)});
 
 /* ---------- 面板（问答 / 往期） ---------- */
-function sheetOn(el){if(el.classList.contains("on"))return;el.classList.add("on");document.body.style.overflow="hidden";
+function sheetOn(el){if(el.classList.contains("on"))return;el.classList.add("on");document.body.classList.add("noscroll");
   navPush({t:"sheet",el,close:()=>sheetOffUI(el)},"#"+el.id.replace("Sheet",""))}
-function sheetOffUI(el){el.classList.remove("on");const p=el.querySelector(".panel");if(p){p.style.transform="";p.style.transition=""}if(!$(".sheet.on"))document.body.style.overflow=""}
+function sheetOffUI(el){el.classList.remove("on");const p=el.querySelector(".panel");if(p){p.style.transform="";p.style.transition=""}if(!$(".sheet.on"))document.body.classList.remove("noscroll")}
 function sheetOff(el){const l=NAV.find(x=>x.el===el);if(!l||!navClose(l))sheetOffUI(el)}
 $$(".sheet").forEach(sh=>{
   sh.querySelector(".scrim").onclick=()=>sheetOff(sh);
