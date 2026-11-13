@@ -31,6 +31,7 @@
   --serif:"Songti SC","Noto Serif SC","Source Han Serif SC","STSong",serif;
   --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
   --ease:cubic-bezier(.2,.9,.25,1);
+  --dur-fast:.2s;--dur:.3s;--dur-slow:.4s;
   --dockh:calc(var(--tab) + env(safe-area-inset-bottom));  /* JS 量出底栏实际高度后覆盖 */
 }
 @media (prefers-color-scheme:dark){:root{
@@ -57,7 +58,7 @@ svg{display:block}
 h1,h2,h3,p,.headline,.greet,.ttl,.t,.d,.lm,.msg,.st,.bub,blockquote{overflow-wrap:anywhere;word-break:break-word}
 .wrap{max-width:640px;margin:0 auto;padding:0 var(--s5)}
 .view{display:none;padding-bottom:calc(var(--dockh) + var(--s6))}
-.view.on{display:block;animation:vin .35s var(--ease)}
+.view.on{display:block;animation:vin var(--dur) var(--ease)}
 #v-msgs{padding-bottom:calc(var(--dockh) + var(--s2))}
 @keyframes vin{from{opacity:0;transform:translateY(6px)}}
 
@@ -77,7 +78,7 @@ h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
 .card{background:var(--card);border-radius:var(--r-lg);box-shadow:var(--shadow)}
 /* 按钮：.btn 实心 / .ghost 浅底 / .line 描边；.sm 34px 高，默认 36px，.lg 40px（主要操作） */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s1);flex:none;min-height:36px;padding:0 var(--s4);border:1px solid transparent;border-radius:var(--r-pill);
-  background:var(--ink);color:var(--bg);font-size:var(--t-sm);font-weight:500;white-space:nowrap;text-decoration:none;transition:background .2s,color .2s}
+  background:var(--ink);color:var(--bg);font-size:var(--t-sm);font-weight:500;white-space:nowrap;text-decoration:none;transition:background var(--dur-fast),color var(--dur-fast)}
 .btn svg{width:14px;height:14px;flex:none}
 .btn.ghost{background:var(--chip);color:var(--ink)}
 .btn.line{background:var(--card);border-color:var(--line);color:var(--sub)}
@@ -126,9 +127,9 @@ a.ulk::after{content:" ↗";font-size:var(--t-xs)}
 mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;border-radius:3px;padding:0 1px}
 /* 分段切换 */
 .seg{display:inline-flex;flex:none;position:relative;padding:2px;border-radius:var(--r-pill);background:var(--chip)}
-.seg button{position:relative;z-index:1;border:0;background:none;min-height:36px;padding:0 var(--s3);border-radius:var(--r-pill);font-size:var(--t-sm);color:var(--sub);transition:color .2s}
+.seg button{position:relative;z-index:1;border:0;background:none;min-height:36px;padding:0 var(--s3);border-radius:var(--r-pill);font-size:var(--t-sm);color:var(--sub);transition:color var(--dur-fast)}
 .seg button.on{color:var(--ink);font-weight:600}
-.seg i{position:absolute;top:2px;bottom:2px;--x:0px;--w:0px;left:var(--x);width:var(--w);border-radius:var(--r-pill);background:var(--card);box-shadow:var(--shadow-sm);transition:all .3s var(--ease)}
+.seg i{position:absolute;top:2px;bottom:2px;--x:0px;--w:0px;left:var(--x);width:var(--w);border-radius:var(--r-pill);background:var(--card);box-shadow:var(--shadow-sm);transition:all var(--dur) var(--ease)}
 /* 提示条 */
 .banner{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);margin-top:var(--s4);padding:var(--s2) var(--s2) var(--s2) var(--s4);border-radius:var(--r-md);background:var(--chip);font-size:var(--t-sm);color:var(--sub)}
 .warn{display:flex;gap:var(--s3);margin-top:var(--s4);padding:var(--s3) var(--s4);border-radius:var(--r-md);background:color-mix(in srgb,var(--amber) 12%,var(--card));font-size:var(--t-sm)}
@@ -145,7 +146,7 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .sk{background:linear-gradient(90deg,var(--chip) 0,var(--line) 50%,var(--chip) 100%);background-size:200% 100%;animation:sh 1.3s infinite;border-radius:var(--r-sm)}
 @keyframes sh{to{background-position:-200% 0}}
 .toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));z-index:20;transform:translate(-50%,-90px);max-width:90vw;padding:9px var(--s4);border-radius:var(--r-pill);
-  background:var(--ink);color:var(--bg);font-size:var(--t-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:transform .4s var(--ease)}
+  background:var(--ink);color:var(--bg);font-size:var(--t-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:transform var(--dur-slow) var(--ease)}
 .toast.on{transform:translate(-50%,0)}
 .offbar{position:fixed;top:0;left:0;right:0;z-index:99;padding:calc(6px + env(safe-area-inset-top)) var(--s3) 6px;text-align:center;font-size:var(--t-xs);background:var(--warn-bg);color:var(--on);letter-spacing:.04em}
 .plink{font:inherit;border:0;background:none;padding:0;color:var(--accent);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
@@ -182,13 +183,13 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 /* 待办卡片 */
 .diffline{margin:calc(-1 * var(--s1)) 0 var(--s3);font-size:var(--t-xs);color:var(--faint)}
 .diffline b{color:var(--ink);font-weight:600}
-.todo{display:flex;gap:var(--s3);position:relative;overflow:hidden;margin-bottom:var(--s2);padding:var(--s3) var(--s4) var(--s3) var(--s4);transition:opacity .3s,background .3s}
-.todo::before{content:"";position:absolute;left:0;top:var(--s3);bottom:var(--s3);width:3px;border-radius:0 3px 3px 0;background:var(--u);transition:opacity .3s}
+.todo{display:flex;gap:var(--s3);position:relative;overflow:hidden;margin-bottom:var(--s2);padding:var(--s3) var(--s4) var(--s3) var(--s4);transition:opacity var(--dur),background var(--dur)}
+.todo::before{content:"";position:absolute;left:0;top:var(--s3);bottom:var(--s3);width:3px;border-radius:0 3px 3px 0;background:var(--u);transition:opacity var(--dur)}
 .todo.high{--u:var(--accent)} .todo.mid{--u:var(--amber)} .todo.low{--u:var(--calm)}
 .check{flex:none;width:var(--hit);height:var(--hit);margin:-8px -8px -8px -9px;border:0;background:none;display:grid;place-items:center}
-.check i{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--faint);display:grid;place-items:center;transition:all .25s var(--ease)}
+.check i{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--faint);display:grid;place-items:center;transition:all var(--dur-fast) var(--ease)}
 .check:active i{transform:scale(.85)}
-.check svg{width:13px;height:13px;color:var(--bg);stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .3s .05s}
+.check svg{width:13px;height:13px;color:var(--bg);stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset var(--dur) .05s}
 .tbody{flex:1;min-width:0;cursor:pointer}
 .t{font-weight:600;font-size:var(--t-lg);line-height:1.4}
 .todo .t{padding-right:var(--s4)}
@@ -204,9 +205,9 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .cn2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chip.due{background:color-mix(in srgb,var(--u) 13%,transparent);color:var(--u);font-weight:600}
 .chip.due.late{background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger)}
-.todo .more{pointer-events:none;position:absolute;top:var(--s3);right:var(--s3);width:16px;height:16px;color:var(--faint);transition:transform .3s var(--ease)}
+.todo .more{pointer-events:none;position:absolute;top:var(--s3);right:var(--s3);width:16px;height:16px;color:var(--faint);transition:transform var(--dur) var(--ease)}
 .todo.open .more{transform:rotate(180deg)}
-.quote{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s var(--ease)}
+.quote{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--dur) var(--ease)}
 .todo.open .quote{grid-template-rows:1fr}
 .quote>div{overflow:hidden}
 .quote blockquote{margin-top:var(--s3);padding:2px 0 2px var(--s3);border-left:2px solid var(--line);font-size:var(--t-sm);color:var(--sub)}
@@ -270,7 +271,7 @@ footer{margin-top:var(--s7);text-align:center;font-size:var(--t-2xs);color:var(-
 .sres .st{margin-top:2px;font-size:var(--t-md)}
 .sres{display:block}
 .clist{margin-top:var(--s2)}
-.crow{transform:translateX(calc(1px*var(--dx)));display:flex;gap:var(--s3);align-items:center;width:100%;padding:var(--s3) 0;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;touch-action:pan-y;transition:transform .2s var(--ease);cursor:pointer}
+.crow{transform:translateX(calc(1px*var(--dx)));display:flex;gap:var(--s3);align-items:center;width:100%;padding:var(--s3) 0;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;touch-action:pan-y;transition:transform var(--dur-fast) var(--ease);cursor:pointer}
 .crow:active{opacity:.6}
 .crow.muted{opacity:.45}
 .crow .gav{position:relative;flex:none;width:44px;height:44px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--on);font-weight:700;font-size:var(--t-lg);font-family:var(--serif)}
@@ -368,8 +369,8 @@ textarea.area{display:block;width:100%;min-height:120px;padding:14px var(--s4);b
 .tagbox input{flex:1;min-width:110px;padding:var(--s1);border:0;outline:none;background:none}
 .sw{position:relative;flex:none;width:50px;height:30px}
 .sw input{position:absolute;inset:0;z-index:1;margin:0;opacity:0;cursor:pointer}
-.sw span{position:absolute;inset:0;border-radius:var(--r-pill);background:var(--line);transition:background .25s}
-.sw span::after{content:"";position:absolute;left:2px;top:2px;width:26px;height:26px;border-radius:50%;background:var(--on);box-shadow:var(--shadow-knob);transition:transform .25s var(--ease)}
+.sw span{position:absolute;inset:0;border-radius:var(--r-pill);background:var(--line);transition:background var(--dur-fast)}
+.sw span::after{content:"";position:absolute;left:2px;top:2px;width:26px;height:26px;border-radius:50%;background:var(--on);box-shadow:var(--shadow-knob);transition:transform var(--dur-fast) var(--ease)}
 .sw input:checked+span{background:var(--calm)}
 .sw input:checked+span::after{transform:translateX(20px)}
 .stat-dot{display:inline-flex;align-items:center;gap:6px;font-size:var(--t-sm);color:var(--sub)}
@@ -389,10 +390,10 @@ textarea.area{display:block;width:100%;min-height:120px;padding:14px var(--s4);b
 .steps code{padding:1px 5px;border-radius:var(--r-xs);background:var(--chip);font-size:var(--t-xs);font-family:ui-monospace,Menlo,monospace;word-break:break-all}
 details.howto summary{display:flex;justify-content:space-between;align-items:center;list-style:none;padding:13px var(--s4);font-size:var(--t-md);cursor:pointer}
 details.howto summary::-webkit-details-marker{display:none}
-details.howto summary svg{width:16px;height:16px;color:var(--faint);transition:transform .25s}
+details.howto summary svg{width:16px;height:16px;color:var(--faint);transition:transform var(--dur-fast)}
 details.howto[open] summary svg{transform:rotate(180deg)}
 .savehint{position:fixed;left:50%;bottom:calc(var(--tab) + var(--s4) + env(safe-area-inset-bottom));z-index:6;transform:translateX(-50%);padding:var(--s1) var(--s3);border-radius:var(--r-pill);
-  background:var(--chip);color:var(--sub);font-size:var(--t-xs);opacity:0;pointer-events:none;transition:opacity .3s}
+  background:var(--chip);color:var(--sub);font-size:var(--t-xs);opacity:0;pointer-events:none;transition:opacity var(--dur)}
 .savehint.on{opacity:1}
 .savehint:empty{display:none}
 .gsearch{margin-top:var(--s3)}
@@ -421,10 +422,10 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .askbox{display:none;padding:var(--s2) var(--s4) 0}
 .dock.home #homeask,.dock.chat #chatask{display:block}
 .askbox form,.sheet form{display:flex;gap:var(--s2);max-width:608px;margin:0 auto}
-.inp{flex:1;min-width:0;padding:11px 18px;border:1px solid var(--line);border-radius:var(--r-pill);background:var(--card);outline:none;transition:border-color .2s}
+.inp{flex:1;min-width:0;padding:11px 18px;border:1px solid var(--line);border-radius:var(--r-pill);background:var(--card);outline:none;transition:border-color var(--dur-fast)}
 .inp:focus{border-color:var(--ink)}
 .inp::placeholder{color:var(--faint)}
-.send{flex:none;width:44px;height:44px;border:0;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;transition:transform .15s}
+.send{flex:none;width:44px;height:44px;border:0;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;transition:transform var(--dur-fast)}
 .send:active{transform:scale(.9)}
 .send svg{width:18px;height:18px}
 .suggest{display:none;gap:6px;max-width:608px;margin:0 auto var(--s2);overflow-x:auto;scrollbar-width:none;
@@ -433,18 +434,18 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .dock.typing:not(.filled) .suggest{display:flex}  /* 快捷问题平时收起，让出首屏；点进输入框且还没打字时才出现 */
 .dock.typing .tabs{display:none}  /* 打字时标签栏也让位：键盘上方只剩 快捷问题 + 输入框 */
 .tabs{display:flex;max-width:640px;height:var(--tab);margin:0 auto env(safe-area-inset-bottom)}
-.tabs button{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:none;font-size:var(--t-2xs);color:var(--faint);letter-spacing:.06em;transition:color .2s}
+.tabs button{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:none;font-size:var(--t-2xs);color:var(--faint);letter-spacing:.06em;transition:color var(--dur-fast)}
 .tabs button svg{width:22px;height:22px}
 .tabs button.on{color:var(--ink)}
 .tabs .dot{position:absolute;top:var(--s2);left:calc(50% + 8px);min-width:8px;height:8px;border-radius:var(--r-pill);background:var(--accent);display:none}
 .tabs .dot.on{display:block}
 
 /* ================= 底部面板：问答 / 往期 / 怎么盯 ================= */
-.sheet{position:fixed;inset:0;z-index:10;pointer-events:none;visibility:hidden;transition:visibility 0s .4s}
+.sheet{position:fixed;inset:0;z-index:10;pointer-events:none;visibility:hidden;transition:visibility 0s var(--dur-slow)}
 .sheet.on{pointer-events:auto;visibility:visible;transition:none}
-.scrim{position:absolute;inset:0;background:var(--scrim);opacity:0;transition:opacity .3s}
+.scrim{position:absolute;inset:0;background:var(--scrim);opacity:0;transition:opacity var(--dur)}
 .sheet.on .scrim{opacity:1}
-.panel{position:absolute;left:0;right:0;bottom:0;height:84vh;display:flex;flex-direction:column;background:var(--bg);border-radius:var(--r-xl) var(--r-xl) 0 0;transform:translateY(100%);transition:transform .42s var(--ease)}
+.panel{position:absolute;left:0;right:0;bottom:0;height:84vh;display:flex;flex-direction:column;background:var(--bg);border-radius:var(--r-xl) var(--r-xl) 0 0;transform:translateY(100%);transition:transform var(--dur-slow) var(--ease)}
 .panel.short{height:72vh}
 .panel.auto{height:auto;max-height:80vh}
 .sheet.on .panel{transform:translateY(calc(1px*var(--dy)))}
@@ -477,9 +478,9 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .nofx .view.on,.nofx .fade{animation:none!important}
 .under{display:block!important;position:fixed!important;left:var(--ul);top:var(--ut);height:var(--uh);width:var(--uw);overflow:hidden!important;z-index:0;pointer-events:none;animation:none!important}
 #edgeShade{position:fixed;inset:0;z-index:1;display:none;background:var(--black);opacity:var(--o,0);pointer-events:none}
-#edgeShade.snap{transition:opacity .24s}
+#edgeShade.snap{transition:opacity var(--dur-fast)}
 .swp,.sheet.on .panel.swp{transform:translateX(calc(1px*var(--ex,0)));transition:none}
-.swp.snap,.sheet.on .panel.swp.snap{transition:transform .24s cubic-bezier(.2,.9,.25,1)}
+.swp.snap,.sheet.on .panel.swp.snap{transition:transform var(--dur-fast) var(--ease)}
 #edgeShade.on{display:block}
 .dragging{position:relative;z-index:2;min-height:100vh;background:var(--bg);box-shadow:var(--shadow-edge);will-change:transform}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
