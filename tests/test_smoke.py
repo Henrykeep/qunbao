@@ -3640,3 +3640,9 @@ def test_dock_two_states_no_dead_compact():
     assert ".dock.typing .tabs{display:none}" in h
     assert "compact" not in h
     assert 'classList.contains("typing")' in h
+
+
+def test_message_urls_become_domain_chips():
+    html = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
+    assert "function linkChip" in html and 'class="ulk"' in html
+    assert "esc(s).replace(URL_RE,linkChip)" in html  # 原文/搜索/群聊共用 hlAt 这一处
