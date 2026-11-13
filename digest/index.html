@@ -32,7 +32,7 @@
   --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
   --ease:cubic-bezier(.2,.9,.25,1);
   --z-sticky:4;--z-dock:5;--z-hint:6;--z-sheet:10;--z-toast:20;--z-top:99;
-  --dur-fast:.2s;--dur:.3s;--dur-slow:.4s;--dur-hl:2s;
+  --dur-fast:.2s;--dur:.3s;--dur-slow:.4s;--dur-hl:2s;--dur-shimmer:1.3s;--dur-spin:1s;
   --dockh:calc(var(--tab) + env(safe-area-inset-bottom));  /* JS 量出底栏实际高度后覆盖 */
 }
 @media (prefers-color-scheme:dark){:root{
@@ -144,14 +144,14 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .empty .big{font-family:var(--serif);font-size:var(--t-xl);color:var(--ink);margin-bottom:6px}
 .empty .btn{margin-top:var(--s3)}
 .gd{font-size:var(--t-xs);color:var(--faint);margin:6px var(--s1) 0;line-height:1.5}
-.sk{background:linear-gradient(90deg,var(--chip) 0,var(--line) 50%,var(--chip) 100%);background-size:200% 100%;animation:sh 1.3s infinite;border-radius:var(--r-sm)}
+.sk{background:linear-gradient(90deg,var(--chip) 0,var(--line) 50%,var(--chip) 100%);background-size:200% 100%;animation:sh var(--dur-shimmer) infinite;border-radius:var(--r-sm)}
 @keyframes sh{to{background-position:-200% 0}}
 .toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));z-index:var(--z-toast);transform:translate(-50%,-90px);max-width:90vw;padding:9px var(--s4);border-radius:var(--r-pill);
   background:var(--ink);color:var(--bg);font-size:var(--t-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:transform var(--dur-slow) var(--ease)}
 .toast.on{transform:translate(-50%,0)}
 .offbar{position:fixed;top:0;left:0;right:0;z-index:var(--z-top);padding:calc(6px + env(safe-area-inset-top)) var(--s3) 6px;text-align:center;font-size:var(--t-xs);background:var(--warn-bg);color:var(--on);letter-spacing:.04em}
 .plink{font:inherit;border:0;background:none;padding:0;color:var(--accent);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
-.spin svg{animation:spin 1s linear infinite}
+.spin svg{animation:spin var(--dur-spin) linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .fade{animation:fi var(--dur-slow) var(--ease) both}
 .todo.fade:nth-child(n+2){animation-delay:30ms}.todo.fade:nth-child(n+3){animation-delay:60ms}.todo.fade:nth-child(n+4){animation-delay:90ms}.todo.fade:nth-child(n+5){animation-delay:120ms}.todo.fade:nth-child(n+6){animation-delay:150ms}.todo.fade:nth-child(n+7){animation-delay:180ms}
