@@ -142,3 +142,4 @@ def test_bark_date_then_time_keeps_space():
 def test_bark_deadline_label_colon_dropped():
     import bark
     assert bark.build_payload("x", "截止时间：12月5日")["body"] == "截止 12/5"
+    assert bark.build_payload("x", "集合地点：A楼")["body"] == "集合 A楼"
