@@ -3541,3 +3541,10 @@ def test_bark_zh_minutes_without_fen_and_ban_zhong():
     assert strip_md("晚上八点三十五") == "20:35"
     assert strip_md("下午3点半钟") == "15:30"
     assert strip_md("八点三十个人") == "八点三十个人"
+
+
+def test_bark_night_period_and_guo_tens():
+    import bark
+    assert bark.strip_md("夜里十一点") == "23点"
+    assert bark.strip_md("夜里十二点") == "夜里12点"
+    assert bark.strip_md("晚上7点过十分") == "19:10"
