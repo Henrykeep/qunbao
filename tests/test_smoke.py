@@ -3577,3 +3577,9 @@ def test_bark_weekly_prefix_dropped():
     from digest import bark
     assert bark.strip_md("每周星期一至星期五 上课") == "工作日 上课"
     assert bark.strip_md("每个周六周日 值班") == "周末 值班"
+
+
+def test_bark_ming_ri_to_tian():
+    from digest import bark
+    out = bark.build_payload("通知", "明日（周六）15点集合，今日截止")["body"]
+    assert "明天" in out and "今天截止" in out and "明日" not in out
