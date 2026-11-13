@@ -207,3 +207,4 @@
 - [x] 0.34.39 规则兜底纯函数拆到 rules.py（下一步：拆 auto_run_chat / 路由）
 
 - [x] 0.35.15 /healthz 带 backup_age_h，备份是否运行可见
+- [x] 0.39.538 边缘遮罩显隐走 .on 类
