@@ -1,3 +1,7 @@
+## 0.39.543 — 2026-11-13
+
+- 前端 CSS 变量读写收敛为一个 sv() 助手，脚本里不再散落 style.setProperty/removeProperty。
+
 ## 0.39.542 — 2026-11-13
 
 - 返回手势里「下层页面」的定位改走 --ut/--ul/--uw/--uh 变量，脚本不再直接写 style.top/left/width/height，至此脚本里无直接样式赋值。
