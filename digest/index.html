@@ -63,7 +63,7 @@ h1,h2,h3,p,.headline,.greet,.ttl,.t,.d,.lm,.msg,.st,.bub,blockquote{overflow-wra
 .view{display:none;padding-bottom:calc(var(--dockh) + var(--s6))}
 .view.on{display:block;animation:vin var(--dur) var(--ease)}
 #v-msgs{padding-bottom:calc(var(--dockh) + var(--s2))}
-@keyframes vin{from{opacity:0;transform:translateY(6px)}}
+@keyframes vin{from{opacity:0;transform:translateY(var(--s1h))}}
 
 /* ================= 组件 ================= */
 /* 报头：四个页面同一套 */
@@ -158,7 +158,7 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .fade{animation:fi var(--dur-slow) var(--ease) both}
 .todo.fade{animation-delay:calc(var(--stg)*(var(--i,1) - 1))}
 .todo.fade:nth-child(2){--i:2}.todo.fade:nth-child(3){--i:3}.todo.fade:nth-child(4){--i:4}.todo.fade:nth-child(5){--i:5}.todo.fade:nth-child(6){--i:6}
-@keyframes fi{from{opacity:0;transform:translateY(8px)}}
+@keyframes fi{from{opacity:0;transform:translateY(var(--s2))}}
 .quiet .fade,.quiet.fade{animation:none!important}
 
 /* ================= 今日 ================= */
