@@ -1836,6 +1836,13 @@ def test_frontend_pend_text_not_forever_auto():
     assert "swapHead(" in h and "forceQuiet()" in h
 
 
+def test_frontend_headline_not_falsely_calm():
+    """头条说「没什么要你管的」时，有未处理 @我 / 有新消息没整理，不能让人放心：显示文案只在 headLine() 里算，所有改头条的地方走 setHead()。"""
+    h = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
+    assert "function headLine(st)" in h and "function setHead(" in h and "已整理的部分没有要你管的" in h
+    assert "esc(headLine(st))" in h and "hd.textContent=r.headline" not in h
+
+
 def test_rule_event_titles_and_negatives():
     now = time.time()
     nd = app_mod.datetime.fromtimestamp(now - 5 * 3600, app_mod.TZ)  # 凌晨 5 点前算前一天
