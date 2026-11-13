@@ -3596,3 +3596,10 @@ def test_bark_deadline_and_same_month_range():
     assert bark.strip_md("今晚8点以前") == "今晚8点前"
     assert bark.strip_md("12月1日至12月5日") == "12/1-5"
     assert bark.strip_md("2/1-3/5") == "2/1-3/5"
+
+
+def test_bark_weekday_run_collapsed():
+    from digest import bark
+    assert bark.strip_md("周一、周二、周三交作业") == "周一-周三交作业"
+    assert bark.strip_md("周一、周三、周五") == "周一、周三、周五"
+    assert bark.strip_md("周一、周二、周三、周四、周五上课") == "工作日上课"
