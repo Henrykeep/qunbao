@@ -3555,3 +3555,9 @@ def test_bark_date_range_and_weekday_paren():
     assert bark.strip_md("12月1号至12月3号") == "12/1-12/3"
     assert bark.strip_md("11月5日(周四)开会") == "11/5开会"
     assert bark.strip_md("周五(11/20)") == "周五(11/20)"
+
+
+def test_bark_dian_zheng():
+    import bark
+    assert bark.strip_md("明天上午9点整集合") == "明天9点集合"
+    assert bark.strip_md("下午3点整") == "15点"
