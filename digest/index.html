@@ -473,7 +473,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 
 /* ================= 左边缘右滑返回 ================= */
 .nofx .view.on,.nofx .fade{animation:none!important}
-.under{display:block!important;position:fixed!important;left:0;right:0;top:0;height:100vh;overflow:hidden!important;z-index:0;pointer-events:none;animation:none!important}
+.under{display:block!important;position:fixed!important;left:var(--ul,0);top:var(--ut,0);height:var(--uh,100vh);width:var(--uw,auto);overflow:hidden!important;z-index:0;pointer-events:none;animation:none!important}
 #edgeShade{position:fixed;inset:0;z-index:1;display:none;background:#000;opacity:var(--o,0);pointer-events:none}
 #edgeShade.snap{transition:opacity .24s}
 .swp,.sheet.on .panel.swp{transform:translateX(calc(1px*var(--ex,0)));transition:none}
@@ -1862,7 +1862,7 @@ if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("messag
     shade.classList.toggle("snap",!!anim);shade.style.setProperty("--o",g.un?.28*(1-p):0)};
   const clean=()=>{for(const el of [g.mv,g.un])if(el){el.classList.remove("swp","snap");el.style.removeProperty("--ex")}
     if(g.mv)g.mv.classList.remove("dragging");
-    if(g.un){g.un.classList.remove("under");const u=g.un.style;u.top=u.left=u.width=u.right=u.height=""}shade.classList.remove("on","snap");shade.style.removeProperty("--o")};
+    if(g.un){g.un.classList.remove("under");for(const k of ["--ut","--ul","--uw","--uh"])g.un.style.removeProperty(k)}shade.classList.remove("on","snap");shade.style.removeProperty("--o")};
   document.addEventListener("touchstart",e=>{
     if(e.touches.length!==1||!NAV.length){g=null;return}const t=e.touches[0];if(t.clientX>24){g=null;return}
     const l=NAV[NAV.length-1];g={l,...els(l),x0:t.clientX,y0:t.clientY,on:false,lx:t.clientX,lt:e.timeStamp,vx:0,dx:0};
@@ -1874,7 +1874,7 @@ if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("messag
     if(!g)return;const t=e.touches[0],dx=t.clientX-g.x0,dy=t.clientY-g.y0;
     if(!g.on){if(Math.abs(dy)>10&&Math.abs(dy)>dx){g=null;return}if(dx<8)return;
       g.on=true;if(g.mv&&!g.sheet)g.mv.classList.add("dragging");
-      if(g.un){g.un.classList.add("under");if(g.pos){const u=g.un.style;u.top=g.pos.top+"px";u.left=g.pos.left+"px";u.width=g.pos.width+"px";u.right="auto";u.height=g.pos.h+"px"}shade.classList.add("on")}}
+      if(g.un){g.un.classList.add("under");if(g.pos){const u=g.un.style;u.setProperty("--ut",g.pos.top+"px");u.setProperty("--ul",g.pos.left+"px");u.setProperty("--uw",g.pos.width+"px");u.setProperty("--uh",g.pos.h+"px")}shade.classList.add("on")}}
     e.preventDefault();e.stopPropagation();
     const dt=e.timeStamp-g.lt;if(dt>0){g.vx=(t.clientX-g.lx)/dt;g.lx=t.clientX;g.lt=e.timeStamp}
     g.dx=Math.max(0,dx);set(g.dx,false);
