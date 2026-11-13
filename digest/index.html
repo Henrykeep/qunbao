@@ -16,7 +16,7 @@
    间距 --s1..--s7 = 4/8/12/16/20/24/32；字号 --t-2xs..--t-2xl；圆角 --r-*；点击区 --hit */
 :root{
   --kb:0;
-  --dy:0;--dx:0;--ex:0;--o:0;
+  --dy:0;--dx:0;--ex:0;--o:0;--ut:0px;--ul:0px;--uw:auto;--uh:100vh;
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s7:32px;
   --t-2xs:.6176rem; --t-xs:.7059rem; --t-sm:.7941rem; --t-md:.8824rem; --t-lg:.9412rem; --t-xl:1.2353rem; --t-2xl:1.7647rem; /* rem 基准 17px = iOS 默认正文，跟随系统字号 */
   --r-xs:5px; --r-sm:10px; --r-md:14px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
@@ -473,7 +473,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 
 /* ================= 左边缘右滑返回 ================= */
 .nofx .view.on,.nofx .fade{animation:none!important}
-.under{display:block!important;position:fixed!important;left:var(--ul,0);top:var(--ut,0);height:var(--uh,100vh);width:var(--uw,auto);overflow:hidden!important;z-index:0;pointer-events:none;animation:none!important}
+.under{display:block!important;position:fixed!important;left:var(--ul);top:var(--ut);height:var(--uh);width:var(--uw);overflow:hidden!important;z-index:0;pointer-events:none;animation:none!important}
 #edgeShade{position:fixed;inset:0;z-index:1;display:none;background:#000;opacity:var(--o,0);pointer-events:none}
 #edgeShade.snap{transition:opacity .24s}
 .swp,.sheet.on .panel.swp{transform:translateX(calc(1px*var(--ex,0)));transition:none}
