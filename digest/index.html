@@ -783,6 +783,7 @@ const dayLabel=ts=>{const d=new Date(ts*1000),t=new Date();if(sameDay(d,t))retur
   return`${d.getMonth()+1}月${d.getDate()}日 星期${W[d.getDay()]}`};
 const hue=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;return h};
 const avc=s=>`hsl(${hue(s)} 30% 52%)`;
+const sv=(el,k,v)=>v==null?el.style.removeProperty(k):el.style.setProperty(k,v);
 const avEl=(n,c="av",x="")=>`<div class="${c}" style="--c:${avc(n)}">${first(n)}${x}</div>`;
 const first=s=>esc([...String(s||"?")].find(c=>!/[\s·@]/.test(c))||"?");
 const tick=()=>navigator.vibrate&&navigator.vibrate(8);
@@ -900,15 +901,15 @@ $$(".tabs button").forEach(b=>b.onclick=()=>{tick();go(b.dataset.v)});
 /* ---------- 面板（问答 / 往期） ---------- */
 function sheetOn(el){if(el.classList.contains("on"))return;el.classList.add("on");document.body.classList.add("noscroll");
   navPush({t:"sheet",el,close:()=>sheetOffUI(el)},"#"+el.id.replace("Sheet",""))}
-function sheetOffUI(el){el.classList.remove("on");const p=el.querySelector(".panel");if(p){p.classList.remove("drag");p.style.removeProperty("--dy")}if(!$(".sheet.on"))document.body.classList.remove("noscroll")}
+function sheetOffUI(el){el.classList.remove("on");const p=el.querySelector(".panel");if(p){p.classList.remove("drag");sv(p,"--dy")}if(!$(".sheet.on"))document.body.classList.remove("noscroll")}
 function sheetOff(el){const l=NAV.find(x=>x.el===el);if(!l||!navClose(l))sheetOffUI(el)}
 $$(".sheet").forEach(sh=>{
   sh.querySelector(".scrim").onclick=()=>sheetOff(sh);
   sh.querySelector("[data-close]").onclick=()=>sheetOff(sh);
   const ph=sh.querySelector(".ph"),panel=sh.querySelector(".panel");let y0=null;
   ph.addEventListener("touchstart",e=>{y0=e.touches[0].clientY;panel.classList.add("drag")},{passive:true});
-  ph.addEventListener("touchmove",e=>{if(y0==null)return;panel.style.setProperty("--dy",Math.max(0,e.touches[0].clientY-y0))},{passive:true});
-  ph.addEventListener("touchend",e=>{const dy=e.changedTouches[0].clientY-y0;panel.classList.remove("drag");panel.style.removeProperty("--dy");y0=null;if(dy>90)sheetOff(sh)});
+  ph.addEventListener("touchmove",e=>{if(y0==null)return;sv(panel,"--dy",Math.max(0,e.touches[0].clientY-y0))},{passive:true});
+  ph.addEventListener("touchend",e=>{const dy=e.changedTouches[0].clientY-y0;panel.classList.remove("drag");sv(panel,"--dy");y0=null;if(dy>90)sheetOff(sh)});
 });
 
 /* ================= 今日 ================= */
@@ -917,7 +918,7 @@ function setSeg(h,save=true){
   hours=h;if(save)lsSet("qb_hours",h);
   const b=$$("#seg button").find(x=>+x.dataset.h===h)||$$("#seg button")[0];
   $$("#seg button").forEach(x=>x.classList.toggle("on",x===b));
-  const i=$("#seg i");i.style.setProperty("--x",b.offsetLeft+"px");i.style.setProperty("--w",b.offsetWidth+"px");
+  const i=$("#seg i");sv(i,"--x",b.offsetLeft+"px");sv(i,"--w",b.offsetWidth+"px");
 }
 $$("#seg button").forEach(b=>b.onclick=()=>{if(+b.dataset.h===hours&&!viewId)return;setSeg(+b.dataset.h);tick();viewId=null;showRange()});
 // 切时间范围只是换个范围看已经整理好的东西：直接取，不重新整理
@@ -1342,7 +1343,7 @@ dock.addEventListener("input",e=>{if(askIn(e))dock.classList.toggle("filled",!!e
 dock.addEventListener("focusout",e=>{if(askIn(e))setTimeout(()=>{if(!document.activeElement.classList.contains("inp"))dock.classList.remove("typing","filled")},200)});  // 延后：点快捷问题时输入框可能先失焦，不能让它在点击前消失
 /* 键盘弹起时，底栏跟着可视区域上移，不被键盘挡住 */
 if(window.visualViewport){const vv=visualViewport,fix=()=>{const a=document.activeElement,kb=a&&/^(INPUT|TEXTAREA)$/.test(a.tagName);  // 只在键盘弹出时挪；滚动时 Safari 工具栏伸缩不算键盘
-    const off=kb?Math.max(0,window.innerHeight-vv.height-vv.offsetTop):0;document.documentElement.style.setProperty("--kb",off>40?off:0)};
+    const off=kb?Math.max(0,window.innerHeight-vv.height-vv.offsetTop):0;sv(document.documentElement,"--kb",off>40?off:0)};
   vv.addEventListener("resize",fix);document.addEventListener("focusin",fix);document.addEventListener("focusout",()=>setTimeout(fix,60))}
 
 /* ---------- 群档位菜单（今日「各群在聊」⋯/长按、群聊标题栏、原文列表左滑/长按） ---------- */
@@ -1418,9 +1419,9 @@ function renderChats(){
 /* 原文群列表：左滑一行 → 怎么盯 */
 function swipeRow(b){let x0=null,y0=0,dx=0;
   b.addEventListener("touchstart",e=>{x0=e.touches[0].clientX;y0=e.touches[0].clientY;dx=0},{passive:true});
-  b.addEventListener("touchmove",e=>{if(x0==null)return;dx=e.touches[0].clientX-x0;if(Math.abs(e.touches[0].clientY-y0)>Math.abs(dx)){x0=null;b.style.removeProperty("--dx");return}
-    if(dx<0)b.style.setProperty("--dx",Math.max(dx,-90))},{passive:true});
-  b.addEventListener("touchend",()=>{b.style.removeProperty("--dx");if(x0!=null&&dx<-60){b._sw=1;tick();modeSheet(b.dataset.src,b.dataset.chat)}x0=null});
+  b.addEventListener("touchmove",e=>{if(x0==null)return;dx=e.touches[0].clientX-x0;if(Math.abs(e.touches[0].clientY-y0)>Math.abs(dx)){x0=null;sv(b,"--dx");return}
+    if(dx<0)sv(b,"--dx",Math.max(dx,-90))},{passive:true});
+  b.addEventListener("touchend",()=>{sv(b,"--dx");if(x0!=null&&dx<-60){b._sw=1;tick();modeSheet(b.dataset.src,b.dataset.chat)}x0=null});
 }
 const emptyBox=(title,sub="",btn="")=>`<div class="empty"><div class="big">${title}</div>${sub?`<div>${sub}</div>`:""}${btn}</div>`;
 let SDAYS=0;
@@ -1820,7 +1821,7 @@ $("#wp-btn").onclick=e=>{tick();if($("#wp-btn").dataset.st==="on")busy(e.current
 
 /* 底栏实际高度：问答栏只在今日页出现，其他页只留标签栏的高度 */
 /* 打字时底栏变矮，页面留白保持平时的高度，免得正文跟着跳 */
-const dockH=()=>{const d=$("#dock");if(d.classList.contains("typing"))return;document.documentElement.style.setProperty("--dockh",d.getBoundingClientRect().height+"px")};
+const dockH=()=>{const d=$("#dock");if(d.classList.contains("typing"))return;sv(document.documentElement,"--dockh",d.getBoundingClientRect().height+"px")};
 if(window.ResizeObserver)new ResizeObserver(dockH).observe($("#dock"));dockH();
 /* ---------- 启动 ---------- */
 setSeg(hours);load();
@@ -1858,11 +1859,11 @@ if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("messag
   const els=l=>l.t==="chat"?{mv:$("#msgs-chat"),un:l.prev&&l.prev!=="msgs"?$("#v-"+l.prev):$("#msgs-list")}
     :l.t==="sub"?{mv:SUB&&$("#sub-"+SUB),un:$("#set-main")}:l.t==="sheet"?{mv:l.el.querySelector(".panel"),un:null,sheet:1}:{mv:null,un:null};
   const set=(x,anim)=>{const w=innerWidth,p=Math.min(1,x/w);
-    for(const [el,v] of [[g.mv,x],[g.un,-0.28*w*(1-p)]])if(el){el.classList.add("swp");el.classList.toggle("snap",!!anim);el.style.setProperty("--ex",v)}
-    shade.classList.toggle("snap",!!anim);shade.style.setProperty("--o",g.un?.28*(1-p):0)};
-  const clean=()=>{for(const el of [g.mv,g.un])if(el){el.classList.remove("swp","snap");el.style.removeProperty("--ex")}
+    for(const [el,v] of [[g.mv,x],[g.un,-0.28*w*(1-p)]])if(el){el.classList.add("swp");el.classList.toggle("snap",!!anim);sv(el,"--ex",v)}
+    shade.classList.toggle("snap",!!anim);sv(shade,"--o",g.un?.28*(1-p):0)};
+  const clean=()=>{for(const el of [g.mv,g.un])if(el){el.classList.remove("swp","snap");sv(el,"--ex")}
     if(g.mv)g.mv.classList.remove("dragging");
-    if(g.un){g.un.classList.remove("under");for(const k of ["--ut","--ul","--uw","--uh"])g.un.style.removeProperty(k)}shade.classList.remove("on","snap");shade.style.removeProperty("--o")};
+    if(g.un){g.un.classList.remove("under");for(const k of ["--ut","--ul","--uw","--uh"])sv(g.un,k)}shade.classList.remove("on","snap");sv(shade,"--o")};
   document.addEventListener("touchstart",e=>{
     if(e.touches.length!==1||!NAV.length){g=null;return}const t=e.touches[0];if(t.clientX>24){g=null;return}
     const l=NAV[NAV.length-1];g={l,...els(l),x0:t.clientX,y0:t.clientY,on:false,lx:t.clientX,lt:e.timeStamp,vx:0,dx:0};
