@@ -3624,3 +3624,12 @@ def test_bark_carry_shortened():
     from digest import bark
     assert bark.strip_md("请携带学生证") == "带学生证"
     assert bark.strip_md("务必携带身份证") == "带身份证"
+
+
+def test_dock_two_states_no_dead_compact():
+    """底栏只有两态（平时 / 打字中 .typing）；快捷问题平时收起，旧的 .compact 死代码已清掉。"""
+    h = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
+    assert ".dock.typing:not(.filled) .suggest{display:flex}" in h
+    assert ".dock.typing .tabs{display:none}" in h
+    assert "compact" not in h
+    assert 'classList.contains("typing")' in h
