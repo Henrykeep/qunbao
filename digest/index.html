@@ -942,10 +942,22 @@ function homeModel(st){
 }
 const secHead=(title,n)=>`<h2>${title} <span class="c">${n||""}</span></h2>`;
 const moreBtn=(id,text)=>`<button class="btn line sm more-btn" id="${id}">${text}</button>`;
+/* 头条说实话：模型/规则写的是「群里没什么要你管的」，但还有 @你 的没进待办、或还有新消息没整理时，不能让人放心——换成真实的一句。
+   显示文案只在这里算；后端存的头条原样保留（勾完成、换期都还按原文比对） */
+const QUIET_HEADS=["群里没什么要你管的","这段时间群里很安静","这段时间群里没什么要你管的"];
+function headLine(st){
+  const raw=(st.digest&&st.digest.headline)||"";
+  if(!QUIET_HEADS.includes(raw))return raw;
+  const at=(st.at_me||[]).filter(a=>!a.covered).length;
+  if(at)return `有 ${at} 条 @你 的消息，先看看`;
+  if(st.is_latest!==false&&!viewId&&st.pending&&st.pending.msgs)return "已整理的部分没有要你管的";
+  return raw;
+}
+function setHead(raw){const hd=$("#main .headline");if(ST&&ST.digest)ST.digest.headline=raw;if(hd&&ST&&ST.digest)hd.textContent=headLine(ST)}
 function homeHero(m){
   const {st,d,open,soon,ats}=m;
   return `<div class="greet fade">${st.is_latest?greet()+" · ":""}${RANGE[st.hours]||"最近"} ${d.count??0} 条消息 · ${d.chats??0} 个群</div>
-  <div class="headline fade">${esc(d.headline)}</div>
+  <div class="headline fade">${esc(headLine(st))}</div>
   <div class="stats fade" data-sec="stats"><button class="stat" data-go="todo"><div class="n" id="prog-n">${open.length}</div><div class="l">件待办</div></button>
   <button class="stat ${soon?"hot":""}" id="st-soon" data-go="todo"><div class="n">${soon}</div><div class="l">48 小时内截止</div></button>
   <button class="stat" id="st-at" data-go="${ats.length?"at":"todo"}"><div class="n">0</div><div class="l">条 @我 没处理</div></button></div>`;
@@ -1021,7 +1033,7 @@ function bindTodo(el,m){
     T.done=on;tick();updateProg();
     setTimeout(()=>sortTodos(true),on?420:0);
     if(on)swapHead(T,m.todos.filter(x=>x!==T&&!m.isDone(x)));
-    api("/api/todo",{...who,done:on}).then(r=>{if(r&&r.headline){const hd=$("#main .headline");if(hd)hd.textContent=r.headline;if(ST&&ST.digest)ST.digest.headline=r.headline}
+    api("/api/todo",{...who,done:on}).then(r=>{if(r&&r.headline)setHead(r.headline)
       forceQuiet()}).catch(e=>{el.classList.toggle("done",!on);T.done=!on;tick();updateProg();sortTodos(true);fail(e)});
     if(on)toast("已完成",()=>chk.onclick());
   };
@@ -1170,6 +1182,7 @@ function renderPend(st){
     }
   }
   const es=$("#emptysub");if(es)es.textContent=emptySub(st);
+  if(st&&st.digest)setHead(st.digest.headline);  // 待整理数/@我 变了，「没什么要你管的」要跟着改口
   e.hidden=!h;if(e._h===h)return;e._h=h;e.innerHTML=h;
   $("#pendset")?.addEventListener("click",()=>{tick();go("set");openSub("about")});
   $("#pendgo")?.addEventListener("click",()=>{tick();$("#regen").click()});
@@ -1200,10 +1213,9 @@ const grams=x=>{const g=new Set();for(let i=0;i<x.length-1;i++)g.add(x.slice(i,i
 function headCover(head,title){const h=nrm(head),t=nrm(title);if(!h||!t)return 0;if(h.includes(t)||t.includes(h))return 1;
   const g=grams(t),hg=grams(h);let n=0;g.forEach(x=>{if(hg.has(x))n++});return n/g.size}
 function swapHead(T,rest){
-  const hd=$("#main .headline");if(!hd||headCover(hd.textContent,T.title)<0.5)return;
+  const hd=$("#main .headline");if(!hd||!ST||!ST.digest||headCover(ST.digest.headline,T.title)<0.5)return;
   const now=Date.now()/1000,cand=rest.slice().sort((a,b)=>((a.due_ts&&a.due_ts<now)?1:0)-((b.due_ts&&b.due_ts<now)?1:0)||(b.at_me?1:0)-(a.at_me?1:0)||(a.due_ts||9e12)-(b.due_ts||9e12));
-  const n=cand[0];hd.textContent=n?n.title+(n.due?"，"+n.due:""):"群里没什么要你管的";
-  if(ST&&ST.digest)ST.digest.headline=hd.textContent;
+  const n=cand[0];setHead(n?n.title+(n.due?"，"+n.due:""):"群里没什么要你管的");
 }
 /* 刚勾完：一定要拉一次最新数据（正在轮询就排在它后面），不能因为撞上轮询被跳过 */
 function forceQuiet(){if(polling){setTimeout(forceQuiet,400);return}refreshQuiet()}
