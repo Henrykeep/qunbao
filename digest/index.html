@@ -124,7 +124,7 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .seg{display:inline-flex;flex:none;position:relative;padding:2px;border-radius:var(--r-pill);background:var(--chip)}
 .seg button{position:relative;z-index:1;border:0;background:none;min-height:36px;padding:0 var(--s3);border-radius:var(--r-pill);font-size:var(--t-sm);color:var(--sub);transition:color .2s}
 .seg button.on{color:var(--ink);font-weight:600}
-.seg i{position:absolute;top:2px;bottom:2px;border-radius:var(--r-pill);background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.08);transition:all .3s var(--ease)}
+.seg i{position:absolute;top:2px;bottom:2px;--x:0px;--w:0px;left:var(--x);width:var(--w);border-radius:var(--r-pill);background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.08);transition:all .3s var(--ease)}
 /* 提示条 */
 .banner{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);margin-top:var(--s4);padding:var(--s2) var(--s2) var(--s2) var(--s4);border-radius:var(--r-md);background:var(--chip);font-size:var(--t-sm);color:var(--sub)}
 .warn{display:flex;gap:var(--s3);margin-top:var(--s4);padding:var(--s3) var(--s4);border-radius:var(--r-md);background:color-mix(in srgb,var(--amber) 12%,var(--card));font-size:var(--t-sm)}
@@ -909,7 +909,7 @@ function setSeg(h,save=true){
   hours=h;if(save)lsSet("qb_hours",h);
   const b=$$("#seg button").find(x=>+x.dataset.h===h)||$$("#seg button")[0];
   $$("#seg button").forEach(x=>x.classList.toggle("on",x===b));
-  const i=$("#seg i");i.style.left=b.offsetLeft+"px";i.style.width=b.offsetWidth+"px";
+  const i=$("#seg i");i.style.setProperty("--x",b.offsetLeft+"px");i.style.setProperty("--w",b.offsetWidth+"px");
 }
 $$("#seg button").forEach(b=>b.onclick=()=>{if(+b.dataset.h===hours&&!viewId)return;setSeg(+b.dataset.h);tick();viewId=null;showRange()});
 // 切时间范围只是换个范围看已经整理好的东西：直接取，不重新整理
