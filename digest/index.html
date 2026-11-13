@@ -16,7 +16,7 @@
    间距 --s1..--s7 = 4/8/12/16/20/24/32；字号 --t-2xs..--t-2xl；圆角 --r-*；点击区 --hit */
 :root{
   --kb:0;
-  --dy:0;--dx:0;
+  --dy:0;--dx:0;--ex:0;--o:0;
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s7:32px;
   --t-2xs:.6176rem; --t-xs:.7059rem; --t-sm:.7941rem; --t-md:.8824rem; --t-lg:.9412rem; --t-xl:1.2353rem; --t-2xl:1.7647rem; /* rem 基准 17px = iOS 默认正文，跟随系统字号 */
   --r-xs:5px; --r-sm:10px; --r-md:14px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
@@ -474,7 +474,10 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 /* ================= 左边缘右滑返回 ================= */
 .nofx .view.on,.nofx .fade{animation:none!important}
 .under{display:block!important;position:fixed!important;left:0;right:0;top:0;height:100vh;overflow:hidden!important;z-index:0;pointer-events:none;animation:none!important}
-#edgeShade{position:fixed;inset:0;z-index:1;display:none;background:#000;opacity:0;pointer-events:none}
+#edgeShade{position:fixed;inset:0;z-index:1;display:none;background:#000;opacity:var(--o,0);pointer-events:none}
+#edgeShade.snap{transition:opacity .24s}
+.swp,.sheet.on .panel.swp{transform:translateX(calc(1px*var(--ex,0)));transition:none}
+.swp.snap,.sheet.on .panel.swp.snap{transition:transform .24s cubic-bezier(.2,.9,.25,1)}
 #edgeShade.on{display:block}
 .dragging{position:relative;z-index:2;min-height:100vh;background:var(--bg);box-shadow:-10px 0 28px rgba(0,0,0,.35);will-change:transform}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -1854,12 +1857,12 @@ if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("messag
   let g=null;
   const els=l=>l.t==="chat"?{mv:$("#msgs-chat"),un:l.prev&&l.prev!=="msgs"?$("#v-"+l.prev):$("#msgs-list")}
     :l.t==="sub"?{mv:SUB&&$("#sub-"+SUB),un:$("#set-main")}:l.t==="sheet"?{mv:l.el.querySelector(".panel"),un:null,sheet:1}:{mv:null,un:null};
-  const set=(x,anim)=>{const w=innerWidth,p=Math.min(1,x/w),tr=anim?"transform .24s cubic-bezier(.2,.9,.25,1)":"none";
-    if(g.mv){g.mv.style.transition=tr;g.mv.style.transform=`translateX(${x}px)`}
-    if(g.un){g.un.style.transition=tr;g.un.style.transform=`translateX(${-0.28*w*(1-p)}px)`}
-    shade.style.transition=anim?"opacity .24s":"none";shade.style.opacity=g.un?String(.28*(1-p)):"0"};
-  const clean=()=>{if(g.mv){g.mv.classList.remove("dragging");g.mv.style.transform=g.mv.style.transition=""}
-    if(g.un){g.un.classList.remove("under");const u=g.un.style;u.transform=u.transition=u.top=u.left=u.width=u.right=u.height=""}shade.classList.remove("on");shade.style.opacity="0"};
+  const set=(x,anim)=>{const w=innerWidth,p=Math.min(1,x/w);
+    for(const [el,v] of [[g.mv,x],[g.un,-0.28*w*(1-p)]])if(el){el.classList.add("swp");el.classList.toggle("snap",!!anim);el.style.setProperty("--ex",v)}
+    shade.classList.toggle("snap",!!anim);shade.style.setProperty("--o",g.un?.28*(1-p):0)};
+  const clean=()=>{for(const el of [g.mv,g.un])if(el){el.classList.remove("swp","snap");el.style.removeProperty("--ex")}
+    if(g.mv)g.mv.classList.remove("dragging");
+    if(g.un){g.un.classList.remove("under");const u=g.un.style;u.top=u.left=u.width=u.right=u.height=""}shade.classList.remove("on","snap");shade.style.removeProperty("--o")};
   document.addEventListener("touchstart",e=>{
     if(e.touches.length!==1||!NAV.length){g=null;return}const t=e.touches[0];if(t.clientX>24){g=null;return}
     const l=NAV[NAV.length-1];g={l,...els(l),x0:t.clientX,y0:t.clientY,on:false,lx:t.clientX,lt:e.timeStamp,vx:0,dx:0};
