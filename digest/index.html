@@ -773,7 +773,7 @@ const dayLabel=ts=>{const d=new Date(ts*1000),t=new Date();if(sameDay(d,t))retur
   return`${d.getMonth()+1}月${d.getDate()}日 星期${W[d.getDay()]}`};
 const hue=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;return h};
 const avc=s=>`hsl(${hue(s)} 30% 52%)`;
-const avEl=(n,c="av")=>`<div class="${c}" style="background:${avc(n)}">${first(n)}</div>`;
+const avEl=(n,c="av",x="")=>`<div class="${c}" style="background:${avc(n)}">${first(n)}${x}</div>`;
 const first=s=>esc([...String(s||"?")].find(c=>!/[\s·@]/.test(c))||"?");
 const tick=()=>navigator.vibrate&&navigator.vibrate(8);
 const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
@@ -1396,7 +1396,7 @@ function renderChats(){
   const S=[...L].sort(byTier(tr,c=>c.last_ts,c=>c.pin||0));
   const tg=c=>c.pin?-1:tr(c);
   const row=c=>`<button class="crow ${c.mode==="off"?"muted":""}" data-chat="${esc(c.chat)}" data-src="${esc(c.source)}">
-    <div class="gav" style="background:${avc(c.chat)}">${first(c.chat)}${srcBadge(c.source)}</div>
+    ${avEl(c.chat,"gav",srcBadge(c.source))}
     <div class="ci"><div class="cn"><b>${esc(c.chat)}</b>${c.pin?`<span class="pinic" title="已置顶">${ICON.pin}</span>`:""}${c.mode&&c.mode!=="normal"?`<span class="mtag ${c.mode}">${MODE[c.mode][0]}</span>`:""}<span class="sp"></span><span class="tm">${ago(c.last_ts)}</span></div>
     <div class="cl">${c.mode==="off"?ICON.bell.replace("<svg",'<svg class="mute-ic"'):""}<span>${esc(prev(c.last))}</span>${unreadAts(c)?`<span class="badge">@${unreadAts(c)}</span>`:""}</div></div></button>`;
   let html="",last=-2;const off=S.filter(c=>tg(c)===4);
