@@ -3552,7 +3552,7 @@ def test_bark_night_period_and_guo_tens():
 
 def test_bark_date_range_and_weekday_paren():
     import bark
-    assert bark.strip_md("12月1号至12月3号") == "12/1-12/3"
+    assert bark.strip_md("12月1号至12月3号") == "12/1-3"
     assert bark.strip_md("十二月一日截止，三月二十五号交") == "12/1截止，3/25交"
     assert bark.strip_md("11月5日(周四)开会") == "11/5开会"
     assert bark.strip_md("周五(11/20)") == "周五(11/20)"
@@ -3588,3 +3588,11 @@ def test_bark_ming_ri_to_tian():
 def test_bark_zhoutian_to_ri():
     from digest import bark
     assert bark.strip_md("周六、周天 上课") == "周末 上课"
+
+
+def test_bark_deadline_and_same_month_range():
+    from digest import bark
+    assert bark.strip_md("周五之前务必完成") == "周五前务必完成"
+    assert bark.strip_md("今晚8点以前") == "今晚8点前"
+    assert bark.strip_md("12月1日至12月5日") == "12/1-5"
+    assert bark.strip_md("2/1-3/5") == "2/1-3/5"
