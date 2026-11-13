@@ -1843,6 +1843,13 @@ def test_frontend_headline_not_falsely_calm():
     assert "esc(headLine(st))" in h and "hd.textContent=r.headline" not in h
 
 
+def test_frontend_pend_line_single_render():
+    """首页状态行：圆点类型 + 一句话一次渲染；正常等待才带「几分钟前整理的」，折行用 balance 不留孤字。"""
+    h = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
+    assert "function pendText(p,rel)" in h and "${rel}整理的 · 还有 ${n} 条新消息，正在自动整理" in h
+    assert "text-wrap:balance" in h and "下面是${rel}整理的" not in h and "没整理进来，正在自动整理" not in h
+
+
 def test_rule_event_titles_and_negatives():
     now = time.time()
     nd = app_mod.datetime.fromtimestamp(now - 5 * 3600, app_mod.TZ)  # 凌晨 5 点前算前一天
