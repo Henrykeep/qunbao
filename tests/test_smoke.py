@@ -3553,6 +3553,7 @@ def test_bark_night_period_and_guo_tens():
 def test_bark_date_range_and_weekday_paren():
     import bark
     assert bark.strip_md("12月1号至12月3号") == "12/1-12/3"
+    assert bark.strip_md("十二月一日截止，三月二十五号交") == "12/1截止，3/25交"
     assert bark.strip_md("11月5日(周四)开会") == "11/5开会"
     assert bark.strip_md("周五(11/20)") == "周五(11/20)"
 
