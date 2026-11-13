@@ -389,6 +389,7 @@ details.howto summary svg{width:16px;height:16px;color:var(--faint);transition:t
 details.howto[open] summary svg{transform:rotate(180deg)}
 .savehint{position:fixed;left:50%;bottom:calc(var(--tab) + var(--s4) + env(safe-area-inset-bottom));z-index:6;transform:translateX(-50%);padding:var(--s1) var(--s3);border-radius:var(--r-pill);
   background:var(--chip);color:var(--sub);font-size:var(--t-xs);opacity:0;pointer-events:none;transition:opacity .3s}
+.savehint.on{opacity:1}
 .savehint:empty{display:none}
 .gsearch{margin-top:var(--s3)}
 .gsearch input{width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--card);outline:none}
@@ -1596,7 +1597,7 @@ $("#cback").onclick=()=>{tick();closeChat()};
 /* ================= 设置 ================= */
 let SET=null,SUB=null,SST=null,SCHATS=[],SILENT=false;
 const saveSet=debounce(async()=>{
-  try{const {modes,...rest}=SET;SET=await api("/api/settings",rest);setSummary();if(SILENT){SILENT=false;return}const h=$("#savehint");h.textContent="已保存";h.style.opacity=1;clearTimeout(h._t);h._t=setTimeout(()=>h.style.opacity=0,1500)}
+  try{const {modes,...rest}=SET;SET=await api("/api/settings",rest);setSummary();if(SILENT){SILENT=false;return}const h=$("#savehint");h.textContent="已保存";h.classList.add("on");clearTimeout(h._t);h._t=setTimeout(()=>h.classList.remove("on"),1500)}
   catch(e){toast("保存失败："+e.message)}
 },500);
 /* 切到后台/关页时把还没发出去的设置改动立刻存掉（iOS 主屏应用常被直接挂起） */
