@@ -444,7 +444,8 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .panel{position:absolute;left:0;right:0;bottom:0;height:84vh;display:flex;flex-direction:column;background:var(--bg);border-radius:var(--r-xl) var(--r-xl) 0 0;transform:translateY(100%);transition:transform .42s var(--ease)}
 .panel.short{height:72vh}
 .panel.auto{height:auto;max-height:80vh}
-.sheet.on .panel{transform:none}
+.sheet.on .panel{transform:translateY(calc(1px*var(--dy,0)))}
+.sheet.on .panel.drag{transition:none}
 .sheet .panel{margin-bottom:calc(1px*var(--kb,0))}
 .ph{flex:none;width:100%;max-width:648px;margin:0 auto;padding:10px var(--s5) 6px;touch-action:none}
 .grab{width:38px;height:5px;margin:0 auto 10px;border-radius:3px;background:var(--line)}
@@ -895,15 +896,15 @@ $$(".tabs button").forEach(b=>b.onclick=()=>{tick();go(b.dataset.v)});
 /* ---------- 面板（问答 / 往期） ---------- */
 function sheetOn(el){if(el.classList.contains("on"))return;el.classList.add("on");document.body.classList.add("noscroll");
   navPush({t:"sheet",el,close:()=>sheetOffUI(el)},"#"+el.id.replace("Sheet",""))}
-function sheetOffUI(el){el.classList.remove("on");const p=el.querySelector(".panel");if(p){p.style.transform="";p.style.transition=""}if(!$(".sheet.on"))document.body.classList.remove("noscroll")}
+function sheetOffUI(el){el.classList.remove("on");const p=el.querySelector(".panel");if(p){p.classList.remove("drag");p.style.removeProperty("--dy")}if(!$(".sheet.on"))document.body.classList.remove("noscroll")}
 function sheetOff(el){const l=NAV.find(x=>x.el===el);if(!l||!navClose(l))sheetOffUI(el)}
 $$(".sheet").forEach(sh=>{
   sh.querySelector(".scrim").onclick=()=>sheetOff(sh);
   sh.querySelector("[data-close]").onclick=()=>sheetOff(sh);
   const ph=sh.querySelector(".ph"),panel=sh.querySelector(".panel");let y0=null;
-  ph.addEventListener("touchstart",e=>{y0=e.touches[0].clientY;panel.style.transition="none"},{passive:true});
-  ph.addEventListener("touchmove",e=>{if(y0==null)return;panel.style.transform=`translateY(${Math.max(0,e.touches[0].clientY-y0)}px)`},{passive:true});
-  ph.addEventListener("touchend",e=>{const dy=e.changedTouches[0].clientY-y0;panel.style.transition="";panel.style.transform="";y0=null;if(dy>90)sheetOff(sh)});
+  ph.addEventListener("touchstart",e=>{y0=e.touches[0].clientY;panel.classList.add("drag")},{passive:true});
+  ph.addEventListener("touchmove",e=>{if(y0==null)return;panel.style.setProperty("--dy",Math.max(0,e.touches[0].clientY-y0))},{passive:true});
+  ph.addEventListener("touchend",e=>{const dy=e.changedTouches[0].clientY-y0;panel.classList.remove("drag");panel.style.removeProperty("--dy");y0=null;if(dy>90)sheetOff(sh)});
 });
 
 /* ================= 今日 ================= */
