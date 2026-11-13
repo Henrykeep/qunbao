@@ -3604,3 +3604,9 @@ def test_bark_weekday_run_collapsed():
     assert bark.strip_md("周一、周二、周三交作业") == "周一-周三交作业"
     assert bark.strip_md("周一、周三、周五") == "周一、周三、周五"
     assert bark.strip_md("周一、周二、周三、周四、周五上课") == "工作日上课"
+
+
+def test_bark_carry_shortened():
+    from digest import bark
+    assert bark.strip_md("请携带学生证") == "带学生证"
+    assert bark.strip_md("务必携带身份证") == "带身份证"
