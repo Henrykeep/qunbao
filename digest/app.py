@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.642"
+VERSION="0.39.643"
 
 
 
@@ -2035,7 +2035,7 @@ def shrink_db(min_free_mb=100):
 def prune_db(now=None):
     """每天一次：按保留期表清旧记录和过期消息（keep_days 可设置），再刷新索引统计并截断 WAL。"""
     now = int(now or _clock())
-    keep = max(1, int(settings().get("keep_days") or KEEP_DAYS))
+    keep = max(1, (_int(settings().get("keep_days")) or KEEP_DAYS))
     with db() as c:
         for table, col, days, cond in RETENTION:
             c.execute(f"DELETE FROM {table} WHERE {col}<?" + (f" AND {cond}" if cond else ""), (now - days * 86400,))
