@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.599"
+VERSION="0.39.600"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -144,6 +144,9 @@ def _pw_tag() -> str:  # 改了 WEB_PASS 之后，旧会话全部失效
 def _locked(ip: str) -> bool:
     """10 分钟内密码错 8 次就先锁住（登录页和 Basic 共用一本账，防脚本暴力猜）。"""
     now = time.time()
+    if len(_fails) > 1000:  # 被扫时 IP 很多：整本清掉过期记录
+        for k in [k for k, v in _fails.items() if not v or now - v[-1] >= 600]:
+            _fails.pop(k, None)
     fails = [t for t in _fails.get(ip, []) if now - t < 600]
     if fails:
         _fails[ip] = fails
@@ -1133,6 +1136,9 @@ _chat_locks: dict = {}
 
 async def update_chat(source, chat, rows, s, stats) -> bool:
     """同一个群同一时间只整理一次（自动整理和手动「整理」可能撞上）：拿到锁后再按水位去掉已处理的消息。"""
+    if len(_chat_locks) > 500:  # 群很多、跑很久：把没人持有的锁清掉，字典不无限增长
+        for k in [k for k, v in _chat_locks.items() if not v.locked()]:
+            _chat_locks.pop(k, None)
     lk = _chat_locks.setdefault((source, chat), asyncio.Lock())
     async with lk:
         with db() as c:
