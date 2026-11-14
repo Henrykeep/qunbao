@@ -14,3 +14,11 @@ def env_float(name, default):
         return float(str(os.getenv(name, default)).strip())
     except (TypeError, ValueError):
         return float(default)
+
+
+def env_str(name, default=""):
+    """字符串：去首尾空白和成对引号（.env 里常见 KEY="xxx " 或复制带空格），否则口令/地址对不上。"""
+    v = str(os.getenv(name, default)).strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        v = v[1:-1].strip()
+    return v
