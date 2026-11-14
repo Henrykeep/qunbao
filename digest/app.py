@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.641"
+VERSION="0.39.642"
 
 
 
@@ -168,6 +168,7 @@ def save_settings(new: dict):
         if k in DEFAULTS:
             s[k] = v
     s["auto_on"] = bool(s.get("auto_on"))
+    s["remind_hours"] = max(0, _int(s.get("remind_hours")) or 0)  # 脏值（空串/文字）不进库，提醒循环才不会被拖崩
     if "bark_url" in new and s.get("bark_url"):  # 存的就是清洗后的地址：设置页回显干净，发送时不必再猜
         s["bark_url"] = bark_mod.norm_bark_url(str(s["bark_url"]))
     if s.get("default_mode") not in MODES:
@@ -1822,7 +1823,7 @@ async def check_snoozed():
 async def check_reminders():
     await check_snoozed()
     s = settings()
-    n = int(s.get("remind_hours") or 0)
+    n = max(0, _int(s.get("remind_hours")) or 0)
     if n <= 0 or not has_push(s):
         return 0
     now = _nowdt()
