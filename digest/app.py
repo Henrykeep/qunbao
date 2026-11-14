@@ -6,11 +6,12 @@ from inbound import norm_ts, cq_images, clean_cq, parse_wx  # noqa: F401 (0.34.3
 
 import httpx
 import watchdog as _watchdog
+from envutil import env_int
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.646"
+VERSION="0.39.647"
 
 
 
@@ -73,11 +74,11 @@ WEB_USER = os.getenv("WEB_USER", "me")
 WEB_PASS = os.getenv("WEB_PASS", "")
 INGEST_TOKEN = os.getenv("INGEST_TOKEN", "")
 ONEBOT_TOKEN = os.getenv("ONEBOT_TOKEN", "")
-MAX_CHARS = int(os.getenv("MAX_CHARS", "60000"))
-KEEP_DAYS = int(os.getenv("KEEP_DAYS", "30"))
-BACKUP_KEEP = max(1, int(os.getenv("BACKUP_KEEP", "3")))  # 数据库快照保留份数
+MAX_CHARS = env_int("MAX_CHARS", 60000)
+KEEP_DAYS = env_int("KEEP_DAYS", 30)
+BACKUP_KEEP = max(1, env_int("BACKUP_KEEP", 3))  # 数据库快照保留份数
 NAPCAT_DATA = os.getenv("NAPCAT_DATA", "/napcat_qq")   # NapCat 的 QQ 数据目录（docker-compose 挂进来），用来清图片缓存
-SESSION_DAYS = int(os.getenv("SESSION_DAYS", "30"))  # 网页登录保持天数
+SESSION_DAYS = env_int("SESSION_DAYS", 30)  # 网页登录保持天数
 
 # 网页「设置」里可以改的项；.env 里的值只作为第一次启动时的默认值
 DEFAULTS = {
@@ -93,7 +94,7 @@ DEFAULTS = {
     "modes_tip_done": False,   # 首页「给群分档」引导已处理
     # 以下为 0.30 及以前的旧字段，启动时迁移进 modes 后清空
     "only_mode": False, "allowed": [], "muted": [], "levels": {},
-    "digest_hour": int(os.getenv("DIGEST_HOUR", "21")),
+    "digest_hour": env_int("DIGEST_HOUR", 21),
     "digest_hour2": -1,        # 第二次整理时间（早报+晚报）；-1 = 关闭
     "bark_url": os.getenv("BARK_URL", ""),   # 例：https://api.day.app/你的key
     "site_url": os.getenv("SITE_URL", ""),   # 推送点开后跳转的群报地址
@@ -939,8 +940,8 @@ async def todo_snooze(req: Request):
 # 每个群一份状态（chat_state），每件事一条记录（items）。整理时只处理有新消息的群，
 # 只把「该群旧要点 + 未完成事项（带 id）+ 新消息」交给模型，模型用 update/new/close 回答。
 # 用户勾完成 = items.status='done'，任何重新整理都不会复活。
-CHUNK_MSGS = int(os.getenv("CHUNK_MSGS", "120"))       # 单群新消息太多时，每块最多这么多条
-CHUNK_CHARS = int(os.getenv("CHUNK_CHARS", "6000"))   # 每块最多这么多字（约 token 上限的保守估计）
+CHUNK_MSGS = env_int("CHUNK_MSGS", 120)       # 单群新消息太多时，每块最多这么多条
+CHUNK_CHARS = env_int("CHUNK_CHARS", 6000)   # 每块最多这么多字（约 token 上限的保守估计）
 LLM_PARALLEL = 4             # 手动/定时整理时同时整理的群数
 from auto_stats import summarize  # noqa: E402
 from auto_due import plan_chats  # noqa: E402
@@ -1491,15 +1492,15 @@ AUTO_QUIET = 5                # 普通消息：群里安静 5 秒就整理（一
 AUTO_BURST = 20               # 或攒满 20 条
 AUTO_MAX_WAIT = 15            # 持续刷屏也最多等 15 秒
 AUTO_FORCE = 30               # 兜底：任何一条非噪音消息等了 30 秒，不管最小间隔，立刻排上（排在最前）
-AUTO_RUN_LIMIT = int(os.getenv("AUTO_RUN_LIMIT", "100"))  # 单个群一次自动整理最多跑这么久，超时算失败，不让「正在整理」挂着不动
+AUTO_RUN_LIMIT = env_int("AUTO_RUN_LIMIT", 100)  # 单个群一次自动整理最多跑这么久，超时算失败，不让「正在整理」挂着不动
 AUTO_GIVEUP_N = 3             # 同一个群连续失败 3 次、而别的群期间整理成功过（模型是好的，是这几条有问题）：
 AUTO_GIVEUP_SECS = 180        # 或待整理消息已等 3 分钟且失败过 2 次：按规则兜底提取待办后跳过，水位前进，待整理清零
 AUTO_GIVEUP_HARD = 600        # 硬上限：任何待整理消息最多挂 10 分钟（模型整体故障也一样；余额不足/密钥错这类要你处理的除外）
 AUTO_URGENT_QUIET = 1         # 要紧消息：安静 1 秒（同一个人连发的两三句凑一批）
 AUTO_URGENT_WAIT = 2          # 最多等 2 秒；加上唤醒延迟约 2–3 秒开始整理
 AUTO_MIN_GAP = 15             # 同一个群两次「普通」整理至少隔 15 秒（只管闲聊；要紧消息和 30 秒兜底不受限）
-AUTO_PARALLEL = int(os.getenv("AUTO_PARALLEL", "6"))   # 全局最多同时整理 6 个群
-AUTO_RPM = int(os.getenv("AUTO_RPM", "30"))            # 全局 1 分钟内模型调用到这个数，普通消息暂缓（防限流）；要紧和兜底不受限
+AUTO_PARALLEL = env_int("AUTO_PARALLEL", 6)   # 全局最多同时整理 6 个群
+AUTO_RPM = env_int("AUTO_RPM", 30)            # 全局 1 分钟内模型调用到这个数，普通消息暂缓（防限流）；要紧和兜底不受限
 AUTO_BACKOFF0, AUTO_BACKOFF_MAX = 10, 60    # 失败退避 10s → 20s → 40s → 最多 60 秒
 AUTO_FAIL_SHOW = 300          # 连续失败 5 分钟才在页面提示
 HEAD_GAP = 600                # 头条最多 10 分钟用模型重写一次；其间出现新的要紧事项用规则拼
@@ -2632,8 +2633,8 @@ async def push_test(req: Request):
     return {"ok": True}
 
 
-ASK_LINES = int(os.getenv("ASK_LINES", "220"))      # 一次问答最多送多少条原文
-ASK_CHARS = int(os.getenv("ASK_CHARS", "16000"))
+ASK_LINES = env_int("ASK_LINES", 220)      # 一次问答最多送多少条原文
+ASK_CHARS = env_int("ASK_CHARS", 16000)
 from askfmt import CITE_RE, _q_terms, cite, tidy_bullets  # noqa: E402,F401 (0.34.41 拆出)
 
 
