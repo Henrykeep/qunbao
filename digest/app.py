@@ -6,12 +6,12 @@ from inbound import norm_ts, cq_images, clean_cq, parse_wx  # noqa: F401 (0.34.3
 
 import httpx
 import watchdog as _watchdog
-from envutil import env_int
+from envutil import env_int, env_float
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.647"
+VERSION="0.39.648"
 
 
 
@@ -760,7 +760,7 @@ def llm_err_text(code: int, text: str) -> str:
 
 
 
-LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "60"))  # 单次调用最多等这么久（以前 180 秒，超时再重试一次，一个群能「正在整理」6 分钟）
+LLM_TIMEOUT = env_float("LLM_TIMEOUT", 60)  # 单次调用最多等这么久（以前 180 秒，超时再重试一次，一个群能「正在整理」6 分钟）
 LLM_TRIES = 5                 # 429 最多等 4 轮（3/8/20/45 秒，或按服务商的 Retry-After）
 LLM_429_WAITS = (3, 8, 20, 45)
 LLM_LAST_OK = [0.0]            # 最近一次调用成功的时间：判断「模型是好的，只是拒收这一块」还是「配置错了」
