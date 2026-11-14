@@ -1,3 +1,6 @@
+## 0.39.649 — 2026-11-15
+- 新增 envutil.env_str：口令/密钥/地址类 .env 配置自动去首尾空白和成对引号（9 项），复制粘贴带空格或引号不再导致鉴权对不上。
+
 ## 0.39.648 — 2026-11-15
 - LLM_TIMEOUT、WATCHDOG_STALL_S 改走 envutil（env_float/env_int），.env 写脏值不再启动崩溃。
 
