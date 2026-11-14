@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.621"
+VERSION="0.39.622"
 
 
 def _clock():
@@ -39,6 +39,11 @@ def _nowdt():
     return datetime.now(TZ)
 
 
+def _dt(ts):
+    """时间戳 → 本地时区 datetime，统一入口。"""
+    return datetime.fromtimestamp(ts, TZ)
+
+
 def _day0():
     """今天 0 点（本地时区）的整数时间戳。"""
     return int(_nowdt().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
@@ -46,7 +51,7 @@ def _day0():
 
 def _ymd(ts):
     """时间戳 → 本地时区日期字符串 YYYY-MM-DD。"""
-    return datetime.fromtimestamp(ts, TZ).strftime("%Y-%m-%d")
+    return _dt(ts).strftime("%Y-%m-%d")
 
 
 def _today():
@@ -847,7 +852,7 @@ def transcript(hours: int):
     with db() as c:
         rows = c.execute("SELECT * FROM msgs WHERE ts>=? ORDER BY ts", (since,)).fetchall()
     rows = [r for r in rows if in_digest(r["source"], r["chat"], s) and classify(r, s) != "drop"]
-    lines = [f"[{datetime.fromtimestamp(r['ts'], TZ):%m-%d %H:%M}][{r['source']}·{r['chat']}]"
+    lines = [f"[{_dt(r['ts']):%m-%d %H:%M}][{r['source']}·{r['chat']}]"
              f"{'【重点群】' if chat_mode(r['source'], r['chat'], s) == 'focus' else ''}"
              f"{' (@我)' if r['at_me'] else ''} {r['sender']}: {r['text']}" for r in rows]
     text = "\n".join(lines)
@@ -1101,8 +1106,8 @@ def apply_changes(source, chat, d: dict, at_ids=frozenset(), now=None) -> bool:
                 if dup["status"] == "rebuild":  # 完整重新整理：同一件事沿用原 id
                     c.execute("UPDATE items SET status='open' WHERE id=?", (dup["id"],))
                     dup["status"] = "open"; changed = True
-                nd = parse_due(cand["due"], datetime.fromtimestamp(now, TZ)) if cand["due"] else None
-                if (dup["status"] == "expired" and nd and nd > datetime.fromtimestamp(now, TZ)
+                nd = parse_due(cand["due"], _dt(now)) if cand["due"] else None
+                if (dup["status"] == "expired" and nd and nd > _dt(now)
                         and _norm_due(cand["due"]) != _norm_due(dup["due"])):
                     # 过期/被关闭的事项，群里又给了一个还没到的新时间（改期）：重新打开，沿用原 id，并重新提醒
                     c.execute("UPDATE items SET status='open', due=?, reminded=0, updated_ts=? WHERE id=?", (cand["due"][:60], now, dup["id"]))
@@ -1294,7 +1299,7 @@ IMMEDIATE_HOURS = 6           # 「立刻 / 马上去开会」这种当下的事
 def expire_items(now=None):
     """代码规则：截止已过 1 天的待办、3 天没更新的通知、6 小时前的「立刻/马上」类即时事项自动关闭（不花模型调用）。"""
     now = now or _clock()
-    nd = datetime.fromtimestamp(now, TZ)
+    nd = _dt(now)
     n = 0
     with db() as c:
         for r in c.execute("SELECT id, title, detail, due, quote, first_ts FROM items WHERE status='open' AND pinned=0 AND first_ts<?",
@@ -2369,7 +2374,7 @@ def activity_stats(days: int = 7, source: str = "", now: int = 0):
     groups = {}
     with db() as c:
         for r in c.execute("SELECT ts, chat FROM msgs WHERE ts>=? AND (?='' OR source=?)", (since, source, source)):
-            hours[datetime.fromtimestamp(r["ts"], TZ).hour] += 1
+            hours[_dt(r["ts"]).hour] += 1
             groups[r["chat"]] = groups.get(r["chat"], 0) + 1
     top = sorted(groups.items(), key=lambda x: -x[1])[:5]
     return {"days": days, "hours": hours, "total": sum(hours), "top": [{"chat": k, "n": v} for k, v in top]}
@@ -2642,7 +2647,7 @@ def ask_context(q: str, s: dict, chat: str = "", source: str = "", since_id: int
     # 追问（「那后来定了吗」）自己没几个检索词，把上一个问题的词也带上，消息多时才不会漏掉话题
     terms = _q_terms(q)
     terms += [t for t in _q_terms(prior) if t not in terms][:8]
-    line = lambda r: (f"#{r['id']} [{datetime.fromtimestamp(r['ts'], TZ):%m-%d %H:%M}]"
+    line = lambda r: (f"#{r['id']} [{_dt(r['ts']):%m-%d %H:%M}]"
                       f"{'' if chat else '[' + r['source'] + '·' + r['chat'] + ']'} {r['sender']}"
                       f"{' (@我)' if r['at_me'] else ''}: {(r['text'] or '')[:300]}")
     if len(rows) > ASK_LINES or sum(len(r["text"] or "") for r in rows) > ASK_CHARS:
