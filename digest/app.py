@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.617"
+VERSION="0.39.618"
 
 
 def _clock():
@@ -32,6 +32,16 @@ def _within(ts, secs):
 def _now():
     """当前整数秒时间戳，入库/统计共用。"""
     return int(_clock())
+
+
+def _day0():
+    """今天 0 点（本地时区）的整数时间戳。"""
+    return int(datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+
+
+def _today():
+    """今天的日期字符串 YYYY-MM-DD（本地时区）。"""
+    return datetime.now(TZ).strftime("%Y-%m-%d")
 
 
 def _age(ts):
@@ -2126,7 +2136,7 @@ def fix_latest_headline():
 
 def view_headline(hours, body):
     """3 天 / 7 天视图的头条：今天已为这个范围写过就沿用，否则用规则从未完成事项里挑一句（不调模型）。"""
-    today = datetime.now(TZ).strftime("%Y-%m-%d")
+    today = _today()
     try:
         c = json.loads(kv_get(f"head_{hours}", "") or "{}")
     except Exception:
@@ -2232,7 +2242,7 @@ def state(id: int | None = None, hours: int | None = None):
         "llm_tokens": int(kv_get("llm_tokens", 0) or 0),
         "llm_hour": llm_calls_since(3600),
         "diff": todo_diff(digest_row(d), json.loads(pv["body"])) if d and pv else None,
-        "day_start": int(datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()),
+        "day_start": _day0(),
         "digest_ts": d["ts"] if d else None,
         "hours": H,
         "is_latest": (not d) or d["id"] == latest,
@@ -2385,7 +2395,7 @@ async def chat_pin_api(req: Request):
 @app.get("/api/chats", dependencies=[Depends(auth)])
 def chats(hours: int = 168, source: str = ""):
     s = settings()
-    day0 = int(datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+    day0 = _day0()
     with db() as c:
         today = {(r["source"], r["chat"]): r["n"] for r in c.execute(
             "SELECT source, chat, COUNT(*) n FROM msgs WHERE ts>=? GROUP BY source, chat", (day0,))}
