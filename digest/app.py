@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.626"
+VERSION="0.39.627"
 
 
 
@@ -62,7 +62,7 @@ def _age(ts):
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
-from tz import TZ, dt as _tzdt, now as _tznow, clock as _tzclock  # 0.39.626 收敛
+from tz import TZ, dt as _tzdt, now as _tznow, clock as _tzclock  # 0.39.627 收敛
 _clock = _tzclock
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
 LLM_KEY = os.getenv("LLM_API_KEY", "")
