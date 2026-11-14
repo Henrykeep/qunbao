@@ -325,7 +325,7 @@ button.cite::after{content:"";position:absolute;inset:calc(-1*var(--s2h)) calc(-
 .readline{display:flex;align-items:center;gap:var(--s2h);margin:var(--s4) 0 var(--s1);font-size:var(--t-xs);color:var(--accent)}
 .readline::before,.readline::after{content:"";flex:1;height:1px;background:color-mix(in srgb,var(--accent) 40%,transparent)}
 .day{margin:var(--s5) 0 var(--s2);text-align:center;font-size:var(--t-xs);color:var(--faint)}
-.m{display:flex;gap:9px;margin-top:var(--s3);align-items:flex-start}
+.m{display:flex;gap:var(--s2h);margin-top:var(--s3);align-items:flex-start}
 .m.cont{margin-top:var(--s1)}
 .m.cont .av{visibility:hidden;height:0}
 .m .mb{min-width:0;max-width:82%}
@@ -352,7 +352,7 @@ button.cite::after{content:"";position:absolute;inset:calc(-1*var(--s2h)) calc(-
 .gl{margin:var(--s6) var(--s1) 0;font-size:var(--t-xs);letter-spacing:var(--ls-l);color:var(--sub);font-weight:600}
 .sub .gl:first-of-type{margin-top:var(--s5)}
 .sub .chat-head{margin-bottom:var(--s1h)}
-.row{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);min-height:var(--sw-w);padding:13px var(--s4);border-bottom:var(--bw) solid var(--line)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);min-height:var(--sw-w);padding:var(--s3h) var(--s4);border-bottom:var(--bw) solid var(--line)}
 .row:last-child{border-bottom:0}
 .row .rl{min-width:0;font-size:var(--t-md);overflow-wrap:anywhere}
 .row .rl small{display:block;font-size:var(--t-xs);color:var(--faint)}
@@ -392,7 +392,7 @@ textarea.area{display:block;width:100%;min-height:var(--thumb);padding:var(--s3h
 .steps li{margin-top:var(--s1h)}
 .steps li b{color:var(--ink);font-weight:600}
 .steps code{padding:1px 5px;border-radius:var(--r-xs);background:var(--chip);font-size:var(--t-xs);font-family:ui-monospace,Menlo,monospace;word-break:break-all}
-details.howto summary{display:flex;justify-content:space-between;align-items:center;list-style:none;padding:13px var(--s4);font-size:var(--t-md);cursor:pointer}
+details.howto summary{display:flex;justify-content:space-between;align-items:center;list-style:none;padding:var(--s3h) var(--s4);font-size:var(--t-md);cursor:pointer}
 details.howto summary::-webkit-details-marker{display:none}
 details.howto summary svg{width:var(--ico-md);height:var(--ico-md);color:var(--faint);transition:transform var(--dur-fast)}
 details.howto[open] summary svg{transform:rotate(180deg)}
