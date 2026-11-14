@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.634"
+VERSION="0.39.635"
 
 
 
@@ -609,7 +609,8 @@ async def fresh_rkeys(force=False):
             try:
                 r = await cl.post(f"{NAPCAT_HTTP}/{api}", json={}, headers=h)
                 data = r.json().get("data") or []
-            except Exception:
+            except Exception as e:
+                _log.warning("NapCat %s 请求失败: %s", api, e)
                 continue
             got = {}
             for x in data if isinstance(data, list) else []:
@@ -2829,7 +2830,8 @@ def healthz():
     try:  # 数据库打不开/损坏时返回 503，docker 会标 unhealthy
         with db() as c:
             c.execute("SELECT 1").fetchone()
-    except Exception:
+    except Exception as e:
+        _log.error("healthz 数据库不可用: %s", e)
         return JSONResponse({"ok": False, "version": VERSION}, status_code=503)
     return {"ok": True, "version": VERSION, "backup_age_h": backup_age_h(), "disk_free_mb": disk_free_mb(), "loop_lag_s": _watchdog.lag_s()}
 
