@@ -1,3 +1,7 @@
+## 0.39.627 — 2026-11-14
+
+- 时间取值收敛：Bark 文案年份判断与 Retry-After 计算改走 tz.py（原先用系统本地时区的 date.today()/time.time()）。
+
 ## 0.39.626 — 2026-11-14
 
 - 取时间 clock() 并入 tz.py，auto_stats/inbound/qqcache/rules/webpush 不再各自 time.time()。
