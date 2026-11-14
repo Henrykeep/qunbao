@@ -1,3 +1,7 @@
+## 0.39.626 — 2026-11-14
+
+- 取时间 clock() 并入 tz.py，auto_stats/inbound/qqcache/rules/webpush 不再各自 time.time()。
+
 ## 0.39.625 — 2026-11-14
 当前时间统一走 tz.now()，headline/quiet/todo_match/app 不再各自 datetime.now(TZ)。
 
