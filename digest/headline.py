@@ -6,7 +6,7 @@ from todo_match import parse_due, norm_title, _grams
 from zoneinfo import ZoneInfo
 import os
 
-from tz import TZ  # 0.39.623 收敛
+from tz import TZ, now as _tznow  # 0.39.625
 
 
 def tidy_headline(t: str, limit: int = 30) -> str:
@@ -31,7 +31,7 @@ def rule_headline(items) -> str:
     """不调模型的头条：挑最要紧的一件（@我 > 截止最早 > 高优先级），标题 + 截止。"""
     if not items:
         return ""
-    now = datetime.now(TZ)
+    now = _tznow()
     far = datetime(2100, 1, 1, tzinfo=TZ)
     def k(t):
         d = parse_due(t.get("due", ""), now)
