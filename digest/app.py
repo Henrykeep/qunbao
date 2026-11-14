@@ -12,7 +12,12 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.609"
+VERSION="0.39.610"
+
+
+def _secs(t0):
+    """自某时刻起经过的秒数（两位小数），整理统计共用。"""
+    return round(time.time() - t0, 2)
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -1282,7 +1287,7 @@ async def run_update(full=False):
     rows = _scan_rows(full)
     changed = bool(expire_items()) or full
     if not rows:
-        stats["secs"] = round(time.time() - t0, 2)
+        stats["secs"] = _secs(t0)
         return stats, changed
     by = {}
     for r in rows:
@@ -1320,7 +1325,7 @@ async def run_update(full=False):
     # 全局水位：有群失败就停在它前面，下次重试（成功的群靠各自 last_msg_id 跳过已处理的消息）
     kv_set("scan_id", (min(failed) - 1) if failed else max(r["id"] for r in rows))
     stats["errors"] = len(failed)
-    stats["secs"] = round(time.time() - t0, 2)
+    stats["secs"] = _secs(t0)
     if failed and not stats["changed"] and len(failed) == len(todo):
         raise err if isinstance(err, HTTPException) else HTTPException(502, str(err))
     return stats, changed or stats["changed"] > 0
@@ -1415,7 +1420,7 @@ async def _make_digest(hours=24, auto=False, full=False):
         body["headline"] = json.loads(latest["body"]).get("headline", "")
     if not weekly:  # 模型可能照着群要点又写回已完成的事：头条只能说未完成事项里的一件
         body["headline"] = fresh_headline(body)
-    stats["secs"] = round(time.time() - t0, 2)
+    stats["secs"] = _secs(t0)
     body.update(stats=stats, mode="full" if full else ("weekly" if weekly else "inc"), upto_id=int(kv_get("scan_id", 0) or 0))
     if auto:
         body["auto"] = True
@@ -1546,7 +1551,7 @@ async def auto_run_chat(k, rows, s, now: float | None = None, why: str = ""):
         for r in rows:
             ARRIVE.pop(r["id"], None)
         stats["changed"] = int(bool(changed))
-        stats["secs"] = round(time.time() - t0, 2)
+        stats["secs"] = _secs(t0)
         if changed:
             await refresh_live(s, stats, now, bg_head=True)
         AUTO["done_ts"] = int(time.time())
@@ -1577,7 +1582,7 @@ async def auto_run_chat(k, rows, s, now: float | None = None, why: str = ""):
         if AUTO["running"].get(k) == now:  # 占位已被超时释放并被新一轮接手时，别把别人的占位清掉
             AUTO["running"].pop(k, None)
         AUTO["last_end"][k] = time.time()
-        secs = round(time.time() - t0, 2)
+        secs = _secs(t0)
         AUTO_LOG.append({"ts": int(now), "chat": k[1], "source": k[0], "why": why, "n": len(rows), "sent": stats["sent"],
                          "calls": stats["calls"], "secs": secs, "wait": round(waited, 1), "ok": ok})
         print(f"自动整理 {k[1]}（{why or '-'}）：{len(rows)} 条，送模型 {stats['sent']} 条，调用 {stats['calls']} 次，"
