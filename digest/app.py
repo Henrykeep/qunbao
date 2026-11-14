@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.633"
+VERSION="0.39.634"
 
 
 
@@ -60,6 +60,8 @@ def _age(ts):
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
+logging.basicConfig(level=logging.INFO, format='%(message)s')  # 0.39.634 日志统一走 logging，docker logs 仍可见
+_log = logging.getLogger('qunbao')
 from tz import TZ, dt as _tzdt, now as _tznow, clock as _tzclock  # 0.39.627 收敛
 _clock = _tzclock
 LLM_BASE = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
@@ -588,7 +590,7 @@ async def group_name(gid: int) -> str:
             _group_names[gid] = name = got
             _group_ts[gid] = _clock()
     except Exception as e:  # 查群名失败不影响主流程，但留一行日志便于排查 NapCat 连通性
-        logging.getLogger('qunbao').warning('group_name(%s) 查询失败: %s', gid, e)
+        _log.warning('group_name(%s) 查询失败: %s', gid, e)
     return name
 
 
@@ -1605,7 +1607,7 @@ async def auto_run_chat(k, rows, s, now: float | None = None, why: str = ""):
         n = AUTO["fail"][k]["n"]
         if code in LLM_FATAL_CODES or code == -1:
             AUTO["fatal"] = {"err": err, "short": llm_short(code, err), "hash": _shash(s), "ts": _clock()}
-        print(f"自动整理失败 {k[1]}（第 {n} 次）:", err)
+        _log.warning("自动整理失败 %s（第 %s 次）: %s", k[1], n, err)
         # 模型整理不了的时候，查寝/点名/开会这类「要你到场」的事先按规则变成待办，不等模型
         with contextlib.suppress(Exception):
             if rule_todos(k[0], k[1], rows, s):
@@ -1625,7 +1627,7 @@ async def auto_run_chat(k, rows, s, now: float | None = None, why: str = ""):
         secs = _secs(t0)
         AUTO_LOG.append({"ts": int(now), "chat": k[1], "source": k[0], "why": why, "n": len(rows), "sent": stats["sent"],
                          "calls": stats["calls"], "secs": secs, "wait": round(waited, 1), "ok": ok})
-        print(f"自动整理 {k[1]}（{why or '-'}）：{len(rows)} 条，送模型 {stats['sent']} 条，调用 {stats['calls']} 次，"
+        _log.info(f"自动整理 {k[1]}（{why or '-'}）：{len(rows)} 条，送模型 {stats['sent']} 条，调用 {stats['calls']} 次，"
               f"用时 {secs} 秒，最早一条等了 {waited:.1f} 秒{'' if ok else '，失败'}")
         bump()
         wake_auto()  # 整理期间又来的消息：马上排下一轮
@@ -1647,7 +1649,7 @@ def give_up_chat(k, rows, why=""):
         ARRIVE.pop(r["id"], None)
     AUTO["fail"].pop(k, None)
     kv_add("skipped_msgs", len(rows))
-    print(f"自动整理跳过 {k[1]} 的 {len(rows)} 条（反复失败：{why[:80]}）")
+    _log.warning(f"自动整理跳过 {k[1]} 的 {len(rows)} 条（反复失败：{why[:80]}）")
 
 
 _live_lock = asyncio.Lock()
@@ -1702,7 +1704,7 @@ async def _model_head(body, s, stats):
                     c.execute("UPDATE digests SET ts=?, body=? WHERE id=?", (_now(), json.dumps(cur, ensure_ascii=False), body["id"]))
                     body["headline"] = mh
     except Exception as ex:
-        print("模型头条失败，保留规则头条:", ex)
+        _log.warning("模型头条失败，保留规则头条: %s", ex)
 
 
 async def auto_tick(s: dict | None = None, now: float | None = None) -> float | None:
@@ -1711,7 +1713,7 @@ async def auto_tick(s: dict | None = None, now: float | None = None) -> float | 
     stale = (now or _clock()) - (AUTO_RUN_LIMIT * 2 + 60)
     for k in [k for k, t0 in AUTO["running"].items() if t0 < stale]:  # 任务异常没清占位：释放，别让这个群永远卡在「整理中」
         AUTO["running"].pop(k, None)
-        print("自动整理占位超时已释放:", k[1])
+        _log.warning("自动整理占位超时已释放: %s", k[1])
     auto_sweep(s)
     ready, nxt = auto_plan(s, now)
     room = AUTO_PARALLEL - len(AUTO["running"])
@@ -1773,7 +1775,7 @@ async def auto_loop():
         try:
             nxt = await auto_tick()
         except Exception as ex:
-            print("自动整理调度出错:", ex)
+            _log.warning("自动整理调度出错: %s", ex)
         wait = AUTO_TICK if nxt is None else min(AUTO_TICK, max(0.3, nxt - _clock() + 0.05))
         try:
             await asyncio.wait_for(ev.wait(), wait)
@@ -1899,7 +1901,7 @@ async def scheduler():
                 if rule_backfill():
                     await refresh_live(settings(), model_head=False)
             except Exception as ex:
-                print("规则补建待办失败:", ex)
+                _log.warning("规则补建待办失败: %s", ex)
         while True:
             now = _nowdt()
             s = settings()
@@ -1913,7 +1915,7 @@ async def scheduler():
                         n = len([t for t in d.get("todos", []) if not t.get("done")])
                         await push(("群报 · " + (f"{n} 件待办" if n else "没什么要你管的")), d.get("headline", ""), force=True, web=False)
                 except Exception as ex:
-                    print("自动总结失败:", ex)
+                    _log.warning("自动总结失败: %s", ex)
             if (s.get("weekly_digest") and now.weekday() == 6 and now.hour == 20
                     and ("wk", now.date()) not in last):
                 last = last | {("wk", now.date())}
@@ -1923,18 +1925,18 @@ async def scheduler():
                     if s.get("push_digest"):
                         await push(weekly_title(d), f"{d.get('count', 0)} 条消息 · {d.get('chats', 0)} 个群。" + d.get("headline", ""), force=True, web=False)
                 except Exception as ex:
-                    print("周报失败:", ex)
+                    _log.warning("周报失败: %s", ex)
             if not ran and s.get("auto_on"):
                 try:  # 截止过了 / 通知过期：代码规则关闭（不调模型），首页跟着更新
                     if expire_items():
                         await refresh_live(s)
                 except Exception as ex:
-                    print("过期事项整理失败:", ex)
+                    _log.warning("过期事项整理失败: %s", ex)
             try:
                 await flush_held()
                 await check_reminders()
             except Exception as ex:
-                print("截止提醒失败:", ex)
+                _log.warning("截止提醒失败: %s", ex)
             if not _within(qq_cleaned, 6 * 3600):  # 每 6 小时清一次 QQ 媒体缓存（启动后先清一次）
                 qq_cleaned = _clock()
                 with contextlib.suppress(Exception):
@@ -2022,7 +2024,7 @@ def shrink_db(min_free_mb=100):
         finally:
             c.close()
     except Exception as e:
-        print("数据库瘦身失败:", e)
+        _log.warning("数据库瘦身失败: %s", e)
         return 0
 
 
@@ -2040,7 +2042,7 @@ def prune_db(now=None):
     try:
         backup_db()
     except Exception as e:
-        print("数据库备份失败:", e); probs.append("数据库备份失败（%s）" % str(e)[:60])
+        _log.warning("数据库备份失败: %s", e); probs.append("数据库备份失败（%s）" % str(e)[:60])
     shrink_db()
     free = disk_free_mb()
     if free is not None and free < 500:
