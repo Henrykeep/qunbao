@@ -124,7 +124,7 @@ def retry_after(v) -> float | None:
         try:
             from email.utils import parsedate_to_datetime
             sec = parsedate_to_datetime(v).timestamp() - clock()
-        except Exception:
+        except (TypeError, ValueError, OverflowError):
             return None
     return max(0.5, min(sec, 5))
 
