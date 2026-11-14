@@ -3690,3 +3690,9 @@ def test_env_float_rejects_nan_inf(monkeypatch):
     for bad in ("nan", "inf", "-inf"):
         monkeypatch.setenv("X_F", bad)
         assert envutil.env_float("X_F", 2.5) == 2.5
+
+
+def test_env_str_strips_bom_zero_width(monkeypatch):
+    from digest.envutil import env_str
+    monkeypatch.setenv("X_T", "\ufeffabc\u200b ")
+    assert env_str("X_T") == "abc"
