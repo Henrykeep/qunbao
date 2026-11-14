@@ -1,5 +1,6 @@
 """Bark 传输层（0.34.24 从 app.py 拆出）：纯发送，不碰数据库、不 import app。文案压缩在 bark_text.py、复制内容在 bark_copy.py。"""
 import asyncio
+import logging
 import random
 import re
 import time
@@ -7,6 +8,8 @@ import unicodedata
 from urllib.parse import quote  # noqa: F401
 
 import httpx
+
+log = logging.getLogger('qunbao.bark')
 from tz import clock
 
 
@@ -210,7 +213,7 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                     return True
                 LAST_ERR = redact(f"Bark 返回 {r.status_code}：{r.text[:60]}", burl)
                 LAST_ERR += STATUS_HINT.get(r.status_code, "")
-                print(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
+                log.warning(LAST_ERR)  # 写进 docker logs，地址/Key 填错一眼能看出
                 if r.status_code in TOO_BIG and shrinks < len(SHRINK_LIMITS) and shrink_payload(payload, SHRINK_LIMITS[shrinks]):
                     # 内容过大：压短正文、丢掉超长跳转链接再发，宁可短也要送达
                     shrunk, shrinks = True, shrinks + 1  # 最多压 len(SHRINK_LIMITS) 档，仍嫌大就按失败走，杜绝死循环
@@ -223,9 +226,9 @@ async def send_bark(burl: str, title: str, body: str, level: str = "active", sit
                     wait = ra
             except Exception as ex:
                 LAST_ERR = net_err_text(ex)
-                print(redact(f"Bark 推送失败（第{i+1}次）：{type(ex).__name__} {ex}", burl))  # 超时异常 str 为空，带上类型才看得出原因
+                log.warning(redact(f"Bark 推送失败（第{i+1}次）：{type(ex).__name__} {ex}", burl))  # 超时异常 str 为空，带上类型才看得出原因
             if i < tries - 1:
                 await asyncio.sleep(wait)
     _RECENT.pop(key, None)  # 没送达就释放占位，允许之后重试
-    print(f"Bark 推送最终未送达：「{payload['title'][:20]}」{level}，已试 {tries} 次（{LAST_ERR}）")  # 一条汇总，docker logs 里看得出丢了哪条
+    log.warning(f"Bark 推送最终未送达：「{payload['title'][:20]}」{level}，已试 {tries} 次（{LAST_ERR}）")  # 一条汇总，docker logs 里看得出丢了哪条
     return False
