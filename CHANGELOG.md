@@ -1,6 +1,18 @@
+## 0.39.639 — 2026-11-15
+
+看门狗日志走 logging
+
+- 最后一处 print 收敛为 logging，退出前 flush。
+
 ## 0.39.638 — 2026-11-15
 
 Bark / Web Push / QQ 缓存清理的剩余 print 收敛为 logging（与 app.py 统一格式和级别）。
+
+## 0.39.639 — 2026-11-15
+
+看门狗日志走 logging
+
+- 最后一处 print 收敛为 logging，退出前 flush。
 
 ## 0.39.637 — 2026-11-15
 
