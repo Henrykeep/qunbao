@@ -26,10 +26,11 @@ def _ics_fold_all(t: str) -> str:
 
 def build_ics(title: str, due: str, dt, now, detail: str = "", chat: str = "") -> str:
     """dt：已解析的到期时间（None 则整天事件）；now：带时区的当前时间。"""
-    stamp = now.astimezone(ZoneInfo("UTC")).strftime("%Y%m%dT%H%M%SZ")
+    utc = lambda x: x.astimezone(ZoneInfo("UTC"))
+    stamp = f"{utc(now):%Y%m%dT%H%M%SZ}"
     uid = hashlib.md5(f"{title}|{due}".encode()).hexdigest() + "@qunbao"
     if dt:
-        s = dt.astimezone(ZoneInfo("UTC"))
+        s = utc(dt)
         e = s + timedelta(hours=1)
         when = f"DTSTART:{s:%Y%m%dT%H%M%SZ}\r\nDTEND:{e:%Y%m%dT%H%M%SZ}"
     else:
