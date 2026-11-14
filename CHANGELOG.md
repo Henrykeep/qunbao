@@ -1,3 +1,6 @@
+## 0.39.648 — 2026-11-15
+- LLM_TIMEOUT、WATCHDOG_STALL_S 改走 envutil（env_float/env_int），.env 写脏值不再启动崩溃。
+
 ## 0.39.647 — 2026-11-15
 - 环境变量整数读取收敛到 envutil.env_int：.env 里写错数字时回退默认值，不再启动即崩（12 处）。
 
