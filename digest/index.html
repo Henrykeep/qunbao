@@ -27,7 +27,7 @@
   --accent:#C2412D; --amber:#A66B08; --calm:#6F8A6C; --danger:#C8352A; --qq:#356FC7; --wx:#168A45;
   --bubble:#FFFFFF; --mine:#FCEFE9;
   --ico-xs:11px; --ico-sm:14px; --ico-md:16px; --ico-lg:20px; --ico-xl:22px;
-  --sw-w:50px; --sw-h:30px; --sw-k:26px; --ctl:36px; --ctl-sm:34px; --tap:44px;
+  --dot:8px; --dot-sm:var(--s1h); --sw-w:50px; --sw-h:30px; --sw-k:26px; --ctl:36px; --ctl-sm:34px; --tap:44px;
   --shadow-sm:0 1px 3px rgba(0,0,0,.08); --shadow-pop:0 4px 14px rgba(0,0,0,.18); --shadow-knob:0 2px 5px rgba(0,0,0,.18); --shadow-edge:-10px 0 28px rgba(0,0,0,.35);
   --shadow:0 1px 2px rgba(27,26,23,.04),0 6px 20px rgba(27,26,23,.05);
   --serif:"Songti SC","Noto Serif SC","Source Han Serif SC","STSong",serif;
@@ -164,7 +164,7 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 /* ================= 今日 ================= */
 .live{display:inline-flex;align-items:center;gap:var(--s1h);font-size:var(--t-xs);color:var(--sub)}
 .live .lv{display:inline-flex;align-items:center;gap:var(--s1)}
-.live .lv b{width:6px;height:6px;border-radius:var(--r-round);background:var(--line)}
+.live .lv b{width:var(--dot-sm);height:var(--dot-sm);border-radius:var(--r-round);background:var(--line)}
 .live .lv.on b{background:var(--calm)}
 .live .lv.off b{background:var(--faint)}
 .bar{display:flex;justify-content:space-between;align-items:center;gap:var(--s2);padding-top:var(--s3)}
@@ -172,7 +172,7 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 #updated.err{color:var(--danger)}
 .pend{display:flex;align-items:flex-start;gap:var(--s1h);margin-top:var(--s2);font-size:var(--t-xs);color:var(--sub)}
 .pend>span{min-width:0;text-wrap:balance} .pend .nb{white-space:nowrap}  /* 折行时两行匀开，不留孤字 */
-.pend i{width:6px;height:6px;margin-top:calc((1.55em - 6px)/2);border-radius:var(--r-round);background:var(--accent);flex:none}
+.pend i{width:var(--dot-sm);height:var(--dot-sm);margin-top:calc((1.55em - var(--dot-sm))/2);border-radius:var(--r-round);background:var(--accent);flex:none}
 .pend i.bad{background:var(--danger)} .pend i.ok{background:var(--calm)} .pend i.wait{background:var(--amber)}
 /* 头条 + 三个数字 */
 .greet{margin:var(--s5) 0 var(--s1);font-size:var(--t-xs);color:var(--sub);letter-spacing:var(--ls-s)}
@@ -378,11 +378,11 @@ textarea.area{display:block;width:100%;min-height:120px;padding:var(--s3h) var(-
 .sw input:checked+span{background:var(--calm)}
 .sw input:checked+span::after{transform:translateX(calc(var(--sw-w) - var(--sw-k) - var(--s0) * 2))}
 .stat-dot{display:inline-flex;align-items:center;gap:var(--s1h);font-size:var(--t-sm);color:var(--sub)}
-.stat-dot i{width:8px;height:8px;border-radius:var(--r-round);background:var(--faint)}
+.stat-dot i{width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--faint)}
 .stat-dot.ok i{background:var(--calm)} .stat-dot.bad i{background:var(--accent)}
 .wprow .rl{flex:1;min-width:0}
 .wprow.on .rl{color:var(--ink)}
-.wprow .ok-dot{display:inline-block;width:8px;height:8px;margin-right:var(--s1h);border-radius:var(--r-round);background:var(--calm);vertical-align:1px}
+.wprow .ok-dot{display:inline-block;width:var(--dot);height:var(--dot);margin-right:var(--s1h);border-radius:var(--r-round);background:var(--calm);vertical-align:1px}
 .wprow small .plink{color:var(--sub)}
 .conn{display:flex;align-items:center;gap:var(--s3)}
 .conn .ci2{flex:none;width:var(--ctl-sm);height:var(--ctl-sm);border-radius:var(--r-sm);display:grid;place-items:center;color:var(--on);font-weight:700;font-size:var(--t-sm)}
@@ -441,7 +441,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .tabs button{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:none;font-size:var(--t-2xs);color:var(--faint);letter-spacing:var(--ls-s);transition:color var(--dur-fast)}
 .tabs button svg{width:var(--ico-xl);height:var(--ico-xl)}
 .tabs button.on{color:var(--ink)}
-.tabs .dot{position:absolute;top:var(--s2);left:calc(50% + 8px);min-width:8px;height:8px;border-radius:var(--r-pill);background:var(--accent);display:none}
+.tabs .dot{position:absolute;top:var(--s2);left:calc(50% + var(--dot));min-width:var(--dot);height:var(--dot);border-radius:var(--r-pill);background:var(--accent);display:none}
 .tabs .dot.on{display:block}
 
 /* ================= 底部面板：问答 / 往期 / 怎么盯 ================= */
