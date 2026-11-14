@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.602"
+VERSION="0.39.603"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -322,6 +322,9 @@ async def push(title: str, body: str, key: str = "", force=False, test=False, le
         return False
     if key and not force and time.time() - _last_push.get(key, 0) < gap:  # 同一个群限频
         return False
+    if len(_last_push) > 2000:  # 限频表只需记最近的，超限丢掉最旧一半
+        for k in sorted(_last_push, key=_last_push.get)[:1000]:
+            _last_push.pop(k, None)
     _last_push[key] = time.time()
     path = url or chat_path(key)
     ok_b = ok_w = False
