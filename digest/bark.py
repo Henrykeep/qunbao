@@ -7,6 +7,7 @@ import unicodedata
 from urllib.parse import quote  # noqa: F401
 
 import httpx
+from tz import clock
 
 
 from bark_url import norm_bark_url, has_key, open_url  # noqa: F401  地址清洗在 bark_url.py
@@ -119,7 +120,7 @@ def retry_after(v) -> float | None:
     else:
         try:
             from email.utils import parsedate_to_datetime
-            sec = parsedate_to_datetime(v).timestamp() - time.time()
+            sec = parsedate_to_datetime(v).timestamp() - clock()
         except Exception:
             return None
     return max(0.5, min(sec, 5))
