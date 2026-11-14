@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.645"
+VERSION="0.39.646"
 
 
 
@@ -816,7 +816,7 @@ async def llm(messages, as_json=False):
                 LLM_STATE.update(ok=True, err="", ts=_now(), code=0, fail_since=0)
                 LLM_LAST_OK[0] = _clock()
                 kv_add("llm_calls", 1)
-                kv_add("llm_tokens", int((out_j.get("usage") or {}).get("total_tokens") or 0))
+                kv_add("llm_tokens", _int((out_j.get("usage") or {}).get("total_tokens")) or 0)
                 llm_log(kind)
                 return out
         except httpx.HTTPStatusError as ex:
