@@ -12,12 +12,17 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.610"
+VERSION="0.39.611"
 
 
 def _secs(t0):
     """自某时刻起经过的秒数（两位小数），整理统计共用。"""
     return round(time.time() - t0, 2)
+
+
+def _within(ts, secs):
+    """距 ts 不足 secs 秒（ts 为 0/None 视为很久以前）。限频、缓存有效期共用。"""
+    return time.time() - (ts or 0) < secs
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -326,7 +331,7 @@ async def push(title: str, body: str, key: str = "", force=False, test=False, le
             held.append([title, body, level])
             kv_set("held", json.dumps(held, ensure_ascii=False))
         return False
-    if key and not force and time.time() - _last_push.get(key, 0) < gap:  # 同一个群限频
+    if key and not force and _within(_last_push.get(key), gap):  # 同一个群限频
         return False
     trim_oldest(_last_push, _last_push)  # 限频表只需记最近的
     _last_push[key] = time.time()
@@ -532,7 +537,7 @@ async def group_name(gid: int) -> str:
     if gid in _group_names and fresh:
         return _group_names[gid]
     name = _group_names.get(gid) or f"群{gid}"
-    if time.time() - _group_miss.get(gid, 0) < 600:  # 查不到的 10 分钟后再试
+    if _within(_group_miss.get(gid), 600):  # 查不到的 10 分钟后再试
         return name
     trim_oldest(_group_miss, _group_miss)  # 群号来自外部消息，查询记录表限长
     _group_miss[gid] = time.time()
@@ -559,7 +564,7 @@ _RKEY = {"ts": 0.0, "group": "", "private": ""}
 
 
 async def fresh_rkeys(force=False):
-    if not force and time.time() - _RKEY["ts"] < 1800 and (_RKEY["group"] or _RKEY["private"]):
+    if not force and _within(_RKEY["ts"], 1800) and (_RKEY["group"] or _RKEY["private"]):
         return _RKEY
     h = {"Authorization": f"Bearer {NAPCAT_TOKEN}"} if NAPCAT_TOKEN else {}
     async with httpx.AsyncClient(timeout=6) as cl:
@@ -2655,7 +2660,7 @@ async def ask(req: Request):
         return {"a": ("这段时间你没看的部分没有新消息。" if since_id else f"最近{'一周' if since_id else ' 3 天'}{scope}里没有相关消息。"), "citations": []}
     key = (re.sub(r"\s+", "", q), chat, source, since_id, json.dumps(hist, ensure_ascii=False), hash("\n".join(lines)), bool(extra))
     hit = _ASK_CACHE.get(key)
-    if hit and time.time() - hit[0] < ASK_CACHE_TTL:  # 同一问题、同样的聊天记录：直接复用，不再花一次模型调用
+    if hit and _within(hit[0], ASK_CACHE_TTL):  # 同一问题、同样的聊天记录：直接复用，不再花一次模型调用
         return {**hit[1], "reused": True}
     a = await llm([
         {"role": "system", "content": f"【问答】你是用户的群消息秘书。现在是 {now:%Y-%m-%d %H:%M}。{about_me(s)}\n"
