@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from zoneinfo import ZoneInfo
 
-from tz import TZ  # 0.39.623 收敛
+from tz import TZ, now as _tznow  # 0.39.625
 
 
 def parse_due(text: str, now: datetime) -> datetime | None:
@@ -116,7 +116,7 @@ def _norm_due(x: str) -> str:
     x = (x or "").strip()
     if not x:
         return ""
-    d = parse_due(x, datetime.now(TZ))
+    d = parse_due(x, _tznow())
     return d.strftime("%Y-%m-%d %H:%M") if d else _PUNCT.sub("", x)
 
 
