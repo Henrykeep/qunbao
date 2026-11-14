@@ -3696,3 +3696,10 @@ def test_env_str_strips_bom_zero_width(monkeypatch):
     from digest.envutil import env_str
     monkeypatch.setenv("X_T", "\ufeffabc\u200b ")
     assert env_str("X_T") == "abc"
+
+
+def test_env_lower_bound(monkeypatch):
+    from envutil import env_int, env_float
+    monkeypatch.setenv("X_N", "0"); monkeypatch.setenv("X_F", "-5")
+    assert env_int("X_N", 6, lo=1) == 6 and env_int("X_N", 6) == 0
+    assert env_float("X_F", 60, lo=1) == 60.0
