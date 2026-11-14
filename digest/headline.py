@@ -6,7 +6,7 @@ from todo_match import parse_due, norm_title, _grams
 from zoneinfo import ZoneInfo
 import os
 
-TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")
+from tz import TZ  # 0.39.623 收敛
 
 
 def tidy_headline(t: str, limit: int = 30) -> str:
