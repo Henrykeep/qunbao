@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.611"
+VERSION="0.39.612"
 
 
 def _secs(t0):
@@ -1220,7 +1220,7 @@ async def _update_chat(source, chat, rows, s, stats) -> bool:
         except HTTPException as ex:
             code = _llm_code(ex)
             # 451 审核拦截一定是内容问题；400/413/422 也可能是模型名/参数配错了：只有最近 30 分钟模型成功响应过，才认定是这块内容的问题再拆小跳过
-            if code not in REJECT_CODES or (code != 451 and time.time() - LLM_LAST_OK[0] > 1800):
+            if code not in REJECT_CODES or (code != 451 and not _within(LLM_LAST_OK[0], 1800)):
                 raise
             bisect_or_skip("blocked")
             continue
@@ -1900,7 +1900,7 @@ async def scheduler():
                 await check_reminders()
             except Exception as ex:
                 print("截止提醒失败:", ex)
-            if time.time() - qq_cleaned > 6 * 3600:  # 每 6 小时清一次 QQ 媒体缓存（启动后先清一次）
+            if not _within(qq_cleaned, 6 * 3600):  # 每 6 小时清一次 QQ 媒体缓存（启动后先清一次）
                 qq_cleaned = time.time()
                 with contextlib.suppress(Exception):
                     await asyncio.to_thread(clean_qq_cache)
