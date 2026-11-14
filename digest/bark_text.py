@@ -79,8 +79,8 @@ def _cn2n(t: str) -> int:
 
 
 def _this_year(m) -> str:
-    import datetime
-    return "" if int(m.group(1)) == datetime.date.today().year else m.group(0)
+    from tz import now
+    return "" if int(m.group(1)) == now().year else m.group(0)
 
 
 def _sep(m):
