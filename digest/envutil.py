@@ -11,11 +11,11 @@ def env_int(name, default, lo=None):
 
 def _int(name, default):
     try:
-        return int(str(os.getenv(name, default)).strip())
+        return int(env_str(name, default))
     except (TypeError, ValueError):
         pass
     try:  # "30.0" 这类写法按整数取
-        v = float(str(os.getenv(name, default)).strip())
+        v = float(env_str(name, default))
         if math.isfinite(v):
             return int(v)
     except (TypeError, ValueError):
@@ -30,7 +30,7 @@ def env_float(name, default, lo=None):
 
 def _float(name, default):
     try:
-        v = float(str(os.getenv(name, default)).strip())
+        v = float(env_str(name, default))
     except (TypeError, ValueError):
         return float(default)
     # nan/inf 能被 float() 解析，但当超时/间隔用会让服务卡死或立即超时
