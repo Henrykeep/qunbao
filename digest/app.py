@@ -1,9 +1,7 @@
 """群报：收集 QQ（NapCat / OneBot 11）和微信（通知转发）群消息，用大模型挑出重要的事和待办。"""
-import asyncio, collections, contextlib, hashlib, json, os, re, secrets, shutil, sqlite3, time
-from difflib import SequenceMatcher
+import asyncio, collections, contextlib, hashlib, json, os, re, secrets, shutil
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, quote
-from zoneinfo import ZoneInfo
 from inbound import norm_ts, cq_images, clean_cq, parse_wx, CQ, CQ_NAME, WX_COUNT, WX_SKIP, _pick  # noqa: F401 (0.34.37 拆出)
 
 import httpx
@@ -12,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.628"
+VERSION="0.39.629"
 
 
 
