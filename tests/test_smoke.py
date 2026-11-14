@@ -2109,7 +2109,7 @@ def test_prune_old_closed_items():
 
 def test_security_headers():
     from fastapi.testclient import TestClient
-    import digest.app as a
+    a = app_mod
     r = TestClient(a.app).get("/login")
     assert r.headers.get("x-content-type-options") == "nosniff"
     assert r.headers.get("x-frame-options") == "DENY"
@@ -3646,3 +3646,12 @@ def test_message_urls_become_domain_chips():
     html = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
     assert "function linkChip" in html and 'class="ulk"' in html
     assert "esc(s).replace(URL_RE,linkChip)" in html  # 原文/搜索/群聊共用 hlAt 这一处
+
+
+def test_ingest_token_lockout():
+    a = app_mod
+    a._fails.clear()
+    c = TestClient(a.app)
+    codes = [c.post("/ingest", headers={"X-Token": "bad"}, json={}).status_code for _ in range(9)]
+    assert codes[0] == 401 and codes[-1] == 429
+    a._fails.clear()
