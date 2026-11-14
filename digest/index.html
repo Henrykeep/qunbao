@@ -102,7 +102,7 @@ h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
 .x{flex:none;width:var(--ctl);height:var(--ctl);border:0;border-radius:var(--r-round);background:var(--chip);color:var(--sub);display:grid;place-items:center}
 .x svg{width:var(--ico-sm);height:var(--ico-sm)}
 /* 标签：.chip 浅底药丸（截止时间等），.tag 描边小字（来源 QQ/微信、@我） */
-.chip{display:inline-flex;align-items:center;gap:var(--s1);max-width:100%;min-width:0;padding:3px 9px;border:0;border-radius:var(--r-pill);background:var(--chip);color:var(--sub);font-size:var(--t-xs);white-space:nowrap}
+.chip{display:inline-flex;align-items:center;gap:var(--s1);max-width:100%;min-width:0;padding:var(--s1q) 9px;border:0;border-radius:var(--r-pill);background:var(--chip);color:var(--sub);font-size:var(--t-xs);white-space:nowrap}
 .chip svg{width:var(--ico-xs);height:var(--ico-xs);flex:none}
 .tag{display:inline-block;flex:none;font-size:var(--t-2xs);line-height:1.6;padding:0 5px;border-radius:var(--r-xs);border:var(--bw) solid var(--line);color:var(--faint);margin-left:var(--s1);font-weight:400;vertical-align:1px}
 .tag.s-qq{color:var(--qq);border-color:color-mix(in srgb,var(--qq) 35%,transparent)}
@@ -151,7 +151,7 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .toast{position:fixed;left:50%;top:calc(var(--s3h) + env(safe-area-inset-top));z-index:var(--z-toast);transform:translate(-50%,-90px);max-width:90vw;padding:9px var(--s4);border-radius:var(--r-pill);
   background:var(--ink);color:var(--bg);font-size:var(--t-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:transform var(--dur-slow) var(--ease)}
 .toast.on{transform:translate(-50%,0)}
-.offbar{position:fixed;top:0;left:0;right:0;z-index:var(--z-top);padding:calc(6px + env(safe-area-inset-top)) var(--s3) 6px;text-align:center;font-size:var(--t-xs);background:var(--warn-bg);color:var(--on);letter-spacing:var(--ls-s)}
+.offbar{position:fixed;top:0;left:0;right:0;z-index:var(--z-top);padding:calc(var(--s1h) + env(safe-area-inset-top)) var(--s3) var(--s1h);text-align:center;font-size:var(--t-xs);background:var(--warn-bg);color:var(--on);letter-spacing:var(--ls-s)}
 .plink{font:inherit;border:0;background:none;padding:0;color:var(--accent);text-decoration:underline;text-underline-offset:var(--s0);cursor:pointer}
 .spin svg{animation:spin var(--dur-spin) linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -343,7 +343,7 @@ button.cite::after{content:"";position:absolute;inset:calc(-1*var(--s2h)) calc(-
 #imgbox{position:fixed;inset:0;z-index:var(--z-top);display:flex;align-items:center;justify-content:center;background:var(--scrim-img)}
 #imgbox img{max-width:96vw;max-height:92vh;border-radius:var(--r-xs)}
 .sp{flex:1}
-.sk.k-cap{height:12px;width:40%;margin:var(--s5) 0 var(--s2)}.sk.k-h{height:26px;margin-bottom:var(--s2)}.sk.k-h2{height:26px;width:62%;margin-bottom:var(--s3)}.sk.k-box{height:52px;margin-bottom:var(--s6)}.sk.k-card{height:80px;margin-bottom:var(--s2);border-radius:var(--r-lg)}.sk.k-hist{height:60px;margin-top:var(--s2h)}.sk.k-line{height:15px;margin-top:var(--s1h)}.sk.k-line2{height:15px;width:82%;margin-top:var(--s2h)}.sk.k-chat{height:56px;margin-top:var(--s3)}.sk.k-msg{height:var(--tap);margin-top:var(--s3h);width:70%}
+.sk.k-cap{height:var(--s3);width:40%;margin:var(--s5) 0 var(--s2)}.sk.k-h{height:26px;margin-bottom:var(--s2)}.sk.k-h2{height:26px;width:62%;margin-bottom:var(--s3)}.sk.k-box{height:52px;margin-bottom:var(--s6)}.sk.k-card{height:80px;margin-bottom:var(--s2);border-radius:var(--r-lg)}.sk.k-hist{height:60px;margin-top:var(--s2h)}.sk.k-line{height:15px;margin-top:var(--s1h)}.sk.k-line2{height:15px;width:82%;margin-top:var(--s2h)}.sk.k-chat{height:56px;margin-top:var(--s3)}.sk.k-msg{height:var(--tap);margin-top:var(--s3h);width:70%}
 .brief .sk{height:var(--ico-sm);margin-top:var(--s2h)}.brief .sk.l1{margin-top:var(--s2)}.brief .sk.l2{width:80%}.brief .sk.l3{width:60%}.brief .subtxt{color:var(--sub);font-size:var(--t-sm)}
 .tolatest{position:fixed;right:var(--s4);bottom:calc(var(--dockh) + var(--s3));z-index:var(--z-sticky);box-shadow:var(--shadow-pop)}
 
