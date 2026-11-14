@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.598"
+VERSION="0.39.599"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -573,13 +573,31 @@ async def img_fresh(u: str, retry: int = 0):
     return {"url": swap_rkey(u, keys)}
 
 
+async def read_body(req: Request, limit: int = 256 * 1024) -> bytes:
+    """入口统一读请求体：先看声明长度再读，超限 413（/onebot 与 /ingest 共用）。"""
+    try:
+        if int(req.headers.get("content-length") or 0) > limit:
+            raise HTTPException(413, "内容太大")
+    except ValueError:
+        raise HTTPException(400, "长度无效")
+    body = await req.body()
+    if len(body) > limit:
+        raise HTTPException(413, "内容太大")
+    return body
+
+
 @app.post("/onebot")
 async def onebot(req: Request):
     if ONEBOT_TOKEN:
         auth = req.headers.get("Authorization", "")
         tok = auth[7:] if auth.lower().startswith("bearer ") else (req.query_params.get("token") or "")
         _token_gate(req, tok, ONEBOT_TOKEN)
-    e = await req.json()
+    try:
+        e = json.loads((await read_body(req)).decode("utf-8", "ignore"))
+    except json.JSONDecodeError:
+        raise HTTPException(400, "需要 JSON")
+    if not isinstance(e, dict):
+        raise HTTPException(400, "需要 JSON 对象")
     if e.get("post_type") == "meta_event":
         with db() as c:
             c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('heartbeat',?)", (str(int(time.time())),))
@@ -610,9 +628,7 @@ async def ingest(req: Request):
     tok = req.headers.get("X-Token") or req.query_params.get("token") or ""
     _token_gate(req, tok, INGEST_TOKEN)
     ct = req.headers.get("content-type", "")
-    body = await req.body()
-    if len(body) > 256 * 1024:
-        raise HTTPException(413, "内容太大")
+    body = await read_body(req)
     raw = body.decode("utf-8", "ignore")
     if "urlencoded" in ct:
         d = {k: v[0] for k, v in parse_qs(raw).items()}
