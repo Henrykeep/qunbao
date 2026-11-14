@@ -3674,3 +3674,11 @@ def test_chat_lock_prunes_idle_locks():
         a.chat_lock("qq", str(i))
     a.chat_lock("qq", "x")
     assert len(a._chat_locks) < 150
+
+
+def test_env_int_bad_value(monkeypatch):
+    from envutil import env_int
+    monkeypatch.setenv("X_T", "abc")
+    assert env_int("X_T", 7) == 7
+    monkeypatch.setenv("X_T", " 12 ")
+    assert env_int("X_T", 7) == 12
