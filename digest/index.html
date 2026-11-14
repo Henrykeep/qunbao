@@ -18,7 +18,7 @@
   --on:#fff;--warn-bg:#8a3b2a;--black:#000;--scrim:rgba(0,0,0,.32);--scrim-img:rgba(0,0,0,.88);
   --kb:0;
   --dy:0;--dx:0;--ex:0;--o:0;--ut:0px;--ul:0px;--uw:auto;--uh:100vh;
-  --s0:2px; --s1:4px; --s1h:6px; --s2:8px; --s2h:10px; --s3:12px; --s3h:14px; --s4:16px; --s5:20px; --s6:24px; --s7:32px;
+  --s0:2px; --s1:4px; --s1q:3px; --s1h:6px; --s2:8px; --s2h:10px; --s3:12px; --s3h:14px; --s4:16px; --s5:20px; --s6:24px; --s7:32px;
   --t-2xs:.6176rem; --t-xs:.7059rem; --t-sm:.7941rem; --t-md:.8824rem; --t-lg:.9412rem; --t-xl:1.2353rem; --t-2xl:1.7647rem; /* rem 基准 17px = iOS 默认正文，跟随系统字号 */
   --r-xs:5px; --r-sm:10px; --r-md:14px; --r-lg:16px; --r-xl:22px; --r-pill:999px; --r-round:50%;
   --hit:40px; --tab:58px;
@@ -71,7 +71,7 @@ header{display:flex;align-items:flex-end;justify-content:space-between;gap:var(-
 .mast{font-family:var(--serif);font-weight:900;font-size:var(--t-2xl);letter-spacing:var(--ls-m);line-height:1;flex:none}
 .date{font-size:var(--t-xs);color:var(--sub);text-align:right;line-height:1.5;min-width:0}
 .date b{display:block;color:var(--ink);font-weight:600;font-size:var(--t-sm)}
-.rule{height:1px;background:var(--ink);margin-top:3px}
+.rule{height:1px;background:var(--ink);margin-top:var(--s1q)}
 /* 区块标题 */
 section{margin-top:var(--s6)}
 h2{font-size:var(--t-xs);font-weight:600;letter-spacing:var(--ls-l);color:var(--sub);display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s3)}
@@ -125,7 +125,7 @@ h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
 .av{flex:none;width:var(--ctl-sm);height:var(--ctl-sm);border-radius:var(--r-round);display:grid;place-items:center;font-size:var(--t-md);font-weight:600;color:var(--on);background:var(--c)}
 .av.sm{width:var(--av-sm);height:var(--av-sm);font-size:var(--t-xs)}
 em.at-hl{font-style:normal;color:var(--accent);font-weight:600}
-a.ulk{padding:var(--s2) 0;color:var(--sub);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;white-space:nowrap}
+a.ulk{padding:var(--s2) 0;color:var(--sub);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:var(--s1q);white-space:nowrap}
 a.ulk::after{content:" ↗";font-size:var(--t-xs)}
 mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;border-radius:var(--r-xs);padding:0 1px}
 /* 分段切换 */
@@ -324,12 +324,12 @@ button.cite::after{content:"";position:absolute;inset:-10px -6px}
 #v-msgs .msgs{padding-bottom:var(--s1)}
 .readline{display:flex;align-items:center;gap:var(--s2h);margin:var(--s4) 0 var(--s1);font-size:var(--t-xs);color:var(--accent)}
 .readline::before,.readline::after{content:"";flex:1;height:1px;background:color-mix(in srgb,var(--accent) 40%,transparent)}
-.day{margin:18px 0 var(--s2);text-align:center;font-size:var(--t-xs);color:var(--faint)}
+.day{margin:var(--s5) 0 var(--s2);text-align:center;font-size:var(--t-xs);color:var(--faint)}
 .m{display:flex;gap:9px;margin-top:var(--s3);align-items:flex-start}
 .m.cont{margin-top:var(--s1)}
 .m.cont .av{visibility:hidden;height:0}
 .m .mb{min-width:0;max-width:82%}
-.m .who{margin:0 0 3px var(--s0);font-size:var(--t-xs);color:var(--faint)}
+.m .who{margin:0 0 var(--s1q) var(--s0);font-size:var(--t-xs);color:var(--faint)}
 .m .bub{padding:var(--s2) var(--s3);border-radius:var(--r-xs) var(--r-lg) var(--r-lg) var(--r-lg);background:var(--bubble);box-shadow:var(--shadow);font-size:var(--t-md);line-height:1.55;white-space:pre-wrap}
 .m.cont .bub{border-radius:var(--r-lg)}
 .m.atme .bub{background:var(--mine)}
@@ -438,7 +438,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .dock.typing:not(.filled) .suggest{display:flex}  /* 快捷问题平时收起，让出首屏；点进输入框且还没打字时才出现 */
 .dock.typing .tabs{display:none}  /* 打字时标签栏也让位：键盘上方只剩 快捷问题 + 输入框 */
 .tabs{display:flex;max-width:640px;height:var(--tab);margin:0 auto env(safe-area-inset-bottom)}
-.tabs button{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:none;font-size:var(--t-2xs);color:var(--faint);letter-spacing:var(--ls-s);transition:color var(--dur-fast)}
+.tabs button{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s1q);border:0;background:none;font-size:var(--t-2xs);color:var(--faint);letter-spacing:var(--ls-s);transition:color var(--dur-fast)}
 .tabs button svg{width:var(--ico-xl);height:var(--ico-xl)}
 .tabs button.on{color:var(--ink)}
 .tabs .dot{position:absolute;top:var(--s2);left:calc(50% + var(--dot));min-width:var(--dot);height:var(--dot);border-radius:var(--r-pill);background:var(--accent);display:none}
@@ -465,7 +465,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .pfoot{flex:none;padding:var(--s2h) var(--s4) calc(var(--s3) + env(safe-area-inset-bottom));border-top:var(--bw) solid var(--line)}
 .qq{margin-top:var(--s5);font-family:var(--serif);font-size:var(--t-xl);font-weight:700;line-height:1.45}
 .qq:first-child{margin-top:var(--s2)}
-.aa{margin-top:var(--s2h);padding-bottom:18px;border-bottom:var(--bw) solid var(--line);font-size:var(--t-md);line-height:1.8}
+.aa{margin-top:var(--s2h);padding-bottom:var(--s5);border-bottom:var(--bw) solid var(--line);font-size:var(--t-md);line-height:1.8}
 .aa:last-child{border-bottom:0}
 .aa strong{font-weight:650;background:linear-gradient(transparent 62%,color-mix(in srgb,var(--amber) 28%,transparent) 0)}
 .aa .acts{display:flex;gap:var(--s1h);margin-top:var(--s2h)}
