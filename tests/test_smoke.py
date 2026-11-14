@@ -3703,3 +3703,11 @@ def test_env_lower_bound(monkeypatch):
     monkeypatch.setenv("X_N", "0"); monkeypatch.setenv("X_F", "-5")
     assert env_int("X_N", 6, lo=1) == 6 and env_int("X_N", 6) == 0
     assert env_float("X_F", 60, lo=1) == 60.0
+
+
+def test_env_url(monkeypatch):
+    from envutil import env_url
+    monkeypatch.setenv("X_URL", "napcat:3000/")
+    assert env_url("X_URL") == "http://napcat:3000"
+    monkeypatch.setenv("X_URL", "https://a.com/")
+    assert env_url("X_URL") == "https://a.com"
