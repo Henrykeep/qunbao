@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.608"
+VERSION="0.39.609"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -1151,13 +1151,17 @@ def rule_backfill(hours: int = 6, now=None) -> int:
 _chat_locks: dict = {}
 
 
-async def update_chat(source, chat, rows, s, stats) -> bool:
-    """同一个群同一时间只整理一次（自动整理和手动「整理」可能撞上）：拿到锁后再按水位去掉已处理的消息。"""
-    if len(_chat_locks) > 500:  # 群很多、跑很久：把没人持有的锁清掉，字典不无限增长
+def chat_lock(source, chat) -> asyncio.Lock:
+    """每个群一把锁；群很多时把没人持有的锁清掉，字典不无限增长。"""
+    if len(_chat_locks) > 500:
         for k in [k for k, v in _chat_locks.items() if not v.locked()]:
             _chat_locks.pop(k, None)
-    lk = _chat_locks.setdefault((source, chat), asyncio.Lock())
-    async with lk:
+    return _chat_locks.setdefault((source, chat), asyncio.Lock())
+
+
+async def update_chat(source, chat, rows, s, stats) -> bool:
+    """同一个群同一时间只整理一次（自动整理和手动「整理」可能撞上）：拿到锁后再按水位去掉已处理的消息。"""
+    async with chat_lock(source, chat):
         with db() as c:
             st = c.execute("SELECT last_msg_id FROM chat_state WHERE source=? AND chat=?", (source, chat)).fetchone()
         done_id = (st["last_msg_id"] or 0) if st else 0
