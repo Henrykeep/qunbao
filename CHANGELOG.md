@@ -1,3 +1,6 @@
+## 0.39.629 — 2026-11-14
+- 清理 app.py 里已无引用的导入（sqlite3/time/SequenceMatcher/ZoneInfo），时间统一走 tz.py，无行为变化。
+
 ## 0.39.628 — 2026-11-14
 
 - ics 导出的 UTC 转换在函数内收敛为一处。
