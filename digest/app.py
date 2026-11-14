@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.618"
+VERSION="0.39.619"
 
 
 def _clock():
@@ -1956,7 +1956,7 @@ def backup_db(keep=None):
     import sqlite3 as _sq
     d = os.path.join(os.path.dirname(DB) or ".", "backups")
     os.makedirs(d, exist_ok=True)
-    dst = os.path.join(d, "qunbao-" + time.strftime("%Y%m%d") + ".db")
+    dst = os.path.join(d, "qunbao-" + _today().replace("-", "") + ".db")
     src = db(); out = _sq.connect(dst)
     try:
         src.backup(out)
@@ -2151,7 +2151,7 @@ def view_headline(hours, body):
 def digest_md(hours: int = 24):
     """把当前群报导出成 Markdown 文字（待办 / 通知 / 各群要点），方便分享或存进备忘录。只含已整理的事项，不含原文。"""
     b = build_body(hours if hours in (24, 72, 168) else 24, settings())
-    out = [f"# 群报 {time.strftime('%Y-%m-%d')}", ""]
+    out = [f"# 群报 {_today()}", ""]
     opens = [t for t in b["todos"] if not t["done"]]
     dones = [t for t in b["todos"] if t["done"]]
     out.append(f"## 待办（{len(opens)}）")
