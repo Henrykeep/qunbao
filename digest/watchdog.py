@@ -1,6 +1,8 @@
 """事件循环看门狗：事件循环卡死（healthz 也答不了）超过 STALL_S 秒就退出进程，
 让 docker 的 restart: always 把服务拉起来（healthcheck 只会标 unhealthy，不会重启）。"""
-import asyncio, os, threading, time
+import asyncio, logging, os, threading, time
+
+_log = logging.getLogger('qunbao')
 
 STALL_S = int(os.getenv("WATCHDOG_STALL_S", "180") or 0)   # 0 = 关闭
 _beat = time.monotonic()
@@ -32,7 +34,8 @@ def start():
         while True:
             time.sleep(10)
             if stalled(_beat, time.monotonic()):
-                print(f"[watchdog] 事件循环停滞超过 {STALL_S}s，退出以便 docker 重启", flush=True)
+                _log.critical("watchdog: 事件循环停滞超过 %ss，退出以便 docker 重启", STALL_S)
+                logging.shutdown()
                 os._exit(1)
     threading.Thread(target=guard, daemon=True).start()
     return t
