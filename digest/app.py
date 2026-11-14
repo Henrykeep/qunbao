@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.636"
+VERSION="0.39.637"
 
 
 
@@ -1361,6 +1361,7 @@ async def run_update(full=False):
                     stats["changed"] += 1
             except Exception as ex:
                 failed.append(min(r["id"] for r in rs)); err = ex
+                _log.warning("自动整理失败 群 %s/%s（%d 条）: %s", k[0], k[1], len(rs), ex)
     await asyncio.gather(*(one(k, rs) for k, rs in todo.items()))
     if full:
         with db() as c:
