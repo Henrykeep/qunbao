@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.619"
+VERSION="0.39.620"
 
 
 def _clock():
@@ -34,14 +34,19 @@ def _now():
     return int(_clock())
 
 
+def _nowdt():
+    """当前本地时区 datetime，统一入口。"""
+    return datetime.now(TZ)
+
+
 def _day0():
     """今天 0 点（本地时区）的整数时间戳。"""
-    return int(datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+    return int(_nowdt().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
 
 
 def _today():
     """今天的日期字符串 YYYY-MM-DD（本地时区）。"""
-    return datetime.now(TZ).strftime("%Y-%m-%d")
+    return _nowdt().strftime("%Y-%m-%d")
 
 
 def _age(ts):
@@ -902,7 +907,7 @@ def annotate_todos(body: dict) -> dict:
 async def todo_snooze(req: Request):
     d = await req.json()
     h = d.get("hours")
-    now = datetime.now(TZ)
+    now = _nowdt()
     at = snooze_until(h, now)
     until = int(at.timestamp())
     t0, ch0 = split_key(d["key"])
@@ -1020,7 +1025,7 @@ def chunked(pairs):
 
 
 def chat_prompt(s, source, chat):
-    now = datetime.now(TZ)
+    now = _nowdt()
     imp = "，用户标为【重点盯】" if chat_mode(source, chat, s) == "focus" else ""
     return f"""【群更新】你是用户的群消息秘书，只负责维护「{chat}」（{source}{imp}）这一个群的状态。现在是 {now:%Y-%m-%d %H:%M} 星期{"一二三四五六日"[now.weekday()]}。
 {about_me(s)}
@@ -1362,7 +1367,7 @@ async def run_update(full=False):
 
 def _sort_key(s):
     far = datetime(2100, 1, 1, tzinfo=TZ)
-    now = datetime.now(TZ)
+    now = _nowdt()
 
     def k(t):
         d = parse_due(t.get("due", ""), now) or far
@@ -1809,7 +1814,7 @@ async def check_reminders():
     n = int(s.get("remind_hours") or 0)
     if n <= 0 or not has_push(s):
         return 0
-    now = datetime.now(TZ)
+    now = _nowdt()
     sent = 0
 
     async def fire(t):
@@ -1890,7 +1895,7 @@ async def scheduler():
             except Exception as ex:
                 print("规则补建待办失败:", ex)
         while True:
-            now = datetime.now(TZ)
+            now = _nowdt()
             s = settings()
             ran = False
             if now.hour in digest_hours(s) and (now.date(), now.hour) not in last:
@@ -2225,7 +2230,7 @@ def state(id: int | None = None, hours: int | None = None):
         sf = lambda x: in_digest(x.get("source") or srcs.get(x.get("chat"), "QQ"), x.get("chat") or "", s)
         for k in ("todos", "notices", "groups"):
             body[k] = [x for x in body.get(k) or [] if sf(x)]
-    nowdt = datetime.now(TZ)
+    nowdt = _nowdt()
     for t in (body or {}).get("todos", []):
         dd = parse_due(t.get("due", ""), nowdt)
         t["due_ts"] = int(dd.timestamp()) if dd else None
@@ -2340,7 +2345,7 @@ async def todo(req: Request):
 
 
 def build_ics(title: str, due: str, detail: str = "", chat: str = "") -> str:
-    now = datetime.now(TZ)
+    now = _nowdt()
     return ics_build(title, due, parse_due(due, now), now, detail, chat)
 
 
@@ -2529,7 +2534,7 @@ def export_all():
     st = settings()
     st.pop("bark_url", None)
     data = {"version": VERSION, "exported": _now(), "settings": st, "digests": dg, "messages": msgs}
-    return JSONResponse(data, headers={"Content-Disposition": f'attachment; filename="qunbao-{datetime.now(TZ):%Y%m%d}.json"'})
+    return JSONResponse(data, headers={"Content-Disposition": f'attachment; filename="qunbao-{_nowdt():%Y%m%d}.json"'})
 
 
 @app.post("/api/settings", dependencies=[Depends(auth)])
@@ -2673,7 +2678,7 @@ async def ask(req: Request):
     s = settings()
     prior = " ".join(m["content"] for m in hist if m["role"] == "user")[-200:]
     rows, lines = ask_context(q, s, chat, source, since_id, hours=168 if since_id else 72, prior=prior)
-    now = datetime.now(TZ)
+    now = _nowdt()
     scope = f"「{chat}」这个群（{source or '群聊'}）" if chat else "用户所有的群"
     extra = ""
     if not chat:  # 全局问答先给整理好的事项和各群要点，原文作为依据
@@ -2725,7 +2730,7 @@ async def chat_brief(chat: str, source: str = "", since_id: int = 0, refresh: in
     if not lines:
         out = {"a": "这段时间都是表情和闲聊，没啥要紧的。", "citations": [], "n": 0}
     else:
-        now = datetime.now(TZ)
+        now = _nowdt()
         a = await llm([
             {"role": "system", "content": f"【群简报】你是用户的群消息秘书，现在是 {now:%Y-%m-%d %H:%M}。{about_me(s)}\n"
                                           f"用户没空看「{chat}」这个群，你用口语告诉他{'他上次看过之后' if since_id else '最近'}群里聊了啥："
