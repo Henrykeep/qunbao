@@ -3,7 +3,7 @@ import os, re, time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")
+from tz import TZ  # 0.39.623 收敛
 
 
 def norm_ts(ts, now=None) -> int:
