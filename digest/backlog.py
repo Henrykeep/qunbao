@@ -3,10 +3,10 @@ import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from tz import TZ  # 0.39.623 收敛
+from tz import TZ, dt  # 0.39.623 收敛
 
 def _line(r, cls) -> str:
-    return (f"#{r['id']} [{datetime.fromtimestamp(r['ts'], TZ):%m-%d %H:%M}] {r['sender']}"
+    return (f"#{r['id']} [{dt(r['ts']):%m-%d %H:%M}] {r['sender']}"
             f"{' (@我)' if r['at_me'] else ''}{' ★' if cls == 'key' else ''}: {(r['text'] or '')[:800]}")
 
 
