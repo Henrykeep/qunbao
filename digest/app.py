@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.614"
+VERSION="0.39.615"
 
 
 def _secs(t0):
@@ -536,7 +536,7 @@ def trim_oldest(ref: dict, ts: dict, *also: dict, cap: int = 2000) -> None:
 
 
 async def group_name(gid: int) -> str:
-    fresh = time.time() - _group_ts.get(gid, time.time()) < GROUP_NAME_TTL
+    fresh = _age(_group_ts.get(gid, time.time())) < GROUP_NAME_TTL
     if gid in _group_names and fresh:
         return _group_names[gid]
     name = _group_names.get(gid) or f"群{gid}"
@@ -735,7 +735,7 @@ def llm_err_shown() -> str:
     """首页黄条：要用户动手的错误（余额/密钥/地址）立刻显示；限流、超时这类偶发错误后台自己重试，连续 5 分钟都失败才显示。"""
     if LLM_STATE.get("ok", True) or not LLM_STATE.get("err"):
         return ""
-    if LLM_STATE.get("code") in LLM_FATAL_CODES or time.time() - (LLM_STATE.get("fail_since") or time.time()) >= 300:
+    if LLM_STATE.get("code") in LLM_FATAL_CODES or _age(LLM_STATE.get("fail_since") or time.time()) >= 300:
         return LLM_STATE["err"]
     return ""
 
