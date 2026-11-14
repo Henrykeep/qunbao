@@ -193,7 +193,7 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .check{flex:none;width:var(--hit);height:var(--hit);margin:-8px -8px -8px -9px;border:0;background:none;display:grid;place-items:center}
 .check i{width:24px;height:24px;border-radius:var(--r-round);border:var(--bw-m) solid var(--faint);display:grid;place-items:center;transition:all var(--dur-fast) var(--ease)}
 .check:active i{transform:scale(.85)}
-.check svg{width:13px;height:13px;color:var(--bg);stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset var(--dur) var(--dur-fast)}
+.check svg{width:var(--ico-sm);height:var(--ico-sm);color:var(--bg);stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset var(--dur) var(--dur-fast)}
 .tbody{flex:1;min-width:0;cursor:pointer}
 .t{font-weight:600;font-size:var(--t-lg);line-height:1.4}
 .todo .t{padding-right:var(--s4)}
@@ -203,13 +203,13 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .meta{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s2);margin-top:var(--s1h);font-size:var(--t-xs);color:var(--sub);min-width:0}
 .meta .chip{flex:none;padding:var(--s0) var(--s2)}
 .meta .mi{flex:1 1 0;display:inline-flex;align-items:center;gap:var(--s1);min-width:min(8.5em,100%)}
-.meta .mi svg{width:12px;height:12px;flex:none;color:var(--faint)}
+.meta .mi svg{width:var(--ico-xs);height:var(--ico-xs);flex:none;color:var(--faint)}
 .meta .mi .tag{margin-left:var(--s0)}
 .meta .mi svg.s-qq{color:var(--qq)} .meta .mi svg.s-wx{color:var(--wx)}
 .cn2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chip.due{background:color-mix(in srgb,var(--u) 13%,transparent);color:var(--u);font-weight:600}
 .chip.due.late{background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger)}
-.todo .more{pointer-events:none;position:absolute;top:var(--s3);right:var(--s3);width:16px;height:16px;color:var(--faint);transition:transform var(--dur) var(--ease)}
+.todo .more{pointer-events:none;position:absolute;top:var(--s3);right:var(--s3);width:var(--ico-md);height:var(--ico-md);color:var(--faint);transition:transform var(--dur) var(--ease)}
 .todo.open .more{transform:rotate(180deg)}
 .quote{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--dur) var(--ease)}
 .todo.open .quote{grid-template-rows:1fr}
@@ -261,7 +261,7 @@ footer{margin-top:var(--s7);text-align:center;font-size:var(--t-2xs);color:var(-
 .search input:focus{border-color:var(--ink)}
 .search input::-webkit-search-cancel-button{-webkit-appearance:none;display:none}  /* 用自己的清除按钮，不要系统那个 */
 .search .clr{position:absolute;right:var(--s0);top:50%;transform:translateY(-50%);width:var(--hit);height:var(--hit);border:0;background:none;display:none;place-items:center}
-.search .clr i{width:22px;height:22px;border-radius:var(--r-round);background:var(--chip);display:grid;place-items:center;color:var(--sub)}
+.search .clr i{width:var(--ico-xl);height:var(--ico-xl);border-radius:var(--r-round);background:var(--chip);display:grid;place-items:center;color:var(--sub)}
 .search .clr svg{width:var(--ico-xs);height:var(--ico-xs)}
 .search.has .clr{display:grid}
 .srcs{display:flex;gap:var(--s1h);margin-top:var(--s3);overflow-x:auto;scrollbar-width:none}
@@ -286,7 +286,7 @@ footer{margin-top:var(--s7);text-align:center;font-size:var(--t-2xs);color:var(-
 .crow .cn b{min-width:0;font-size:var(--t-md);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .crow .cl{display:flex;gap:var(--s1h);align-items:center;min-width:0;margin-top:var(--s0);font-size:var(--t-sm);color:var(--sub);white-space:nowrap;overflow:hidden}
 .crow .cl span{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.mute-ic{width:12px;height:12px;color:var(--faint);flex:none}
+.mute-ic{width:var(--ico-xs);height:var(--ico-xs);color:var(--faint);flex:none}
 .act .bars{display:flex;align-items:flex-end;gap:var(--s0);height:48px}
 .act .bars i{flex:1;min-height:var(--s0);background:var(--accent);border-radius:var(--r-xs) var(--r-xs) 0 0;opacity:.8;height:var(--h,0)}
 .act .ax{display:flex;justify-content:space-between;margin-top:var(--s0);font-size:var(--t-2xs);color:var(--sub)}
