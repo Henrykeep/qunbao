@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.643"
+VERSION="0.39.644"
 
 
 
@@ -645,7 +645,7 @@ async def img_fresh(u: str, retry: int = 0):
 async def read_body(req: Request, limit: int = 256 * 1024) -> bytes:
     """入口统一读请求体：先看声明长度再读，超限 413（/onebot 与 /ingest 共用）。"""
     try:
-        if int(req.headers.get("content-length") or 0) > limit:
+        if (_int(req.headers.get("content-length")) or 0) > limit:
             raise HTTPException(413, "内容太大")
     except ValueError:
         raise HTTPException(400, "长度无效")
