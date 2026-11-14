@@ -28,7 +28,7 @@ def env_float(name, default):
 
 def env_str(name, default=""):
     """字符串：去首尾空白和成对引号（.env 里常见 KEY="xxx " 或复制带空格），否则口令/地址对不上。"""
-    v = str(os.getenv(name, default)).strip()
+    v = str(os.getenv(name, default)).replace("\ufeff", "").replace("\u200b", "").strip()  # BOM/零宽空格：Windows 记事本编辑 .env 常带
     if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
         v = v[1:-1].strip()
     return v
