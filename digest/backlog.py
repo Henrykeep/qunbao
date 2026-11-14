@@ -11,7 +11,7 @@ def _line(r, cls) -> str:
             f"{' (@我)' if r['at_me'] else ''}{' ★' if cls == 'key' else ''}: {(r['text'] or '')[:800]}")
 
 
-BACKLOG_KEEP = env_int("BACKLOG_KEEP", 240)   # 单群一次最多整理最近这么多条；更早的直接略过（刚升级/断了很久才会遇到）
+BACKLOG_KEEP = env_int("BACKLOG_KEEP", 240, lo=1)   # 单群一次最多整理最近这么多条；更早的直接略过（刚升级/断了很久才会遇到）
 BACKLOG_OLD_KEEP = 30                                  # 略过的旧消息里，@我 / 重点消息最多再保留这么多条
 
 
