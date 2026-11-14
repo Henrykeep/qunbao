@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.613"
+VERSION="0.39.614"
 
 
 def _secs(t0):
@@ -23,6 +23,9 @@ def _secs(t0):
 def _within(ts, secs):
     """距 ts 不足 secs 秒（ts 为 0/None 视为很久以前）。限频、缓存有效期共用。"""
     return time.time() - (ts or 0) < secs
+def _age(ts):
+    """距 ts 已过去的秒数。"""
+    return time.time() - ts
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -1579,7 +1582,7 @@ async def auto_run_chat(k, rows, s, now: float | None = None, why: str = ""):
         oldest = min((min(ARRIVE.get(r["id"], r["ts"]), now) for r in rows), default=now)
         model_ok = LLM_LAST_OK[0] > AUTO["fail"][k]["since"] and code not in LLM_FATAL_CODES and code != -1
         fatal = code in LLM_FATAL_CODES or code == -1
-        age = time.time() - oldest
+        age = _age(oldest)
         if should_give_up(n, age, model_ok, fatal, giveup_n=AUTO_GIVEUP_N, giveup_secs=AUTO_GIVEUP_SECS, giveup_hard=AUTO_GIVEUP_HARD):
             give_up_chat(k, rows, err)
         return None
@@ -1958,7 +1961,7 @@ def backup_age_h():
         t = max(os.path.getmtime(os.path.join(d, f)) for f in os.listdir(d) if f.endswith(".db"))
     except (OSError, ValueError):
         return None
-    return round((time.time() - t) / 3600, 1)
+    return round(_age(t) / 3600, 1)
 
 
 def disk_free_mb():
