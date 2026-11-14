@@ -1,5 +1,6 @@
 """大积压保护与分块的纯函数（0.34.44 从 app.py 拆出，不碰数据库/全局状态）。"""
 import os
+from envutil import env_int
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -10,7 +11,7 @@ def _line(r, cls) -> str:
             f"{' (@我)' if r['at_me'] else ''}{' ★' if cls == 'key' else ''}: {(r['text'] or '')[:800]}")
 
 
-BACKLOG_KEEP = int(os.getenv("BACKLOG_KEEP", "240"))   # 单群一次最多整理最近这么多条；更早的直接略过（刚升级/断了很久才会遇到）
+BACKLOG_KEEP = env_int("BACKLOG_KEEP", 240)   # 单群一次最多整理最近这么多条；更早的直接略过（刚升级/断了很久才会遇到）
 BACKLOG_OLD_KEEP = 30                                  # 略过的旧消息里，@我 / 重点消息最多再保留这么多条
 
 
