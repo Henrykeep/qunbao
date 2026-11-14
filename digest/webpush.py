@@ -1,5 +1,6 @@
 """Web Push 传输层：VAPID 密钥、发送、失效订阅清理（0.34.23 从 app.py 拆出）。
 数据库访问由 app.py 启动时 bind(db, kv_get) 注入，本模块不 import app。"""
+from tz import clock as _clock
 import os, json, time, asyncio
 
 db = None
@@ -78,7 +79,7 @@ async def webpush_all(payload: dict, endpoint: str = "") -> int:
             print("Web Push 失败:", code or ex)
             return "err"
     res = await asyncio.gather(*(asyncio.to_thread(one, r) for r in subs))
-    now = int(time.time())
+    now = int(_clock())
     with db() as c:
         for r, x in zip(subs, res):
             if x == "gone":
