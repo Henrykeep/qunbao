@@ -18,7 +18,7 @@ def basic_creds(header: str):
         return None
     try:
         u, _, p = base64.b64decode(header[6:]).decode().partition(":")
-    except Exception:
+    except ValueError:
         return None
     return u, p
 
