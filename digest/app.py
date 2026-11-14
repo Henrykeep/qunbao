@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.607"
+VERSION="0.39.608"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -1514,9 +1514,7 @@ def auto_sweep(s: dict):
                 ARRIVE.pop(r["id"], None)
     pids = [r["id"] for r in pend if r["id"] <= top]
     kv_set("scan_id", (min(pids) - 1) if pids else max(top, int(kv_get("scan_id", 0) or 0)))
-    if len(ARRIVE) > 20000:  # 兜底：别无限长
-        for i in sorted(ARRIVE)[:10000]:
-            ARRIVE.pop(i, None)
+    trim_oldest(ARRIVE, ARRIVE, cap=20000)  # 兜底：别无限长
 
 
 def _llm_code(ex) -> int:
