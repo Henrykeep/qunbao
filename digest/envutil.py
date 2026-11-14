@@ -43,3 +43,11 @@ def env_str(name, default=""):
     if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
         v = v[1:-1].strip()
     return v
+
+
+def env_url(name, default=""):
+    """地址：漏写 http:// 的补上（NAPCAT_HTTP=napcat:3000 否则请求直接报错），去尾斜杠。"""
+    v = env_str(name, default)
+    if v and "://" not in v:
+        v = "http://" + v
+    return v.rstrip("/")
