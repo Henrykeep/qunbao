@@ -1,5 +1,5 @@
 """群报：收集 QQ（NapCat / OneBot 11）和微信（通知转发）群消息，用大模型挑出重要的事和待办。"""
-import asyncio, collections, contextlib, hashlib, json, os, re, secrets, shutil
+import asyncio, logging, collections, contextlib, hashlib, json, os, re, secrets, shutil
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, quote
 from inbound import norm_ts, cq_images, clean_cq, parse_wx  # noqa: F401 (0.34.37 拆出)
@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.632"
+VERSION="0.39.633"
 
 
 
@@ -587,8 +587,8 @@ async def group_name(gid: int) -> str:
             trim_oldest(_group_ts, _group_ts, _group_names)  # 群名缓存同样限长
             _group_names[gid] = name = got
             _group_ts[gid] = _clock()
-    except Exception:
-        pass
+    except Exception as e:  # 查群名失败不影响主流程，但留一行日志便于排查 NapCat 连通性
+        logging.getLogger('qunbao').warning('group_name(%s) 查询失败: %s', gid, e)
     return name
 
 
