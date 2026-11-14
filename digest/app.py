@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.640"
+VERSION="0.39.641"
 
 
 
@@ -2155,7 +2155,7 @@ def view_headline(hours, body):
     today = _today()
     try:
         c = json.loads(kv_get(f"head_{hours}", "") or "{}")
-    except Exception:
+    except ValueError:
         c = {}
     if c.get("day") == today and c.get("h"):
         return c["h"]
@@ -2604,7 +2604,7 @@ async def push_unsub(req: Request):
 async def push_test(req: Request):
     try:
         d = await req.json()
-    except Exception:
+    except ValueError:
         d = {}
     if (d or {}).get("channel") == "web":
         ep = str(d.get("endpoint") or "")
