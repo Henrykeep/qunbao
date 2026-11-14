@@ -3,14 +3,14 @@ import os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from tz import TZ  # 0.39.623 收敛
+from tz import TZ, now as _tznow  # 0.39.625
 
 
 def in_quiet(s, now=None) -> bool:
     a, b = int(s.get("quiet_start", -1)), int(s.get("quiet_end", 7))
     if a < 0 or a == b:
         return False
-    h = (now or datetime.now(TZ)).hour
+    h = (now or _tznow()).hour
     return (a <= h < b) if a < b else (h >= a or h < b)
 
 
