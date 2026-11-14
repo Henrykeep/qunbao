@@ -1,3 +1,6 @@
+## 0.39.634 — 2026-11-15
+- app.py 12 处 print 收敛为 logging（失败 warning、整理统计 info），basicConfig 统一输出，docker logs 格式不变。
+
 ## 0.39.633 — 2026-11-15
 - 查群名失败不再静默吞掉，记一行警告日志，便于排查 NapCat 连通性。
 
