@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.620"
+VERSION="0.39.621"
 
 
 def _clock():
@@ -44,9 +44,14 @@ def _day0():
     return int(_nowdt().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
 
 
+def _ymd(ts):
+    """时间戳 → 本地时区日期字符串 YYYY-MM-DD。"""
+    return datetime.fromtimestamp(ts, TZ).strftime("%Y-%m-%d")
+
+
 def _today():
     """今天的日期字符串 YYYY-MM-DD（本地时区）。"""
-    return _nowdt().strftime("%Y-%m-%d")
+    return _ymd(_clock())
 
 
 def _age(ts):
@@ -1662,7 +1667,7 @@ async def refresh_live(s: dict | None = None, stats: dict | None = None, now: fl
         if want_model:
             kv_set("head_ts", int(now))
         body["headline"] = valid_headline(head, opens)  # 旧头条说的事已勾完成/过期：这里就换掉，不等首页来修
-        today = datetime.fromtimestamp(now, TZ).strftime("%Y-%m-%d")
+        today = _ymd(now)
         body.update(stats=stats or {}, mode="live", auto=True, live=True, live_day=today, upto_id=int(kv_get("scan_id", 0) or 0))
         with db() as c:
             if latest and prev.get("live") and latest["hours"] == hours and prev.get("live_day") == today:
@@ -2303,7 +2308,7 @@ def digests(limit: int = 30):
     out, seen = [], set()
     for r in rows:
         # 往期每天只留一期（当天最新那期；周报单独一期）：旧版每半小时整理一次会存一堆几乎一样的
-        k = (datetime.fromtimestamp(r["ts"], TZ).strftime("%Y-%m-%d"), r["hours"] >= 168)
+        k = (_ymd(r["ts"]), r["hours"] >= 168)
         if k in seen:
             continue
         seen.add(k)
