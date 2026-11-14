@@ -1,4 +1,5 @@
 """环境变量读取：.env 里写错（空串/文字）时回退默认值，不让服务启动即崩。"""
+import math
 import os
 
 
@@ -11,9 +12,11 @@ def env_int(name, default):
 
 def env_float(name, default):
     try:
-        return float(str(os.getenv(name, default)).strip())
+        v = float(str(os.getenv(name, default)).strip())
     except (TypeError, ValueError):
         return float(default)
+    # nan/inf 能被 float() 解析，但当超时/间隔用会让服务卡死或立即超时
+    return v if math.isfinite(v) else float(default)
 
 
 def env_str(name, default=""):
