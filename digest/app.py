@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.603"
+VERSION="0.39.604"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -521,6 +521,9 @@ async def group_name(gid: int) -> str:
     name = _group_names.get(gid) or f"群{gid}"
     if time.time() - _group_miss.get(gid, 0) < 600:  # 查不到的 10 分钟后再试
         return name
+    if len(_group_miss) > 2000:  # 群号来自外部消息，查询记录表限长：只留最近 1000 条
+        for k in sorted(_group_miss, key=_group_miss.get)[:-1000]:
+            _group_miss.pop(k, None)
     _group_miss[gid] = time.time()
     try:
         h = {"Authorization": f"Bearer {NAPCAT_TOKEN}"} if NAPCAT_TOKEN else {}
