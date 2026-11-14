@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.605"
+VERSION="0.39.606"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -322,9 +322,7 @@ async def push(title: str, body: str, key: str = "", force=False, test=False, le
         return False
     if key and not force and time.time() - _last_push.get(key, 0) < gap:  # 同一个群限频
         return False
-    if len(_last_push) > 2000:  # 限频表只需记最近的，超限丢掉最旧一半
-        for k in sorted(_last_push, key=_last_push.get)[:1000]:
-            _last_push.pop(k, None)
+    trim_oldest(_last_push, _last_push)  # 限频表只需记最近的
     _last_push[key] = time.time()
     path = url or chat_path(key)
     ok_b = ok_w = False
@@ -514,6 +512,15 @@ def note_group_name(gid: int, got: str):
     kv_set(k, got)
 
 
+def trim_oldest(ref: dict, ts: dict, *also: dict, cap: int = 2000) -> None:
+    """外部输入驱动的表统一限长：超过 cap 条时按时间戳丢掉最旧的一半（同步清 also 里的同名键）。"""
+    if len(ref) <= cap:
+        return
+    for k in sorted(ref, key=ts.get)[:len(ref) // 2]:
+        for d in (ref, *also):
+            d.pop(k, None)
+
+
 async def group_name(gid: int) -> str:
     fresh = time.time() - _group_ts.get(gid, time.time()) < GROUP_NAME_TTL
     if gid in _group_names and fresh:
@@ -521,9 +528,7 @@ async def group_name(gid: int) -> str:
     name = _group_names.get(gid) or f"群{gid}"
     if time.time() - _group_miss.get(gid, 0) < 600:  # 查不到的 10 分钟后再试
         return name
-    if len(_group_miss) > 2000:  # 群号来自外部消息，查询记录表限长：只留最近 1000 条
-        for k in sorted(_group_miss, key=_group_miss.get)[:-1000]:
-            _group_miss.pop(k, None)
+    trim_oldest(_group_miss, _group_miss)  # 群号来自外部消息，查询记录表限长
     _group_miss[gid] = time.time()
     try:
         h = {"Authorization": f"Bearer {NAPCAT_TOKEN}"} if NAPCAT_TOKEN else {}
@@ -533,10 +538,7 @@ async def group_name(gid: int) -> str:
         if got:  # 只缓存查到的真名；查不到时下次再查，不要永远显示成「群123」
             got = str(got).strip() or got
             note_group_name(gid, got)
-            if len(_group_ts) > 2000:  # 群名缓存同样限长：丢掉最旧的一半
-                for k in sorted(_group_ts, key=_group_ts.get)[:1000]:
-                    _group_ts.pop(k, None)
-                    _group_names.pop(k, None)
+            trim_oldest(_group_ts, _group_ts, _group_names)  # 群名缓存同样限长
             _group_names[gid] = name = got
             _group_ts[gid] = time.time()
     except Exception:
