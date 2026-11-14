@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.601"
+VERSION="0.39.602"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -2650,8 +2650,8 @@ async def ask(req: Request):
     valid = {r["id"]: r for r in rows if r["id"] in ids}
     text, cites = cite(tidy_bullets(a), valid)
     out = {"a": text, "citations": cites, "scope": {"chat": chat, "source": source}, "used": len(lines)}
-    if len(_ASK_CACHE) > 100:
-        _ASK_CACHE.clear()
+    while len(_ASK_CACHE) >= 100:  # 只淘汰最旧的一条，不再满了就整表清空（热门问题不会一起失效）
+        _ASK_CACHE.pop(next(iter(_ASK_CACHE)))
     _ASK_CACHE[key] = (time.time(), out)
     return out
 
