@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.649"
+VERSION="0.39.650"
 
 
 
@@ -77,14 +77,14 @@ ONEBOT_TOKEN = env_str("ONEBOT_TOKEN", "")
 MAX_CHARS = env_int("MAX_CHARS", 60000)
 KEEP_DAYS = env_int("KEEP_DAYS", 30)
 BACKUP_KEEP = max(1, env_int("BACKUP_KEEP", 3))  # 数据库快照保留份数
-NAPCAT_DATA = os.getenv("NAPCAT_DATA", "/napcat_qq")   # NapCat 的 QQ 数据目录（docker-compose 挂进来），用来清图片缓存
+NAPCAT_DATA = env_str("NAPCAT_DATA", "/napcat_qq")   # NapCat 的 QQ 数据目录（docker-compose 挂进来），用来清图片缓存
 SESSION_DAYS = env_int("SESSION_DAYS", 30)  # 网页登录保持天数
 
 # 网页「设置」里可以改的项；.env 里的值只作为第一次启动时的默认值
 DEFAULTS = {
     "weekly_digest": True,
     "keep_days": KEEP_DAYS,    # 消息保留天数
-    "profile": os.getenv("MY_PROFILE", ""),
+    "profile": env_str("MY_PROFILE", ""),
     "my_names": [],            # 我的昵称/群名片：文本里出现 @昵称 就算 @我（微信通知常识别不出）
     "vip": [],                 # 重要的人（昵称/群名片），他们说话一律值得看
     "keywords": ["截止", "ddl", "提交", "开会", "考试", "缴费", "通知", "报名", "@全体成员"],
@@ -96,8 +96,8 @@ DEFAULTS = {
     "only_mode": False, "allowed": [], "muted": [], "levels": {},
     "digest_hour": env_int("DIGEST_HOUR", 21),
     "digest_hour2": -1,        # 第二次整理时间（早报+晚报）；-1 = 关闭
-    "bark_url": os.getenv("BARK_URL", ""),   # 例：https://api.day.app/你的key
-    "site_url": os.getenv("SITE_URL", ""),   # 推送点开后跳转的群报地址
+    "bark_url": env_str("BARK_URL", ""),   # 例：https://api.day.app/你的key
+    "site_url": env_str("SITE_URL", ""),   # 推送点开后跳转的群报地址
     "push_at": True,           # @我 / 重要的人 / 关键词 实时推送
     "push_digest": True,       # 每日总结推送
     "remind_hours": 3,         # 待办截止前几小时推送提醒；0 = 关闭
