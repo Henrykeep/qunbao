@@ -1,8 +1,18 @@
 """全站唯一的时区定义（APP_TZ，默认 Asia/Shanghai）。"""
-import os
 from zoneinfo import ZoneInfo
 
-TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")
+from envutil import env_str
+
+
+def _load(name):
+    """APP_TZ 写错（拼写/容器缺 tzdata）时回退上海时区，不让服务启动即崩。"""
+    try:
+        return ZoneInfo(name)
+    except Exception:
+        return ZoneInfo("Asia/Shanghai")
+
+
+TZ = _load(env_str("APP_TZ", "") or "Asia/Shanghai")
 
 
 def dt(ts):
