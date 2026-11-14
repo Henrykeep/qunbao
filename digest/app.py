@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.604"
+VERSION="0.39.605"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -533,6 +533,10 @@ async def group_name(gid: int) -> str:
         if got:  # 只缓存查到的真名；查不到时下次再查，不要永远显示成「群123」
             got = str(got).strip() or got
             note_group_name(gid, got)
+            if len(_group_ts) > 2000:  # 群名缓存同样限长：丢掉最旧的一半
+                for k in sorted(_group_ts, key=_group_ts.get)[:1000]:
+                    _group_ts.pop(k, None)
+                    _group_names.pop(k, None)
             _group_names[gid] = name = got
             _group_ts[gid] = time.time()
     except Exception:
