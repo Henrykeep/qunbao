@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.629"
+VERSION="0.39.630"
 
 
 
@@ -2703,7 +2703,7 @@ async def ask(req: Request):
                                       "用户追问（如「那后来定了吗」）时接着上文回答：只答新问的那部分，上文已经说过的不要再讲一遍，没有新信息就一句话说「没有新的进展」。"
                                       "每个要点末尾用 [#消息编号] 标出依据，编号只能用记录里出现过的 #数字，没有依据就不要编。"
                                       "记录里没有就直说没有。可以用 **加粗** 标重点，不要标题和表格。"},
-        {"role": "user", "content": f"聊天记录（#数字 是消息编号）：\n" + "\n".join(lines) + extra},
+        {"role": "user", "content": "聊天记录（#数字 是消息编号）：\n" + "\n".join(lines) + extra},
         {"role": "assistant", "content": "好的，我看完了，请问。"}, *hist,
         {"role": "user", "content": q}])
     ids = {int(ln[1:].split(" ", 1)[0]) for ln in lines}
