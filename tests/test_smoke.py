@@ -3665,3 +3665,12 @@ def test_onebot_bad_body_is_4xx_not_500():
     assert c.post("/onebot", content=b"not json", headers=h).status_code == 400
     assert c.post("/onebot", content=b"[1]", headers=h).status_code == 400
     assert c.post("/onebot", content=b"x" * (300 * 1024), headers=h).status_code == 413
+
+
+def test_chat_lock_prunes_idle_locks():
+    import digest.app as a
+    a._chat_locks.clear()
+    for i in range(600):
+        a.chat_lock("qq", str(i))
+    a.chat_lock("qq", "x")
+    assert len(a._chat_locks) < 150
