@@ -1,3 +1,6 @@
+## 0.39.625 — 2026-11-14
+当前时间统一走 tz.now()，headline/quiet/todo_match/app 不再各自 datetime.now(TZ)。
+
 ## 0.39.624 — 2026-11-14
 时间戳转本地时间统一走 tz.dt()，backlog/rules 不再各自拼 fromtimestamp。
 
