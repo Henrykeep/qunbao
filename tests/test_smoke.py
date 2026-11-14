@@ -3655,3 +3655,13 @@ def test_ingest_token_lockout():
     codes = [c.post("/ingest", headers={"X-Token": "bad"}, json={}).status_code for _ in range(9)]
     assert codes[0] == 401 and codes[-1] == 429
     a._fails.clear()
+
+
+def test_onebot_bad_body_is_4xx_not_500():
+    from fastapi.testclient import TestClient
+    import app as A
+    c = TestClient(A.app, raise_server_exceptions=False)
+    h = {"Authorization": "Bearer " + A.ONEBOT_TOKEN} if A.ONEBOT_TOKEN else {}
+    assert c.post("/onebot", content=b"not json", headers=h).status_code == 400
+    assert c.post("/onebot", content=b"[1]", headers=h).status_code == 400
+    assert c.post("/onebot", content=b"x" * (300 * 1024), headers=h).status_code == 413
