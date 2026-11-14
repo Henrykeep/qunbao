@@ -27,7 +27,7 @@
   --accent:#C2412D; --amber:#A66B08; --calm:#6F8A6C; --danger:#C8352A; --qq:#356FC7; --wx:#168A45;
   --bubble:#FFFFFF; --mine:#FCEFE9;
   --ico-xs:11px; --ico-sm:14px; --ico-md:16px; --ico-lg:20px; --ico-xl:22px;
-  --dot:8px; --dot-sm:var(--s1h); --sw-w:50px; --sw-h:30px; --sw-k:26px; --ctl:36px; --ctl-sm:34px; --tap:44px;
+  --dot:8px; --col:608px; --dot-sm:var(--s1h); --sw-w:50px; --sw-h:30px; --sw-k:26px; --ctl:36px; --ctl-sm:34px; --tap:44px;
   --shadow-sm:0 1px 3px rgba(0,0,0,.08); --shadow-pop:0 4px 14px rgba(0,0,0,.18); --shadow-knob:0 2px 5px rgba(0,0,0,.18); --shadow-edge:-10px 0 28px rgba(0,0,0,.35);
   --shadow:0 1px 2px rgba(27,26,23,.04),0 6px 20px rgba(27,26,23,.05);
   --serif:"Songti SC","Noto Serif SC","Source Han Serif SC","STSong",serif;
@@ -425,14 +425,14 @@ details.howto[open] summary svg{transform:rotate(180deg)}
   transform:translateY(calc(-1px*var(--kb,0)));will-change:transform;contain:layout paint}
 .askbox{display:none;padding:var(--s2) var(--s4) 0}
 .dock.home #homeask,.dock.chat #chatask{display:block}
-.askbox form,.sheet form{display:flex;gap:var(--s2);max-width:608px;margin:0 auto}
+.askbox form,.sheet form{display:flex;gap:var(--s2);max-width:var(--col);margin:0 auto}
 .inp{flex:1;min-width:0;padding:11px 18px;border:var(--bw) solid var(--line);border-radius:var(--r-pill);background:var(--card);outline:none;transition:border-color var(--dur-fast)}
 .inp:focus{border-color:var(--ink)}
 .inp::placeholder{color:var(--faint)}
 .send{flex:none;width:var(--tap);height:var(--tap);border:0;border-radius:var(--r-round);background:var(--ink);color:var(--bg);display:grid;place-items:center;transition:transform var(--dur-fast)}
 .send:active{transform:scale(.9)}
 .send svg{width:var(--ico-lg);height:var(--ico-lg)}
-.suggest{display:none;gap:var(--s1h);max-width:608px;margin:0 auto var(--s2);overflow-x:auto;scrollbar-width:none;
+.suggest{display:none;gap:var(--s1h);max-width:var(--col);margin:0 auto var(--s2);overflow-x:auto;scrollbar-width:none;
   -webkit-mask-image:linear-gradient(90deg,var(--black) 88%,transparent);mask-image:linear-gradient(90deg,var(--black) 88%,transparent)}
 .suggest::-webkit-scrollbar{display:none}
 .dock.typing:not(.filled) .suggest{display:flex}  /* 快捷问题平时收起，让出首屏；点进输入框且还没打字时才出现 */
@@ -461,7 +461,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .ph .ttl{flex:1;min-width:0;font-size:var(--t-xs);letter-spacing:var(--ls-l);color:var(--sub);font-weight:600}
 .pbody{flex:1;overflow:auto;padding:var(--s1) var(--s5) var(--s5);-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .panel.auto .pbody{padding-bottom:calc(var(--s5) + env(safe-area-inset-bottom))}
-.pbody .inner{max-width:608px;margin:0 auto}
+.pbody .inner{max-width:var(--col);margin:0 auto}
 .pfoot{flex:none;padding:var(--s2h) var(--s4) calc(var(--s3) + env(safe-area-inset-bottom));border-top:var(--bw) solid var(--line)}
 .qq{margin-top:var(--s5);font-family:var(--serif);font-size:var(--t-xl);font-weight:700;line-height:1.45}
 .qq:first-child{margin-top:var(--s2)}
