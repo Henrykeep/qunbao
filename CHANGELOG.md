@@ -1,3 +1,6 @@
+## 0.39.645 — 2026-11-14
+- /api/digest 的 hours、问答的 since_id 遇到脏值回落默认值，不再 500（收敛 _toint）。
+
 ## 0.39.644 — 2026-11-15
 
 - 请求头 Content-Length 为脏值时不再让 /onebot、/ingest 报 500，按无长度处理。
