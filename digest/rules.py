@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from todo_match import parse_due
 
-from tz import TZ  # 0.39.623 收敛
+from tz import TZ, dt  # 0.39.623 收敛
 
 AD_RE = re.compile(r"券后|优惠券|领券|返利|返现|包邮|秒杀|神价|线报|速度冲|速冲|复制这条|打开手淘|淘口令|￥[A-Za-z0-9]{6,}￥|"
                    r"砍一刀|帮我砍|助力一下|拼多多|yangkeduo|pinduoduo|m\.tb\.cn|u\.jd\.com|s\.click\.taobao|uland\.taobao|"
@@ -36,7 +36,7 @@ def rule_event(r, now=None):
     if re.search(r"[吗嘛？?]\s*$", text) and "@全体" not in text:  # 「今晚查寝吗？」是问句，不是通知
         return None
     now = now or time.time()
-    nd, td = datetime.fromtimestamp(now, TZ), datetime.fromtimestamp(r["ts"], TZ)
+    nd, td = dt(now), dt(r["ts"])
     g = timedelta(hours=5)  # 凌晨 5 点前仍算「昨天的今晚」：「天」按减 5 小时算
     nd, tdd = nd - g, td - g
     w = when.group(0) if when else ""
