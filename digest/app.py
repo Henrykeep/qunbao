@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.606"
+VERSION="0.39.607"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -147,6 +147,7 @@ def _locked(ip: str) -> bool:
     if len(_fails) > 1000:  # 被扫时 IP 很多：整本清掉过期记录
         for k in [k for k, v in _fails.items() if not v or now - v[-1] >= 600]:
             _fails.pop(k, None)
+        trim_oldest(_fails, {k: v[-1] for k, v in _fails.items()}, cap=1000)  # 全是新错也封顶
     fails = [t for t in _fails.get(ip, []) if now - t < 600]
     if fails:
         _fails[ip] = fails
