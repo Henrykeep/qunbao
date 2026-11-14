@@ -6,12 +6,12 @@ from inbound import norm_ts, cq_images, clean_cq, parse_wx  # noqa: F401 (0.34.3
 
 import httpx
 import watchdog as _watchdog
-from envutil import env_int, env_float, env_str
+from envutil import env_int, env_float, env_str, env_url
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.656"
+VERSION="0.39.657"
 
 
 
@@ -68,7 +68,7 @@ _clock = _tzclock
 LLM_BASE = env_str("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
 LLM_KEY = env_str("LLM_API_KEY", "")
 LLM_MODEL = env_str("LLM_MODEL", "deepseek-chat")
-NAPCAT_HTTP = env_str("NAPCAT_HTTP", "http://napcat:3000").rstrip("/")
+NAPCAT_HTTP = env_url("NAPCAT_HTTP", "http://napcat:3000")
 NAPCAT_TOKEN = env_str("NAPCAT_TOKEN", "")
 WEB_USER = env_str("WEB_USER", "me")
 WEB_PASS = env_str("WEB_PASS", "")
@@ -97,7 +97,7 @@ DEFAULTS = {
     "digest_hour": env_int("DIGEST_HOUR", 21),
     "digest_hour2": -1,        # 第二次整理时间（早报+晚报）；-1 = 关闭
     "bark_url": env_str("BARK_URL", ""),   # 例：https://api.day.app/你的key
-    "site_url": env_str("SITE_URL", ""),   # 推送点开后跳转的群报地址
+    "site_url": env_url("SITE_URL", ""),   # 推送点开后跳转的群报地址
     "push_at": True,           # @我 / 重要的人 / 关键词 实时推送
     "push_digest": True,       # 每日总结推送
     "remind_hours": 3,         # 待办截止前几小时推送提醒；0 = 关闭
