@@ -7,3 +7,10 @@ def env_int(name, default):
         return int(str(os.getenv(name, default)).strip())
     except (TypeError, ValueError):
         return int(default)
+
+
+def env_float(name, default):
+    try:
+        return float(str(os.getenv(name, default)).strip())
+    except (TypeError, ValueError):
+        return float(default)
