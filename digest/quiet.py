@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")
+from tz import TZ  # 0.39.623 收敛
 
 
 def in_quiet(s, now=None) -> bool:
