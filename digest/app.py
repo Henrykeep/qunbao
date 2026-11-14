@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.600"
+VERSION="0.39.601"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -155,13 +155,17 @@ def _locked(ip: str) -> bool:
     return len(fails) >= 8
 
 
+def _fail(ip: str) -> None:  # 记一次口令错；只留最近 8 条（够判锁定），长时间被扫也不涨内存
+    _fails[ip] = (_fails.get(ip, []) + [time.time()])[-8:]
+
+
 def _token_gate(req: Request, tok: str, want: str) -> None:
     """/onebot 与 /ingest 共用的口令校验：和登录同一本错误账，8 次错就锁 10 分钟（公网 IP 无 HTTPS 时防扫口令）。"""
     ip = _client_ip(req)
     if _locked(ip):
         raise HTTPException(429, "错太多次了，10 分钟后再试")
     if not want or not _ceq(tok, want):
-        _fails[ip] = _fails.get(ip, []) + [time.time()]
+        _fail(ip)
         raise HTTPException(401, "口令不对")
 
 
@@ -174,7 +178,7 @@ def _basic_ok(req: Request) -> bool:
         return False
     if _ceq(cr[0], WEB_USER) and _ceq(cr[1], WEB_PASS):
         return True
-    _fails[ip] = _fails.get(ip, []) + [time.time()]
+    _fail(ip)
     return False
 
 
@@ -2715,7 +2719,7 @@ async def login(req: Request):
     d = await req.json()
     u, p = str(d.get("user") or WEB_USER), str(d.get("password") or "")
     if not (_ceq(u, WEB_USER) and _ceq(p, WEB_PASS)):
-        _fails[ip] = _fails.get(ip, []) + [now]
+        _fail(ip)
         await asyncio.sleep(0.6)
         raise HTTPException(401, "用户名或密码不对")
     _fails.pop(ip, None)
