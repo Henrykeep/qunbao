@@ -1,3 +1,6 @@
+## 0.39.635 — 2026-11-15
+- NapCat 群列表请求失败、/healthz 数据库不可用不再静默，记日志便于排查。
+
 ## 0.39.634 — 2026-11-15
 - app.py 12 处 print 收敛为 logging（失败 warning、整理统计 info），basicConfig 统一输出，docker logs 格式不变。
 
