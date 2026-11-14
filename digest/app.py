@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.615"
+VERSION="0.39.616"
 
 
 def _secs(t0):
@@ -23,6 +23,12 @@ def _secs(t0):
 def _within(ts, secs):
     """距 ts 不足 secs 秒（ts 为 0/None 视为很久以前）。限频、缓存有效期共用。"""
     return time.time() - (ts or 0) < secs
+
+def _now():
+    """当前整数秒时间戳，入库/统计共用。"""
+    return int(time.time())
+
+
 def _age(ts):
     """距 ts 已过去的秒数。"""
     return time.time() - ts
@@ -200,7 +206,7 @@ def _session_ok(req: Request, resp: Response | None = None) -> bool:
     tok = req.cookies.get(COOKIE, "")
     if not tok:
         return False
-    now = int(time.time())
+    now = _now()
     with db() as c:
         r = c.execute("SELECT exp, pw FROM sessions WHERE h=?", (_h(tok),)).fetchone()
         if not r or r["exp"] < now or r["pw"] != _pw_tag():
@@ -385,7 +391,7 @@ def was_pushed(keys) -> bool:
 
 
 def mark_pushed(keys):
-    now = int(time.time())
+    now = _now()
     with db() as c:
         c.executemany("INSERT OR REPLACE INTO pushed(k,ts) VALUES(?,?)", [(k, now) for k in keys if k])
 
@@ -633,7 +639,7 @@ async def onebot(req: Request):
         raise HTTPException(400, "需要 JSON 对象")
     if e.get("post_type") == "meta_event":
         with db() as c:
-            c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('heartbeat',?)", (str(int(time.time())),))
+            c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('heartbeat',?)", (str(_now()),))
         return {}
     if e.get("post_type") != "message":
         return {}
@@ -652,7 +658,7 @@ async def onebot(req: Request):
 
 def mark_seen(key):
     with db() as c:
-        c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES(?,?)", (key, str(int(time.time()))))
+        c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES(?,?)", (key, str(_now())))
 
 
 @app.post("/ingest")
@@ -680,7 +686,7 @@ async def ingest(req: Request):
     chat, sender, text, at_me = p
     with db() as c:  # 通知转发常会重复推同一条，2 分钟内同内容去重
         dup = c.execute("SELECT 1 FROM msgs WHERE source=? AND chat=? AND sender=? AND text=? AND ts>=?",
-                        (source, chat, sender, text[:4000], int(time.time()) - 120)).fetchone()
+                        (source, chat, sender, text[:4000], _now() - 120)).fetchone()
     if dup:
         return {"ok": True, "dup": True}
     await save(source, chat, sender, text, d.get("ts"), at_me)
@@ -741,21 +747,21 @@ def llm_err_shown() -> str:
 
 
 def llm_log(kind: str):
-    now = int(time.time())
+    now = _now()
     with db() as c:
         c.execute("INSERT INTO llm_log(ts,kind) VALUES(?,?)", (now, kind))
 
 
 def llm_calls_since(sec: int = 3600) -> dict:
     with db() as c:
-        rows = c.execute("SELECT kind, COUNT(*) n FROM llm_log WHERE ts>=? GROUP BY kind", (int(time.time()) - sec,)).fetchall()
+        rows = c.execute("SELECT kind, COUNT(*) n FROM llm_log WHERE ts>=? GROUP BY kind", (_now() - sec,)).fetchall()
     d = {r["kind"]: r["n"] for r in rows}
     return {"total": sum(d.values()), **d}
 
 
 async def llm(messages, as_json=False):
     if not LLM_KEY:
-        LLM_STATE.update(ok=False, err="还没配置大模型：在 .env 里设置 LLM_API_KEY", ts=int(time.time()), code=-1)
+        LLM_STATE.update(ok=False, err="还没配置大模型：在 .env 里设置 LLM_API_KEY", ts=_now(), code=-1)
         raise HTTPException(500, "请先在 .env 里设置 LLM_API_KEY", headers={"x-llm-code": "-1"})
     sysm = str((messages or [{}])[0].get("content") or "")
     kind = next((v for k, v in (("【群更新】", "chat"), ("【头条】", "head"), ("【问答】", "ask"), ("【群简报】", "brief"))
@@ -777,7 +783,7 @@ async def llm(messages, as_json=False):
                 r.raise_for_status()
                 out_j = r.json()
                 out = out_j["choices"][0]["message"]["content"]
-                LLM_STATE.update(ok=True, err="", ts=int(time.time()), code=0, fail_since=0)
+                LLM_STATE.update(ok=True, err="", ts=_now(), code=0, fail_since=0)
                 LLM_LAST_OK[0] = time.time()
                 kv_add("llm_calls", 1)
                 kv_add("llm_tokens", int((out_j.get("usage") or {}).get("total_tokens") or 0))
@@ -806,13 +812,13 @@ async def llm(messages, as_json=False):
         elif code != 429:
             break
     if code != 451:  # 审核拦截由调用方拆块跳过，不算「大模型坏了」，不挂红色报错
-        LLM_STATE.update(ok=False, err=err, ts=int(time.time()), code=code, fail_since=LLM_STATE.get("fail_since") or time.time())
+        LLM_STATE.update(ok=False, err=err, ts=_now(), code=code, fail_since=LLM_STATE.get("fail_since") or time.time())
     raise HTTPException(502, err, headers={"x-llm-code": str(code)})
 
 
 def transcript(hours: int):
     s = settings()
-    since = int(time.time()) - hours * 3600
+    since = _now() - hours * 3600
     with db() as c:
         rows = c.execute("SELECT * FROM msgs WHERE ts>=? ORDER BY ts", (since,)).fetchall()
     rows = [r for r in rows if in_digest(r["source"], r["chat"], s) and classify(r, s) != "drop"]
@@ -946,7 +952,7 @@ def _scan_rows(full=False):
     wm = None if full else kv_get("scan_id")
     with db() as c:
         if wm is None:
-            rows = c.execute("SELECT * FROM msgs WHERE ts>=? ORDER BY id", (int(time.time()) - 86400,)).fetchall()
+            rows = c.execute("SELECT * FROM msgs WHERE ts>=? ORDER BY id", (_now() - 86400,)).fetchall()
         else:
             rows = c.execute("SELECT * FROM msgs WHERE id>? ORDER BY id", (int(wm),)).fetchall()
         last = {} if full else {(r["source"], r["chat"]): r["last_msg_id"] for r in c.execute("SELECT * FROM chat_state")}
@@ -1202,7 +1208,7 @@ async def _update_chat(source, chat, rows, s, stats) -> bool:
             opens = [dict(r) for r in c.execute("SELECT id,kind,title,detail,due,urgency FROM items WHERE source=? AND chat=? AND status='open' ORDER BY id",
                                                 (source, chat))]
             done = [r["title"] for r in c.execute("SELECT title FROM items WHERE source=? AND chat=? AND status='done' AND updated_ts>=? ORDER BY updated_ts DESC LIMIT 15",
-                                                  (source, chat, int(time.time()) - 7 * 86400))]
+                                                  (source, chat, _now() - 7 * 86400))]
         state = json.dumps({"summary": summary, "open_items": opens, "done_recent": done}, ensure_ascii=False)
         msgs = [{"role": "system", "content": chat_prompt(s, source, chat)},
                 {"role": "user", "content": f"旧状态：{state}\n新消息（{len(part)} 条）：\n" + "\n".join(x[2] for x in part)}]
@@ -1248,11 +1254,11 @@ async def _update_chat(source, chat, rows, s, stats) -> bool:
             with db() as c:
                 c.execute("INSERT INTO chat_state(source,chat,last_msg_id,summary,updated_ts) VALUES(?,?,?,?,?) "
                           "ON CONFLICT(source,chat) DO UPDATE SET last_msg_id=MAX(last_msg_id, excluded.last_msg_id), summary=excluded.summary, updated_ts=excluded.updated_ts",
-                          (source, chat, max(x[0]["id"] for x in part), summary, int(time.time())))
+                          (source, chat, max(x[0]["id"] for x in part), summary, _now()))
     with db() as c:
         c.execute("INSERT OR REPLACE INTO chat_state(source,chat,last_msg_id,summary,updated_ts) VALUES(?,?,?,?,?)",
                   (source, chat, max(r["id"] for r in rows), summary,
-                   int(time.time()) if (changed or summary != old_summary) else (st["updated_ts"] if st else int(time.time()))))
+                   _now() if (changed or summary != old_summary) else (st["updated_ts"] if st else _now())))
     return changed or summary != old_summary
 
 
@@ -1306,7 +1312,7 @@ async def run_update(full=False):
         if skip or all(classify(r, s) == "drop" for r in rs):
             with db() as c:  # 不看 / 只看@我 / 全是噪音：零调用，只推进水位
                 c.execute("INSERT INTO chat_state(source,chat,last_msg_id,updated_ts) VALUES(?,?,?,?) "
-                          "ON CONFLICT(source,chat) DO UPDATE SET last_msg_id=excluded.last_msg_id", (*k, max(r["id"] for r in rs), int(time.time())))
+                          "ON CONFLICT(source,chat) DO UPDATE SET last_msg_id=excluded.last_msg_id", (*k, max(r["id"] for r in rs), _now()))
             if skip:
                 stats["skipped"] += 1
             else:
@@ -1329,7 +1335,7 @@ async def run_update(full=False):
     await asyncio.gather(*(one(k, rs) for k, rs in todo.items()))
     if full:
         with db() as c:
-            c.execute("UPDATE items SET status='expired', updated_ts=? WHERE status='rebuild'", (int(time.time()),))
+            c.execute("UPDATE items SET status='expired', updated_ts=? WHERE status='rebuild'", (_now(),))
     # 全局水位：有群失败就停在它前面，下次重试（成功的群靠各自 last_msg_id 跳过已处理的消息）
     kv_set("scan_id", (min(failed) - 1) if failed else max(r["id"] for r in rows))
     stats["errors"] = len(failed)
@@ -1351,7 +1357,7 @@ def _sort_key(s):
 
 def build_body(hours, s) -> dict:
     """首页群报 = 各群状态 + 未完成事项（+ 这段时间里完成的，折叠显示）。不读原始消息内容。"""
-    now = int(time.time())
+    now = _now()
     since = now - hours * 3600
     with db() as c:
         its = [item_dict(r) for r in c.execute(
@@ -1433,7 +1439,7 @@ async def _make_digest(hours=24, auto=False, full=False):
     if auto:
         body["auto"] = True
     with db() as c:
-        cur = c.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (int(time.time()), hours, json.dumps(body, ensure_ascii=False)))
+        cur = c.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)", (_now(), hours, json.dumps(body, ensure_ascii=False)))
         body["id"] = cur.lastrowid
     return body
 
@@ -1525,7 +1531,7 @@ def auto_sweep(s: dict):
         with db() as c:
             c.executemany("INSERT INTO chat_state(source,chat,last_msg_id,updated_ts) VALUES(?,?,?,?) "
                           "ON CONFLICT(source,chat) DO UPDATE SET last_msg_id=MAX(last_msg_id, excluded.last_msg_id)",
-                          [(k[0], k[1], i, int(time.time())) for k, i in adv.items()])
+                          [(k[0], k[1], i, _now()) for k, i in adv.items()])
         for r in allrows:
             if (r["source"], r["chat"]) in adv:
                 ARRIVE.pop(r["id"], None)
@@ -1562,7 +1568,7 @@ async def auto_run_chat(k, rows, s, now: float | None = None, why: str = ""):
         stats["secs"] = _secs(t0)
         if changed:
             await refresh_live(s, stats, now, bg_head=True)
-        AUTO["done_ts"] = int(time.time())
+        AUTO["done_ts"] = _now()
         kv_set("checked_ts", AUTO["done_ts"])
         ok = True
         return changed
@@ -1610,7 +1616,7 @@ def give_up_chat(k, rows, why=""):
     top = max(r["id"] for r in rows)
     with db() as c:
         c.execute("INSERT INTO chat_state(source,chat,last_msg_id,updated_ts) VALUES(?,?,?,?) "
-                  "ON CONFLICT(source,chat) DO UPDATE SET last_msg_id=MAX(last_msg_id, excluded.last_msg_id)", (k[0], k[1], top, int(time.time())))
+                  "ON CONFLICT(source,chat) DO UPDATE SET last_msg_id=MAX(last_msg_id, excluded.last_msg_id)", (k[0], k[1], top, _now()))
     for r in rows:
         ARRIVE.pop(r["id"], None)
     AUTO["fail"].pop(k, None)
@@ -1640,11 +1646,11 @@ async def refresh_live(s: dict | None = None, stats: dict | None = None, now: fl
         body.update(stats=stats or {}, mode="live", auto=True, live=True, live_day=today, upto_id=int(kv_get("scan_id", 0) or 0))
         with db() as c:
             if latest and prev.get("live") and latest["hours"] == hours and prev.get("live_day") == today:
-                c.execute("UPDATE digests SET ts=?, body=? WHERE id=?", (int(time.time()), json.dumps(body, ensure_ascii=False), latest["id"]))
+                c.execute("UPDATE digests SET ts=?, body=? WHERE id=?", (_now(), json.dumps(body, ensure_ascii=False), latest["id"]))
                 body["id"] = latest["id"]
             else:  # 定时群报 / 手动整理之后、或跨天：开新的一期，之后原地更新
                 body["id"] = c.execute("INSERT INTO digests(ts,hours,body) VALUES(?,?,?)",
-                                       (int(time.time()), hours, json.dumps(body, ensure_ascii=False))).lastrowid
+                                       (_now(), hours, json.dumps(body, ensure_ascii=False))).lastrowid
     newtodo = [t for t in new if t in body["todos"]]
     if newtodo and s.get("push_digest"):  # 免打扰时 push 会攒着，到点合并成一条
         await push_new_todos(newtodo, s)
@@ -1667,7 +1673,7 @@ async def _model_head(body, s, stats):
                     cur = json.loads(r["body"])
                     mh = fresh_headline({**cur, "headline": mh})  # 模型写好时可能已经有事被勾完成：按当前状态校验
                     cur["headline"] = mh
-                    c.execute("UPDATE digests SET ts=?, body=? WHERE id=?", (int(time.time()), json.dumps(cur, ensure_ascii=False), body["id"]))
+                    c.execute("UPDATE digests SET ts=?, body=? WHERE id=?", (_now(), json.dumps(cur, ensure_ascii=False), body["id"]))
                     body["headline"] = mh
     except Exception as ex:
         print("模型头条失败，保留规则头条:", ex)
@@ -1759,7 +1765,7 @@ def _item_from_key(k: str):
 
 
 async def check_snoozed():
-    now = int(time.time())
+    now = _now()
     with db() as c:
         rows = c.execute("SELECT * FROM snooze WHERE until<=?", (now,)).fetchall()
     done = done_records()
@@ -1818,7 +1824,7 @@ async def check_reminders():
         if await fire(t):
             with db() as c:
                 c.execute("INSERT OR REPLACE INTO reminded(k,ts,title,chat,due) VALUES(?,?,?,?,?)",
-                          (todo_key(t), int(time.time()), t.get("title") or "", t.get("chat") or "", t.get("due") or ""))
+                          (todo_key(t), _now(), t.get("title") or "", t.get("chat") or "", t.get("due") or ""))
             seen.append({"k": todo_key(t), "title": t.get("title") or "", "chat": t.get("chat") or "", "due": t.get("due") or ""})
             sent += 1
     return sent
@@ -2070,7 +2076,7 @@ def valid_headline(head, opens, gone=None) -> str:
         with db() as c:
             gone = [r["title"] for r in c.execute(
                 "SELECT title FROM items WHERE status!='open' AND updated_ts>=? ORDER BY updated_ts DESC LIMIT 300",
-                (int(time.time()) - 7 * 86400,))]
+                (_now() - 7 * 86400,))]
     return check_headline(head, opens, gone)
 
 
@@ -2084,7 +2090,7 @@ def fresh_headline(body):
     with db() as c:
         gone += [r["title"] for r in c.execute(
             "SELECT title FROM items WHERE status!='open' AND updated_ts>=? ORDER BY updated_ts DESC LIMIT 300",
-            (int(time.time()) - 7 * 86400,))]
+            (_now() - 7 * 86400,))]
         # 这一期存的事项可能是旧的：以数据库里事项的当前状态为准（勾完成那一刻 items 已改，这一期还没重拼）
         st = {r["id"]: r["status"] for r in c.execute("SELECT id, status FROM items")}
     opens = [t for t in opens if not t.get("id") or st.get(t["id"], "open") == "open"]
@@ -2146,7 +2152,7 @@ def digest_md(hours: int = 24):
 
 @app.get("/api/state", dependencies=[Depends(auth)])
 def state(id: int | None = None, hours: int | None = None):
-    now = int(time.time())
+    now = _now()
     with db() as c:
         d = (c.execute("SELECT * FROM digests WHERE id=?", (id,)).fetchone() if id else
              c.execute("SELECT * FROM digests ORDER BY id DESC LIMIT 1").fetchone())
@@ -2299,7 +2305,7 @@ async def todo(req: Request):
                 c.execute("UPDATE items SET pinned=? WHERE id=?", (int(bool(d["pin"])), it["id"]))
             else:
                 c.execute("UPDATE items SET status=?, updated_ts=? WHERE id=?",
-                          ("done" if d.get("done") else "open", int(time.time()), it["id"]))
+                          ("done" if d.get("done") else "open", _now(), it["id"]))
         head = None
         if "pin" not in d:
             with contextlib.suppress(Exception):
@@ -2311,7 +2317,7 @@ async def todo(req: Request):
     with db() as c:
         if on:
             c.execute(f"INSERT OR REPLACE INTO {table}(k,ts,title,chat,due) VALUES(?,?,?,?,?)",
-                      (d["key"], int(time.time()), t["title"], t["chat"], t["due"]))
+                      (d["key"], _now(), t["title"], t["chat"], t["due"]))
         else:  # 取消时把模糊匹配到的旧记录一起删掉，否则下次整理又会被认成已完成
             ks = [r["k"] for r in _records(c, table) if r["k"] == d["key"] or same_todo(t, r)]
             c.executemany(f"DELETE FROM {table} WHERE k=?", [(k,) for k in ks])
@@ -2332,7 +2338,7 @@ def ics(title: str = "", due: str = "", detail: str = "", chat: str = ""):
 
 
 def activity_stats(days: int = 7, source: str = "", now: int = 0):
-    now = now or int(time.time())
+    now = now or _now()
     since = now - days * 86400
     hours = [0] * 24
     groups = {}
@@ -2380,7 +2386,7 @@ def chats(hours: int = 168, source: str = ""):
             "SELECT source, chat, COUNT(*) n FROM msgs WHERE ts>=? GROUP BY source, chat", (day0,))}
         rows = c.execute("""SELECT chat, source, COUNT(*) n, MAX(ts) last_ts, SUM(at_me) ats FROM msgs
                             WHERE ts>=? AND (?='' OR source=?) GROUP BY chat, source ORDER BY last_ts DESC""",
-                         (int(time.time()) - hours * 3600, source, source)).fetchall()
+                         (_now() - hours * 3600, source, source)).fetchall()
         nopen = {(r["source"], r["chat"]): r["n"] for r in c.execute(
             "SELECT source, chat, COUNT(*) n FROM items WHERE status='open' AND kind='todo' GROUP BY source, chat")}
         out = []
@@ -2389,7 +2395,7 @@ def chats(hours: int = 168, source: str = ""):
                           (r["chat"], r["source"])).fetchone()
             at_ids = [x["id"] for x in c.execute(
                 "SELECT id FROM msgs WHERE chat=? AND source=? AND at_me=1 AND ts>=? ORDER BY id DESC LIMIT 50",
-                (r["chat"], r["source"], int(time.time()) - hours * 3600))]
+                (r["chat"], r["source"], _now() - hours * 3600))]
             out.append({"chat": r["chat"], "source": r["source"], "n": r["n"], "last_ts": r["last_ts"],
                         "ats": r["ats"] or 0, "at_ids": at_ids, "last": f"{m['sender']}：{m['text']}" if m else "",
                         "open": nopen.get((r["source"], r["chat"]), 0),
@@ -2453,7 +2459,7 @@ async def chat_mode_api(req: Request):
 def suggest_quiet(s=None, days: int = 3):
     """很吵但没要紧事的群：近几天消息多、从没产生过待办/通知，或者一大半是线报广告/表情水。只建议，不自动改。"""
     s = s or settings()
-    since = int(time.time()) - days * 86400
+    since = _now() - days * 86400
     with db() as c:
         rows = c.execute("SELECT * FROM msgs WHERE ts>=?", (since,)).fetchall()
         has_items = {(r["source"], r["chat"]) for r in c.execute("SELECT DISTINCT source, chat FROM items")}
@@ -2507,7 +2513,7 @@ def export_all():
         dg = [dict(r) for r in c.execute("SELECT * FROM digests ORDER BY id")]
     st = settings()
     st.pop("bark_url", None)
-    data = {"version": VERSION, "exported": int(time.time()), "settings": st, "digests": dg, "messages": msgs}
+    data = {"version": VERSION, "exported": _now(), "settings": st, "digests": dg, "messages": msgs}
     return JSONResponse(data, headers={"Content-Disposition": f'attachment; filename="qunbao-{datetime.now(TZ):%Y%m%d}.json"'})
 
 
@@ -2541,7 +2547,7 @@ async def push_sub(req: Request):
     keys = sub.get("keys") or {}
     if not ep.startswith("https://") or len(ep) > 1000 or not keys.get("p256dh") or not keys.get("auth"):
         raise HTTPException(400, "订阅信息不完整")
-    now = int(time.time())
+    now = _now()
     with db() as c:
         c.execute("INSERT OR REPLACE INTO push_subs(endpoint,p256dh,auth,ua,ts,ok_ts,fails) VALUES(?,?,?,?,?,0,0)",
                   (ep, str(keys["p256dh"])[:200], str(keys["auth"])[:100], (req.headers.get("user-agent") or "")[:200], now))
@@ -2593,7 +2599,7 @@ from askfmt import CITE_RE, _q_terms, cite, tidy_bullets  # noqa: E402,F401 (0.3
 
 def ask_context(q: str, s: dict, chat: str = "", source: str = "", since_id: int = 0, hours: int = 72, prior: str = ""):
     """问答检索：限定群（任何档位都能问）或全局（排除「不看」的群）；先去噪，消息太多时按关键词 + 重点 + 最新挑一部分。"""
-    since = int(time.time()) - hours * 3600
+    since = _now() - hours * 3600
     sql, args = "SELECT * FROM msgs WHERE ts>=?", [since]
     if chat:
         sql += " AND chat=?"; args.append(chat)
@@ -2714,10 +2720,10 @@ async def chat_brief(chat: str, source: str = "", since_id: int = 0, refresh: in
         ids = {int(ln[1:].split(" ", 1)[0]) for ln in lines}
         text, cites = cite(tidy_bullets(a), {r["id"]: r for r in rows if r["id"] in ids})
         out = {"a": text, "citations": cites, "n": len(lines)}
-    out.update(since_id=since_id, ts=int(time.time()))
+    out.update(since_id=since_id, ts=_now())
     with db() as c:
         c.execute("INSERT OR REPLACE INTO chat_brief(source,chat,since_id,upto_id,body,ts) VALUES(?,?,?,?,?,?)",
-                  (source, chat, since_id, maxid, json.dumps(out, ensure_ascii=False), int(time.time())))
+                  (source, chat, since_id, maxid, json.dumps(out, ensure_ascii=False), _now()))
     return {**out, "cached": False, "upto_id": maxid}
 
 
