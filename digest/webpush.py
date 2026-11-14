@@ -1,5 +1,6 @@
 """Web Push 传输层：VAPID 密钥、发送、失效订阅清理（0.34.23 从 app.py 拆出）。
 数据库访问由 app.py 启动时 bind(db, kv_get) 注入，本模块不 import app。"""
+from envutil import env_str
 from tz import clock as _clock
 import os, json, time, asyncio, logging
 log = logging.getLogger("qunbao.webpush")
@@ -16,7 +17,7 @@ def bind(db_fn, kv_get_fn):
 # ---------------- Web Push：iPhone 主屏幕网页 App 的原生通知 ----------------
 # VAPID 密钥第一次启动自动生成，存在数据库 kv 表里（不用配置）。订阅按设备存在 push_subs，
 # 推送服务回 404/410（用户删了 App、关了通知、换了设备）就自动删掉。
-VAPID_SUB = os.getenv("VAPID_SUB", "mailto:qunbao@users.noreply.github.com")   # 联系方式：mailto: 或不带路径的 https 域名；苹果拒收 localhost
+VAPID_SUB = env_str("VAPID_SUB", "mailto:qunbao@users.noreply.github.com")   # 联系方式：mailto: 或不带路径的 https 域名；苹果拒收 localhost
 
 
 def _b64u(b: bytes) -> str:
