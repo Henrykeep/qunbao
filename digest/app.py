@@ -2,7 +2,7 @@
 import asyncio, collections, contextlib, hashlib, json, os, re, secrets, shutil
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs, quote
-from inbound import norm_ts, cq_images, clean_cq, parse_wx, CQ, CQ_NAME, WX_COUNT, WX_SKIP, _pick  # noqa: F401 (0.34.37 拆出)
+from inbound import norm_ts, cq_images, clean_cq, parse_wx  # noqa: F401 (0.34.37 拆出)
 
 import httpx
 import watchdog as _watchdog
@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.631"
+VERSION="0.39.632"
 
 
 
@@ -871,7 +871,7 @@ def about_me(s):
     return "\n".join(parts)
 
 
-from todo_match import (find_match, merge_cross_chat, parse_due, todo_key, split_key, norm_title, same_todo, _PUNCT, _NUM_RE, _norm_chat, _norm_due, _day_tokens, _cn_hour, _grams)  # noqa: F401
+from todo_match import (find_match, merge_cross_chat, parse_due, todo_key, split_key, same_todo, _norm_due, _day_tokens, _cn_hour, _grams)  # noqa: F401
 
 
 def _records(c, table: str, since: int = 0) -> list:
