@@ -1,6 +1,5 @@
 """自动整理成本统计（纯函数，不依赖 app.py）：从 AUTO_LOG 记录算次数、调用数、等待时间。"""
 from tz import clock as _clock
-import time
 
 
 def summarize(log, sec: int = 3600, now: float | None = None) -> dict:
