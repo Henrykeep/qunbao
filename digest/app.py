@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.644"
+VERSION="0.39.645"
 
 
 
@@ -2301,10 +2301,18 @@ def auto_log(limit: int = 100):
             "llm_hour": llm_calls_since(3600)}
 
 
+def _toint(v, default=0):
+    """脏值（None/空串/非数字）一律回落默认值，避免 500。"""
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return default
+
+
 @app.post("/api/digest", dependencies=[Depends(auth)])
 async def digest_now(req: Request):
     d = await req.json()
-    hours = int(d.get("hours", 24))
+    hours = _toint(d.get("hours"), 24)
     return await make_digest(max(1, min(hours, 168)), full=bool(d.get("full")))
 
 
@@ -2684,7 +2692,7 @@ async def ask(req: Request):
     if not q:
         return {"a": "", "citations": []}
     chat, source = str(body.get("chat") or ""), str(body.get("source") or "")
-    since_id = int(body.get("since_id") or 0)
+    since_id = _toint(body.get("since_id"))
     hist = [{"role": m["role"], "content": str(m["content"])[:2000]} for m in body.get("history", [])[-6:]
             if isinstance(m, dict) and m.get("role") in ("user", "assistant")]
     s = settings()
