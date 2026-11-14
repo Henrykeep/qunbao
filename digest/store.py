@@ -1,7 +1,8 @@
 """存储层（0.34.25 从 app.py 拆出）：连接、建表、迁移。不 import app。"""
+from envutil import env_str
 import os, sqlite3
 
-DB = os.getenv("DB_PATH", "/data/qunbao.db")
+DB = env_str("DB_PATH", "/data/qunbao.db")
 
 
 def db():
