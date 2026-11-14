@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from zoneinfo import ZoneInfo
 
-TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")
+from tz import TZ  # 0.39.623 收敛
 
 
 def parse_due(text: str, now: datetime) -> datetime | None:
