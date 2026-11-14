@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.612"
+VERSION="0.39.613"
 
 
 def _secs(t0):
@@ -1704,7 +1704,7 @@ def auto_status(s: dict | None = None) -> dict:
         last = max(fails, key=lambda v: v["ts"])
         # 偶发失败（限流、超时）后台自己退避重试，用户无感；连续失败超过 5 分钟、期间没有任何群整理成功才提示
         since = min(v.get("since", v["ts"]) for v in fails)
-        if last["ts"] > AUTO["ok_ts"] and time.time() - since >= AUTO_FAIL_SHOW:
+        if last["ts"] > AUTO["ok_ts"] and not _within(since, AUTO_FAIL_SHOW):
             return {"state": "failed", "reason": llm_short(last["code"], last["err"]), "err": last["err"], "fatal": False,
                     "retry_in": max(0, int(min(v["until"] for v in fails) - time.time())), "n": len(fails)}
     return {"state": "idle"}
