@@ -27,7 +27,7 @@
   --accent:#C2412D; --amber:#A66B08; --calm:#6F8A6C; --danger:#C8352A; --qq:#356FC7; --wx:#168A45;
   --bubble:#FFFFFF; --mine:#FCEFE9;
   --ico-xs:11px; --ico-sm:14px; --ico-md:16px; --ico-lg:20px; --ico-xl:22px; --ico-2xl:24px; --bars-h:48px; --thumb:120px;
-  --dot:8px; --col:608px; --dot-sm:var(--s1h); --sw-w:50px; --sw-h:30px; --sw-k:26px; --ctl:36px; --ctl-sm:34px; --tap:44px; --head-sp:70px; --cmode-w:96px; --row:56px; --av-sm:30px; --sk-line:15px; --sk-chat:var(--row); --sk-hist:60px; --sk-box:52px; --sk-card:80px;
+  --fs-base:17px; --fs-min:16px; --dot:8px; --col:608px; --dot-sm:var(--s1h); --sw-w:50px; --sw-h:30px; --sw-k:26px; --ctl:36px; --ctl-sm:34px; --tap:44px; --head-sp:70px; --cmode-w:96px; --row:56px; --av-sm:30px; --sk-line:15px; --sk-chat:var(--row); --sk-hist:60px; --sk-box:52px; --sk-card:80px;
   --shadow-sm:0 1px 3px rgba(0,0,0,.08); --shadow-pop:0 4px 14px rgba(0,0,0,.18); --shadow-knob:0 2px 5px rgba(0,0,0,.18); --shadow-edge:-10px 0 28px rgba(0,0,0,.35);
   --shadow:0 1px 2px rgba(27,26,23,.04),0 6px 20px rgba(27,26,23,.05);
   --serif:"Songti SC","Noto Serif SC","Source Han Serif SC","STSong",serif;
@@ -46,7 +46,7 @@
 /* ================= 基础 ================= */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
-html{font-size:17px}
+html{font-size:var(--fs-base)}
 @supports (font:-apple-system-body){html{font:-apple-system-body}}
 html{background:var(--bg);overflow-x:hidden;-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation}
 html,body{max-width:100%;overscroll-behavior:none}
@@ -56,7 +56,7 @@ body{font-family:var(--sans);font-size:var(--t-md);color:var(--ink);background:v
   -webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top)}
 button,.tabs a{font:inherit;color:inherit;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 /* iOS 输入框字号 <16px 会在聚焦时自动放大页面，放大后页面能左右拖动 */
-input,select,textarea{font:inherit;color:inherit;font-size:max(16px,1rem)!important}
+input,select,textarea{font:inherit;color:inherit;font-size:max(var(--fs-min),1rem)!important}
 svg{display:block}
 h1,h2,h3,p,.headline,.greet,.ttl,.t,.d,.lm,.msg,.st,.bub,blockquote{overflow-wrap:anywhere;word-break:break-word}
 .wrap{max-width:640px;margin:0 auto;padding:0 var(--s5)}
