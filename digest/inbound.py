@@ -3,12 +3,12 @@ import os, re, time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from tz import TZ  # 0.39.623 收敛
+from tz import TZ, clock as _clock  # 0.39.626
 
 
 def norm_ts(ts, now=None) -> int:
     """消息时间容错：毫秒/字符串/ISO/0/负数/来自未来（手机时间不准）/早于保留期的，都收敛成合理的秒数；拿不准就用收到的时间。"""
-    now = int(now or time.time())
+    now = int(now or _clock())
     try:
         if isinstance(ts, str):
             t = ts.strip()
