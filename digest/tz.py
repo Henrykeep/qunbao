@@ -9,3 +9,9 @@ def dt(ts):
     """时间戳 → 本地时区 datetime，全站唯一入口。"""
     from datetime import datetime
     return datetime.fromtimestamp(ts, TZ)
+
+
+def now():
+    """当前本地时区 datetime，全站唯一入口。"""
+    from datetime import datetime
+    return datetime.now(TZ)
