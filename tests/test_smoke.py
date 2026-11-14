@@ -3682,3 +3682,11 @@ def test_env_int_bad_value(monkeypatch):
     assert env_int("X_T", 7) == 7
     monkeypatch.setenv("X_T", " 12 ")
     assert env_int("X_T", 7) == 12
+
+
+def test_env_float_rejects_nan_inf(monkeypatch):
+    import sys; sys.path.insert(0, "digest")
+    import envutil
+    for bad in ("nan", "inf", "-inf"):
+        monkeypatch.setenv("X_F", bad)
+        assert envutil.env_float("X_F", 2.5) == 2.5
