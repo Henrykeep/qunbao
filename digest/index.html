@@ -102,13 +102,13 @@ h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
 .x{flex:none;width:var(--ctl);height:var(--ctl);border:0;border-radius:var(--r-round);background:var(--chip);color:var(--sub);display:grid;place-items:center}
 .x svg{width:var(--ico-sm);height:var(--ico-sm)}
 /* 标签：.chip 浅底药丸（截止时间等），.tag 描边小字（来源 QQ/微信、@我） */
-.chip{display:inline-flex;align-items:center;gap:var(--s1);max-width:100%;min-width:0;padding:var(--s1q) 9px;border:0;border-radius:var(--r-pill);background:var(--chip);color:var(--sub);font-size:var(--t-xs);white-space:nowrap}
+.chip{display:inline-flex;align-items:center;gap:var(--s1);max-width:100%;min-width:0;padding:var(--s1q) var(--s2h);border:0;border-radius:var(--r-pill);background:var(--chip);color:var(--sub);font-size:var(--t-xs);white-space:nowrap}
 .chip svg{width:var(--ico-xs);height:var(--ico-xs);flex:none}
-.tag{display:inline-block;flex:none;font-size:var(--t-2xs);line-height:1.6;padding:0 5px;border-radius:var(--r-xs);border:var(--bw) solid var(--line);color:var(--faint);margin-left:var(--s1);font-weight:400;vertical-align:1px}
+.tag{display:inline-block;flex:none;font-size:var(--t-2xs);line-height:1.6;padding:0 var(--s1h);border-radius:var(--r-xs);border:var(--bw) solid var(--line);color:var(--faint);margin-left:var(--s1);font-weight:400;vertical-align:1px}
 .tag.s-qq{color:var(--qq);border-color:color-mix(in srgb,var(--qq) 35%,transparent)}
 .tag.s-wx{color:var(--wx);border-color:color-mix(in srgb,var(--wx) 35%,transparent)}
 .tag.at{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 35%,transparent);font-weight:600}
-.badge{flex:none;font-size:var(--t-2xs);font-weight:700;color:var(--on);background:var(--accent);border-radius:var(--r-pill);padding:1px var(--s1h)}
+.badge{flex:none;font-size:var(--t-2xs);font-weight:700;color:var(--on);background:var(--accent);border-radius:var(--r-pill);padding:var(--s0) var(--s1h)}
 .pinic{flex:none;margin-left:var(--s1);color:var(--amber);font-size:var(--t-2xs)}
 .mtag{flex:none;margin-left:var(--s1h);padding:0 var(--s1h);border-radius:var(--r-xs);background:var(--chip);color:var(--sub);font-size:var(--t-2xs);font-weight:500;line-height:1.6}
 .mtag.focus{color:var(--amber)} .mtag.off{color:var(--faint)}
@@ -127,7 +127,7 @@ h2 .c{color:var(--faint);letter-spacing:0;font-weight:500}
 em.at-hl{font-style:normal;color:var(--accent);font-weight:600}
 a.ulk{padding:var(--s2) 0;color:var(--sub);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:var(--s1q);white-space:nowrap}
 a.ulk::after{content:" ↗";font-size:var(--t-xs)}
-mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;border-radius:var(--r-xs);padding:0 1px}
+mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;border-radius:var(--r-xs);padding:0 var(--s0)}
 /* 分段切换 */
 .seg{display:inline-flex;flex:none;position:relative;padding:var(--s0);border-radius:var(--r-pill);background:var(--chip)}
 .seg button{position:relative;z-index:1;border:0;background:none;min-height:var(--ctl);padding:0 var(--s3);border-radius:var(--r-pill);font-size:var(--t-sm);color:var(--sub);transition:color var(--dur-fast)}
@@ -148,7 +148,7 @@ mark{background:color-mix(in srgb,var(--amber) 30%,transparent);color:inherit;bo
 .gd{font-size:var(--t-xs);color:var(--faint);margin:var(--s1h) var(--s1) 0;line-height:1.5}
 .sk{background:linear-gradient(90deg,var(--chip) 0,var(--line) 50%,var(--chip) 100%);background-size:200% 100%;animation:sh var(--dur-shimmer) infinite;border-radius:var(--r-sm)}
 @keyframes sh{to{background-position:-200% 0}}
-.toast{position:fixed;left:50%;top:calc(var(--s3h) + env(safe-area-inset-top));z-index:var(--z-toast);transform:translate(-50%,-90px);max-width:90vw;padding:9px var(--s4);border-radius:var(--r-pill);
+.toast{position:fixed;left:50%;top:calc(var(--s3h) + env(safe-area-inset-top));z-index:var(--z-toast);transform:translate(-50%,-90px);max-width:90vw;padding:var(--s2h) var(--s4);border-radius:var(--r-pill);
   background:var(--ink);color:var(--bg);font-size:var(--t-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:transform var(--dur-slow) var(--ease)}
 .toast.on{transform:translate(-50%,0)}
 .offbar{position:fixed;top:0;left:0;right:0;z-index:var(--z-top);padding:calc(var(--s1h) + env(safe-area-inset-top)) var(--s3) var(--s1h);text-align:center;font-size:var(--t-xs);background:var(--warn-bg);color:var(--on);letter-spacing:var(--ls-s)}
