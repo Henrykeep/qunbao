@@ -1,3 +1,6 @@
+## 0.39.630 — 2026-11-14
+- 清理 app.py 一处多余 f 字符串前缀（pyflakes 无其它真问题）。
+
 ## 0.39.629 — 2026-11-14
 - 清理 app.py 里已无引用的导入（sqlite3/time/SequenceMatcher/ZoneInfo），时间统一走 tz.py，无行为变化。
 
