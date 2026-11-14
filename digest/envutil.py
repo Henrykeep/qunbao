@@ -3,7 +3,13 @@ import math
 import os
 
 
-def env_int(name, default):
+def env_int(name, default, lo=None):
+    """lo：下限；写成 0/负数会让并发=0 卡死、分块=0 死循环，低于下限回退默认值。"""
+    v = _int(name, default)
+    return int(default) if lo is not None and v < lo else v
+
+
+def _int(name, default):
     try:
         return int(str(os.getenv(name, default)).strip())
     except (TypeError, ValueError):
@@ -17,7 +23,12 @@ def env_int(name, default):
     return int(default)
 
 
-def env_float(name, default):
+def env_float(name, default, lo=None):
+    v = _float(name, default)
+    return float(default) if lo is not None and v < lo else v
+
+
+def _float(name, default):
     try:
         v = float(str(os.getenv(name, default)).strip())
     except (TypeError, ValueError):
