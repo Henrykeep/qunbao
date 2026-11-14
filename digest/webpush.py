@@ -1,7 +1,8 @@
 """Web Push 传输层：VAPID 密钥、发送、失效订阅清理（0.34.23 从 app.py 拆出）。
 数据库访问由 app.py 启动时 bind(db, kv_get) 注入，本模块不 import app。"""
 from tz import clock as _clock
-import os, json, time, asyncio
+import os, json, time, asyncio, logging
+log = logging.getLogger("qunbao.webpush")
 
 db = None
 kv_get = None
@@ -62,7 +63,7 @@ async def webpush_all(payload: dict, endpoint: str = "") -> int:
     try:
         priv, _ = vapid_keys()
     except Exception as ex:
-        print("Web Push 密钥不可用:", ex)
+        log.warning("Web Push 密钥不可用: %s", ex)
         return 0
     data = json.dumps(payload, ensure_ascii=False)
 
@@ -76,7 +77,7 @@ async def webpush_all(payload: dict, endpoint: str = "") -> int:
             code = _wp_status(ex)
             if code in (404, 410):
                 return "gone"
-            print("Web Push 失败:", code or ex)
+            log.warning("Web Push 失败: %s", code or ex)
             return "err"
     res = await asyncio.gather(*(asyncio.to_thread(one, r) for r in subs))
     now = int(_clock())
@@ -89,7 +90,7 @@ async def webpush_all(payload: dict, endpoint: str = "") -> int:
             elif x == "err":
                 c.execute("UPDATE push_subs SET fails=fails+1 WHERE endpoint=?", (r["endpoint"],))
     if "noimp" in res:
-        print("Web Push 需要 pywebpush：pip install pywebpush")
+        log.warning("Web Push 需要 pywebpush：pip install pywebpush")
     return res.count("ok")
 
 
