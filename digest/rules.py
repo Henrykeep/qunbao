@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from todo_match import parse_due
 
-TZ = ZoneInfo(os.getenv("APP_TZ") or "Asia/Shanghai")
+from tz import TZ  # 0.39.623 收敛
 
 AD_RE = re.compile(r"券后|优惠券|领券|返利|返现|包邮|秒杀|神价|线报|速度冲|速冲|复制这条|打开手淘|淘口令|￥[A-Za-z0-9]{6,}￥|"
                    r"砍一刀|帮我砍|助力一下|拼多多|yangkeduo|pinduoduo|m\.tb\.cn|u\.jd\.com|s\.click\.taobao|uland\.taobao|"
