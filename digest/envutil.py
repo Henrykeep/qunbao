@@ -7,7 +7,14 @@ def env_int(name, default):
     try:
         return int(str(os.getenv(name, default)).strip())
     except (TypeError, ValueError):
-        return int(default)
+        pass
+    try:  # "30.0" 这类写法按整数取
+        v = float(str(os.getenv(name, default)).strip())
+        if math.isfinite(v):
+            return int(v)
+    except (TypeError, ValueError):
+        pass
+    return int(default)
 
 
 def env_float(name, default):
