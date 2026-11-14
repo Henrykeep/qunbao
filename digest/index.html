@@ -27,7 +27,7 @@
   --accent:#C2412D; --amber:#A66B08; --calm:#6F8A6C; --danger:#C8352A; --qq:#356FC7; --wx:#168A45;
   --bubble:#FFFFFF; --mine:#FCEFE9;
   --ico-xs:11px; --ico-sm:14px; --ico-md:16px; --ico-lg:20px; --ico-xl:22px; --thumb:120px;
-  --dot:8px; --col:608px; --dot-sm:var(--s1h); --sw-w:50px; --sw-h:30px; --sw-k:26px; --ctl:36px; --ctl-sm:34px; --tap:44px;
+  --dot:8px; --col:608px; --dot-sm:var(--s1h); --sw-w:50px; --sw-h:30px; --sw-k:26px; --ctl:36px; --ctl-sm:34px; --tap:44px; --head-sp:70px; --cmode-w:96px;
   --shadow-sm:0 1px 3px rgba(0,0,0,.08); --shadow-pop:0 4px 14px rgba(0,0,0,.18); --shadow-knob:0 2px 5px rgba(0,0,0,.18); --shadow-edge:-10px 0 28px rgba(0,0,0,.35);
   --shadow:0 1px 2px rgba(27,26,23,.04),0 6px 20px rgba(27,26,23,.05);
   --serif:"Songti SC","Noto Serif SC","Source Han Serif SC","STSong",serif;
@@ -298,10 +298,10 @@ footer{margin-top:var(--s7);text-align:center;font-size:var(--t-2xs);color:var(-
 .chat-head{position:sticky;top:0;z-index:var(--z-sticky);display:flex;align-items:center;gap:var(--s1h);margin:0 calc(-1 * var(--s5));padding:calc(var(--s2h) + env(safe-area-inset-top)) var(--s3) var(--s2h);background:var(--bg);border-bottom:var(--bw) solid var(--line)}
 .chat-head .ttl{flex:1;min-width:0;text-align:center;font-weight:600;font-size:var(--t-md);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chat-head .ttl small{display:block;font-size:var(--t-2xs);color:var(--faint);font-weight:400}
-.chat-head .sp{flex:none;width:70px}
+.chat-head .sp{flex:none;width:var(--head-sp)}
 .back{flex:none;width:70px;min-height:var(--hit);display:flex;align-items:center;gap:var(--s0);padding:0 var(--s2);border:0;background:none;color:var(--ink);font-size:var(--t-md)}
 .back svg{width:var(--ico-lg);height:var(--ico-lg)}
-.cmode{max-width:96px;overflow:hidden;text-overflow:ellipsis}
+.cmode{max-width:var(--cmode-w);overflow:hidden;text-overflow:ellipsis}
 .brief{margin-top:var(--s3);padding:var(--s3) var(--s4);font-size:var(--t-md);line-height:1.7}
 .brief .bh{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--s1);font-size:var(--t-xs);color:var(--faint);letter-spacing:var(--ls-s)}
 .brief .bh b{color:var(--accent);font-weight:600;letter-spacing:var(--ls-m)}
