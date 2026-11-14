@@ -2359,11 +2359,11 @@ def test_tidy_title_leave_tail():
 
 
 def test_no_bare_px_font_sizes():
-    """字号只能来自 --t-* 变量（跟随系统字号）；仅 html 基准和输入框 16px（防 iOS 缩放）例外。"""
+    """字号只能来自 --t-* 变量（跟随系统字号）；基准与输入框下限走 --fs-base/--fs-min。"""
     import re
     src = open(os.path.join(os.path.dirname(__file__), "..", "digest", "index.html"), encoding="utf-8").read()
     bad = re.findall(r"[^-]font-size:[0-9.]+px", src)
-    assert len(bad) == 1, bad
+    assert not bad, bad
 
 
 def test_tidy_title_strips_consequence_tail():
