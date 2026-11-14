@@ -12,7 +12,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.597"
+VERSION="0.39.598"
 from authutil import ceq as _ceq, tok_hash as _h, basic_creds, client_ip as _client_ip, COOKIE, set_session_cookie  # 0.34.51 拆出
 
 
@@ -150,6 +150,16 @@ def _locked(ip: str) -> bool:
     else:
         _fails.pop(ip, None)  # 过期的记录顺手清掉，不让字典越长越大
     return len(fails) >= 8
+
+
+def _token_gate(req: Request, tok: str, want: str) -> None:
+    """/onebot 与 /ingest 共用的口令校验：和登录同一本错误账，8 次错就锁 10 分钟（公网 IP 无 HTTPS 时防扫口令）。"""
+    ip = _client_ip(req)
+    if _locked(ip):
+        raise HTTPException(429, "错太多次了，10 分钟后再试")
+    if not want or not _ceq(tok, want):
+        _fails[ip] = _fails.get(ip, []) + [time.time()]
+        raise HTTPException(401, "口令不对")
 
 
 def _basic_ok(req: Request) -> bool:
@@ -568,8 +578,7 @@ async def onebot(req: Request):
     if ONEBOT_TOKEN:
         auth = req.headers.get("Authorization", "")
         tok = auth[7:] if auth.lower().startswith("bearer ") else (req.query_params.get("token") or "")
-        if not _ceq(tok, ONEBOT_TOKEN):
-            raise HTTPException(401, "口令不对")
+        _token_gate(req, tok, ONEBOT_TOKEN)
     e = await req.json()
     if e.get("post_type") == "meta_event":
         with db() as c:
@@ -599,8 +608,7 @@ def mark_seen(key):
 async def ingest(req: Request):
     """通用入口：微信通知转发等。口令放 Header X-Token，或网址 ?token=。JSON 或表单都行。"""
     tok = req.headers.get("X-Token") or req.query_params.get("token") or ""
-    if not INGEST_TOKEN or not _ceq(tok, INGEST_TOKEN):
-        raise HTTPException(401, "口令不对")
+    _token_gate(req, tok, INGEST_TOKEN)
     ct = req.headers.get("content-type", "")
     body = await req.body()
     if len(body) > 256 * 1024:
