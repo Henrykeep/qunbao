@@ -1,6 +1,14 @@
+## 0.39.666 — 2026-11-15
+
+- 查询参数统一 clamp() 限幅（messages/digests/activity/auto log），负数或超大值不再拖垮查询。
+
 ## 0.39.665 — 2026-11-15
 
 - 口令类配置（NAPCAT_TOKEN/INGEST_TOKEN/ONEBOT_TOKEN/LLM_API_KEY）统一走 env_token，去 Bearer 前缀。
+
+## 0.39.666 — 2026-11-15
+
+- 查询参数统一 clamp() 限幅（messages/digests/activity/auto log），负数或超大值不再拖垮查询。
 
 ## 0.39.664 — 2026-11-15
 - LLM_API_KEY 带 "Bearer " 前缀（从文档整行复制）时自动去掉，避免重复拼接导致 401。
