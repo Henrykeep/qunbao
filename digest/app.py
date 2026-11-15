@@ -6,12 +6,12 @@ from inbound import norm_ts, cq_images, clean_cq, parse_wx  # noqa: F401 (0.34.3
 
 import httpx
 import watchdog as _watchdog
-from envutil import env_int, env_float, env_str, env_url, env_token
+from envutil import env_int, env_float, env_str, env_url, env_token, norm_url
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.714"
+VERSION="0.39.715"
 
 
 
@@ -175,6 +175,8 @@ def save_settings(new: dict):
         s[k] = v if v is not None and lo <= v <= 23 else dflt
     if "bark_url" in new and s.get("bark_url"):  # 存的就是清洗后的地址：设置页回显干净，发送时不必再猜
         s["bark_url"] = bark_mod.norm_bark_url(str(s["bark_url"]))
+    if "site_url" in new:  # 同 env_url 口径：设置页里漏写 http:// 的跳转地址补全，推送点开才不会失效
+        s["site_url"] = norm_url(s.get("site_url"))
     if s.get("default_mode") not in MODES:
         s["default_mode"] = "normal"
     s["modes"] = {k: v for k, v in (s.get("modes") or {}).items() if v in MODES and "|" in k}
