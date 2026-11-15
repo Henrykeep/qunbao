@@ -776,7 +776,8 @@ const TABS=["home","msgs","set"],tabStep=d=>go(TABS[(TABS.indexOf(curView)+d+3)%
 const KEYHELP=["快捷键：1今日 2原文 3设置","[ ] 切页","/ 搜索","a 问群报","j/k 翻页","t/b 顶/底","r 或 . 刷新","Esc 回今日","Backspace 返回","其余常见键（方向键、空格、Home/End 等）也可用"].join("　");
 const SCR=f=>()=>scrollBy({top:innerHeight*f,behavior:RPT?"auto":"smooth"});let RPT=false;
 const REFRESH=()=>{curView==="msgs"?loadChats():curView==="set"?loadSettings():load();toast("已刷新")};
-const KEYS={1:()=>go(TABS[0]),2:()=>go(TABS[1]),3:()=>go(TABS[2]),p:()=>tabStep(-1),n:()=>tabStep(1),t:()=>scrollTo({top:0,behavior:"smooth"}),b:()=>scrollTo({top:document.documentElement.scrollHeight,behavior:"smooth"}),j:SCR(.8),k:SCR(-.8),d:SCR(.4),u:SCR(-.4),"?":()=>toast(KEYHELP),F1:()=>toast(KEYHELP),r:REFRESH,".":REFRESH,g:()=>{go(TABS[0]);KEYS.t()},Backspace:()=>{if(NAV.length)history.back()},"/":()=>{go("msgs");const i=$("#sq");if(i)i.focus()},a:()=>{go(TABS[0]);const i=$("#q");if(i)i.focus()}};
+const SMOOTH=()=>matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth";
+const KEYS={1:()=>go(TABS[0]),2:()=>go(TABS[1]),3:()=>go(TABS[2]),p:()=>tabStep(-1),n:()=>tabStep(1),t:()=>scrollTo({top:0,behavior:SMOOTH()}),b:()=>scrollTo({top:document.documentElement.scrollHeight,behavior:SMOOTH()}),j:SCR(.8),k:SCR(-.8),d:SCR(.4),u:SCR(-.4),"?":()=>toast(KEYHELP),F1:()=>toast(KEYHELP),r:REFRESH,".":REFRESH,g:()=>{go(TABS[0]);KEYS.t()},Backspace:()=>{if(NAV.length)history.back()},"/":()=>{go("msgs");const i=$("#sq");if(i)i.focus()},a:()=>{go(TABS[0]);const i=$("#q");if(i)i.focus()}};
 /* 别名表：同一动作的多个按键只在此登记，不再各写一个函数 */
 for(const[t,ks]of Object.entries({g:"0`",2:"mov",3:",ec",p:["[","<","-","h","ArrowLeft"],n:["]",">","=","l","ArrowRight"],t:["Home","^"],b:["End","$"],j:[" ","PageDown","ArrowDown"],k:["PageUp","ArrowUp","w"],"/":"sfq",a:"i",Backspace:["x","z","Delete"],r:["."]}))for(const k of ks)KEYS[k===" "?"Space":k]=KEYS[t];
 
@@ -1051,7 +1052,7 @@ function bindHome(m){
   once($("#morelinks"),b=>b.addEventListener("click",e=>{$("#links").classList.add("all");e.currentTarget.remove()}));
   bindAts();
   $$(".stat[data-go]").forEach(b=>{if(b._b)return;b._b=1;b.onclick=()=>{tick();const sec=$(`[data-sec="${b.dataset.go}"]`)||$('[data-sec="todo"]');
-    if(sec)window.scrollTo({top:sec.getBoundingClientRect().top+window.scrollY-12,behavior:"smooth"})}});
+    if(sec)window.scrollTo({top:sec.getBoundingClientRect().top+window.scrollY-12,behavior:SMOOTH()})}});
   $$(".g").forEach(b=>{if(b._b)return;b._b=1;
     b.onclick=e=>{if(e.target.closest(".gm")){e.stopPropagation();modeSheet(b.dataset.src,b.dataset.chat);return}tick();openChat(b.dataset.chat,null,b.dataset.src)};
     longPress(b,()=>modeSheet(b.dataset.src,b.dataset.chat));
@@ -1332,7 +1333,7 @@ async function ask(q,scope,opts={}){
   openAsk(scope||ASKSCOPE);
   const qa=document.createElement("div");
   qa.innerHTML=`<div class="qq fade">${esc(q)}</div><div class="aa">${skel("line")}${skel("line2")}</div>`;
-  $("#ti").appendChild(qa);setTimeout(()=>qa.scrollIntoView({behavior:"smooth",block:"start"}),50);
+  $("#ti").appendChild(qa);setTimeout(()=>qa.scrollIntoView({behavior:SMOOTH(),block:"start"}),50);
   const a=qa.querySelector(".aa"),hist=histLoad();
   try{const r=await api("/api/ask",{q,chat:ASKSCOPE.chat,source:ASKSCOPE.source,since_id:opts.since||0,
       history:hist.flatMap(x=>[{role:"user",content:x.q},{role:"assistant",content:x.a}])});
@@ -1411,7 +1412,7 @@ function renderChats(){
   const total=L.reduce((a,c)=>a+c.n,0);$("#chatsum").textContent=`${L.length} 个群 · ${total} 条`;
   if(!L.length&&SRCF==="微信"){
     $("#clist").innerHTML=`<div class="emptywx card fade"><div class="big">微信还没接上</div><p>用一台旧安卓机登录微信小号，把通知转发给群报，微信群就会和 QQ 群出现在一起。</p><button class="btn" id="towx">去设置接入</button></div>`;
-    $("#towx").onclick=()=>{tick();go("set");openSub("conn");$("#wx-how").open=true;setTimeout(()=>$("#wxsec").scrollIntoView({behavior:"smooth"}),250)};return}
+    $("#towx").onclick=()=>{tick();go("set");openSub("conn");$("#wx-how").open=true;setTimeout(()=>$("#wxsec").scrollIntoView({behavior:SMOOTH()}),250)};return}
   if(!L.length&&SRCF==="QQ"){$("#clist").innerHTML=emptyBox("QQ 还没有消息","登录 NapCat 并设置上报地址后，QQ 群会出现在这里");return}
   const prev=t=>String(t||"").replace(/```\w*/g,"").replace(/\s+/g," ").trim();
   const tr=c=>chatTier(c.mode,c.open||0,unreadAts(c));
@@ -1540,7 +1541,7 @@ $("#cmode").onclick=()=>{tick();modeSheet(chatSrc,chatName)};
 const atBottom=()=>window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-80;
 let NEWBELOW=0;
 function updToLatest(){const b=$("#tolatestmsg");if(atBottom())NEWBELOW=0;b.textContent=NEWBELOW?`↓ ${NEWBELOW} 条新消息`:"↓ 最新";b.hidden=curView!=="msgs"||$("#msgs-chat").hidden||atBottom()||(!NEWBELOW&&document.documentElement.scrollHeight<window.innerHeight*1.6)}
-$("#tolatestmsg").onclick=()=>{tick();window.scrollTo({top:document.documentElement.scrollHeight,behavior:"smooth"})};
+$("#tolatestmsg").onclick=()=>{tick();window.scrollTo({top:document.documentElement.scrollHeight,behavior:SMOOTH()})};
 window.addEventListener("scroll",debounce(updToLatest,120),{passive:true});
 /* 群聊打开时每 20 秒只拉新消息并追加；用户不在底部就不跳 */
 async function pollChat(){
