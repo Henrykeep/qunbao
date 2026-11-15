@@ -3693,7 +3693,7 @@ def test_env_float_rejects_nan_inf(monkeypatch):
 
 
 def test_env_str_strips_bom_zero_width(monkeypatch):
-    from digest.envutil import env_str
+    from envutil import env_str
     monkeypatch.setenv("X_T", "\ufeffabc\u200b ")
     assert env_str("X_T") == "abc"
 
@@ -3714,7 +3714,7 @@ def test_env_url(monkeypatch):
 
 
 def test_env_url_strips_inner_whitespace(monkeypatch):
-    from digest.envutil import env_url
+    from envutil import env_url
     monkeypatch.setenv("X_URL", "napcat: 3000/\n")
     assert env_url("X_URL") == "http://napcat:3000"
 
@@ -3726,7 +3726,7 @@ def test_env_str_curly_quotes(monkeypatch):
 
 
 def test_env_int_hi(monkeypatch):
-    from digest.envutil import env_int
+    from envutil import env_int
     monkeypatch.setenv("X_H", "25")
     assert env_int("X_H", 21, lo=0, hi=23) == 21
     monkeypatch.setenv("X_H", "7")
@@ -3734,7 +3734,7 @@ def test_env_int_hi(monkeypatch):
 
 
 def test_env_float_hi(monkeypatch):
-    from digest.envutil import env_float
+    from envutil import env_float
     monkeypatch.setenv("X_T", "6000")
     assert env_float("X_T", 60, lo=1, hi=600) == 60.0
     monkeypatch.setenv("X_T", "30")
@@ -3827,22 +3827,29 @@ def test_norm_url_fullwidth():
 
 
 def test_env_num_fullwidth_and_unit(monkeypatch):
-    from digest.envutil import env_int, env_float
+    from envutil import env_int, env_float
     monkeypatch.setenv("X_A", "\uff13\uff10"); monkeypatch.setenv("X_B", "45s"); monkeypatch.setenv("X_C", "8点")
     assert env_int("X_A", 1) == 30 and env_float("X_B", 1) == 45.0 and env_int("X_C", 1) == 8
 
 
 def test_env_int_thousands(monkeypatch):
-    from digest.envutil import env_int
+    from envutil import env_int
     monkeypatch.setenv("X_N", "1,000")
     assert env_int("X_N", 5) == 1000
 
 
 def test_env_str_inline_comment(monkeypatch):
-    from digest.envutil import env_str, env_int
+    from envutil import env_str, env_int
     monkeypatch.setenv("QB_X", "abc  # 注释")
     assert env_str("QB_X") == "abc"
     monkeypatch.setenv("QB_N", "30 # 秒")
     assert env_int("QB_N", 5) == 30
     monkeypatch.setenv("QB_H", "a#b")
     assert env_str("QB_H") == "a#b"
+
+
+def test_env_str_literal_keeps_password(monkeypatch):
+    from envutil import env_str
+    monkeypatch.setenv("PW_X", "it\u2019s ab #1")
+    assert env_str("PW_X", literal=True) == "it\u2019s ab #1"
+    assert env_str("PW_X") != "it\u2019s ab #1"
