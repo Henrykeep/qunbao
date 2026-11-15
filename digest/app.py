@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.694"
+VERSION="0.39.695"
 
 
 
@@ -717,9 +717,9 @@ async def ingest(req: Request):
         try:
             d = json.loads(raw)
         except json.JSONDecodeError:
+            d = None
+        if not isinstance(d, dict):  # 纯文本（含「123」「true」这类恰好是合法 JSON 的）一律当正文，不拒收
             d = {"content": raw}
-    if not isinstance(d, dict):
-        raise HTTPException(400, "需要 JSON 对象")
     source = str(d.get("source") or "微信")
     mark_seen("seen_wx" if source == "微信" else f"seen_{source}")
     p = parse_wx(d)
