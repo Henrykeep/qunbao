@@ -5,7 +5,7 @@ from envutil import env_int
 
 _log = logging.getLogger('qunbao')
 
-STALL_S = env_int("WATCHDOG_STALL_S", 180)   # 0 = 关闭
+STALL_S = env_int("WATCHDOG_STALL_S", 180, lo=0)   # 0 = 关闭
 _beat = time.monotonic()
 
 
