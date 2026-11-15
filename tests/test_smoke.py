@@ -3711,3 +3711,9 @@ def test_env_url(monkeypatch):
     assert env_url("X_URL") == "http://napcat:3000"
     monkeypatch.setenv("X_URL", "https://a.com/")
     assert env_url("X_URL") == "https://a.com"
+
+
+def test_env_url_strips_inner_whitespace(monkeypatch):
+    from digest.envutil import env_url
+    monkeypatch.setenv("X_URL", "napcat: 3000/\n")
+    assert env_url("X_URL") == "http://napcat:3000"
