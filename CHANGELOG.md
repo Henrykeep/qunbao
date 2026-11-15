@@ -1,3 +1,6 @@
+## 0.39.691 — 2026-11-15
+- 最后两处直接解析 digests.body 的地方并入 body_of()，该解析只剩一处。
+
 ## 0.39.690 — 2026-11-15
 - digests 行的 body 解析收敛到 body_of()，11 处重复的 json.loads(row["body"]) 只剩一处。
 
