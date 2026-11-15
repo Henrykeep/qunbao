@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.684"
+VERSION="0.39.685"
 
 
 
@@ -755,6 +755,14 @@ def kv_get(k, default=None):
     return r["v"] if r else default
 
 
+def kv_int(k, default=0):
+    """整数型 kv：缺失或被写脏时回 default，不让统计/水位读取抛 500。"""
+    try:
+        return int(float(kv_get(k, default)))
+    except (TypeError, ValueError, OverflowError):
+        return default
+
+
 def kv_set(k, v):
     with db() as c:
         c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES(?,?)", (k, str(v)))
@@ -1488,7 +1496,7 @@ async def _make_digest(hours=24, auto=False, full=False):
     if not weekly:  # 模型可能照着群要点又写回已完成的事：头条只能说未完成事项里的一件
         body["headline"] = fresh_headline(body)
     stats["secs"] = _secs(t0)
-    body.update(stats=stats, mode="full" if full else ("weekly" if weekly else "inc"), upto_id=int(kv_get("scan_id", 0) or 0))
+    body.update(stats=stats, mode="full" if full else ("weekly" if weekly else "inc"), upto_id=kv_int("scan_id"))
     if auto:
         body["auto"] = True
     with db() as c:
@@ -1589,7 +1597,7 @@ def auto_sweep(s: dict):
             if (r["source"], r["chat"]) in adv:
                 ARRIVE.pop(r["id"], None)
     pids = [r["id"] for r in pend if r["id"] <= top]
-    kv_set("scan_id", (min(pids) - 1) if pids else max(top, int(kv_get("scan_id", 0) or 0)))
+    kv_set("scan_id", (min(pids) - 1) if pids else max(top, kv_int("scan_id")))
     trim_oldest(ARRIVE, ARRIVE, cap=20000)  # 兜底：别无限长
 
 
@@ -1696,7 +1704,7 @@ async def refresh_live(s: dict | None = None, stats: dict | None = None, now: fl
             kv_set("head_ts", int(now))
         body["headline"] = valid_headline(head, opens)  # 旧头条说的事已勾完成/过期：这里就换掉，不等首页来修
         today = _ymd(now)
-        body.update(stats=stats or {}, mode="live", auto=True, live=True, live_day=today, upto_id=int(kv_get("scan_id", 0) or 0))
+        body.update(stats=stats or {}, mode="live", auto=True, live=True, live_day=today, upto_id=kv_int("scan_id"))
         with db() as c:
             if latest and prev.get("live") and latest["hours"] == hours and prev.get("live_day") == today:
                 c.execute("UPDATE digests SET ts=?, body=? WHERE id=?", (_now(), json.dumps(body, ensure_ascii=False), latest["id"]))
@@ -1789,7 +1797,7 @@ def data_rev(s: dict | None = None) -> str:
 def updated_ts():
     with db() as c:
         d = c.execute("SELECT ts FROM digests ORDER BY id DESC LIMIT 1").fetchone()
-    return max(d["ts"] if d else 0, int(kv_get("checked_ts", 0) or 0)) or None
+    return max(d["ts"] if d else 0, kv_int("checked_ts")) or None
 
 
 async def auto_loop():
@@ -2275,9 +2283,9 @@ def state(id: int | None = None, hours: int | None = None):
         "rev": data_rev(s),
         "updated_ts": updated_ts(),
         "pending": pend,
-        "checked_ts": int(kv_get("checked_ts", 0) or 0) or None,
-        "llm_calls": int(kv_get("llm_calls", 0) or 0),
-        "llm_tokens": int(kv_get("llm_tokens", 0) or 0),
+        "checked_ts": kv_int("checked_ts") or None,
+        "llm_calls": kv_int("llm_calls"),
+        "llm_tokens": kv_int("llm_tokens"),
         "llm_hour": llm_calls_since(3600),
         "diff": todo_diff(digest_row(d), json.loads(pv["body"])) if d and pv else None,
         "day_start": _day0(),
