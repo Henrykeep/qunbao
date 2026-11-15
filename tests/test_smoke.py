@@ -3791,3 +3791,10 @@ def test_save_settings_clamps_hours():
     assert (s["digest_hour"], s["digest_hour2"], s["quiet_start"], s["quiet_end"]) == (A.DEFAULTS["digest_hour"], -1, -1, 7)
     s = A.save_settings({"digest_hour": "8", "quiet_start": 23, "quiet_end": 6})
     assert (s["digest_hour"], s["quiet_start"], s["quiet_end"]) == (8, 23, 6)
+
+
+def test_save_settings_lists_clean():
+    import app as A
+    s = A.save_settings({"vip": "张三，李四, 张三\n", "my_names": None, "keywords": ["考试", "", None, " ddl "], "profile": None})
+    assert s["vip"] == ["张三", "李四"] and s["my_names"] == []
+    assert s["keywords"] == ["考试", "ddl"] and s["profile"] == ""
