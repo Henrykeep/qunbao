@@ -58,7 +58,7 @@ def norm_url(raw):
     v = "".join(str(raw or "").split()).replace("：", ":").replace("／", "/")  # 复制地址常夹带空格/换行；中文输入法的全角冒号斜杠
     if v and "://" not in v:
         v = "http://" + v
-    return v.rstrip("/")
+    return v.rstrip("/。，,;；")  # 复制时常带上句末标点
 
 
 def env_token(name, default=""):
