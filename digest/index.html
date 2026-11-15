@@ -1498,7 +1498,7 @@ async function openChat(chat,focus,src,msgId){
 }
 /* 定位到某条消息并高亮；上方的助手卡/图片稍后撑开版面时，3 秒内持续重新居中（用户一动手就停） */
 function pinMsg(el,smooth){
-  const at=()=>el.scrollIntoView({block:"center",behavior:smooth?"smooth":"auto"});
+  const at=()=>el.scrollIntoView({block:"center",behavior:smooth?SMOOTH():"auto"});
   at();flashMsg(el);
   const ro=new ResizeObserver(()=>at()),stop=()=>{ro.disconnect();removeEventListener("touchstart",stop);removeEventListener("wheel",stop)};
   ro.observe($("#cmsgs"));ro.observe($("#brief"));addEventListener("touchstart",stop,{passive:true});addEventListener("wheel",stop,{passive:true});setTimeout(stop,3000);
