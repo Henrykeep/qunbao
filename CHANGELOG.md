@@ -1,3 +1,7 @@
+## 0.39.665 — 2026-11-15
+
+- 口令类配置（NAPCAT_TOKEN/INGEST_TOKEN/ONEBOT_TOKEN/LLM_API_KEY）统一走 env_token，去 Bearer 前缀。
+
 ## 0.39.664 — 2026-11-15
 - LLM_API_KEY 带 "Bearer " 前缀（从文档整行复制）时自动去掉，避免重复拼接导致 401。
 
