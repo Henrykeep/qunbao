@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.691"
+VERSION="0.39.692"
 
 
 
@@ -148,11 +148,9 @@ from store import DB, db  # noqa: F401  存储层见 store.py（建表在 import
 
 
 def settings() -> dict:
-    with db() as c:
-        r = c.execute("SELECT v FROM kv WHERE k='settings'").fetchone()
     s = dict(DEFAULTS)
-    if r:
-        old = json.loads(r["v"])
+    old = kv_json("settings", {})
+    if old:
         if "auto_interval" in old and "auto_on" not in old:  # 0.31 及以前：自动整理间隔 → 开关
             old["auto_on"] = _int(old.get("auto_interval")) != 0
         old.pop("auto_interval", None)
