@@ -54,6 +54,8 @@ def env_str(name, default=""):
     """字符串：去首尾空白和成对引号（.env 里常见 KEY="xxx " 或复制带空格），否则口令/地址对不上。"""
     v = str(os.getenv(name, default)).replace("\ufeff", "").replace("\u200b", "").strip()  # BOM/零宽空格：Windows 记事本编辑 .env 常带
     v = v.translate({0x201c: 0x22, 0x201d: 0x22, 0x2018: 0x27, 0x2019: 0x27})  # 中文输入法的弯引号
+    if v[:1] not in "\"'" and " #" in v:
+        v = v.split(" #", 1)[0].strip()  # 行尾注释（30  # 秒）：空格+# 之后不是值
     if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
         v = v[1:-1].strip()
     return v or str(default).strip()  # 写成空值（LLM_MODEL= / WEB_USER=）等于没写，用默认值
