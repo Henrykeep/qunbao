@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.713"
+VERSION="0.39.714"
 
 
 
@@ -167,7 +167,8 @@ def save_settings(new: dict):
         if k in DEFAULTS:
             s[k] = v
     s["auto_on"] = bool(s.get("auto_on"))
-    s["remind_hours"] = max(0, _int(s.get("remind_hours")) or 0)  # 脏值（空串/文字）不进库，提醒循环才不会被拖崩
+    s["remind_hours"] = min(168, max(0, _int(s.get("remind_hours")) or 0))  # 脏值（空串/文字/过大）不进库，提醒循环才不会被拖崩
+    s["keep_days"] = min(3650, max(1, _int(s.get("keep_days")) or KEEP_DAYS))  # 保留天数同口径：至少 1 天、至多 10 年
     for k, lo, dflt in (("digest_hour", 0, DEFAULTS["digest_hour"]), ("digest_hour2", -1, -1),
                         ("quiet_start", -1, -1), ("quiet_end", 0, 7)):  # 小时类脏值（空串/越界）收敛到合法范围，调度和免打扰才不会算错
         v = _int(s.get(k))
