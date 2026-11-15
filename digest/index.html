@@ -1001,7 +1001,8 @@ function leftTxt(ts,now,dn){// 截止前 48 小时内补「还剩 X」，已过�
   const x=a<3600?Math.max(1,Math.round(a/60))+"分钟":a<86400?Math.round(a/3600)+"小时":Math.round(a/86400)+"天";
   return d>0?" · 还剩"+x:" · 已过"+x;
 }
-setInterval(()=>{// 页面开着时每分钟刷新「还剩/已过」，不用等重绘
+setInterval(()=>{// 页面开着时每分钟刷新「还剩/已过」，不用等重绘；后台标签不跑
+  if(document.hidden)return;
   const now=Date.now()/1e3;document.querySelectorAll(".todo:not(.done) .lt[data-ts]").forEach(e=>{const x=leftTxt(+e.dataset.ts,now,false);if(e.textContent!==x)e.textContent=x;});
 },60000);
 function todoCard(m,t,i){
@@ -1284,7 +1285,7 @@ async function pollRev(){
 /* 平时 8 秒一次；有待整理的新消息或正在整理时 2.5 秒一次（整理完马上看到），后台不轮询 */
 (function loop(){const working=ST&&((ST.pending&&ST.pending.msgs)||(ST.auto&&ST.auto.state==="running"));
   pollRev().finally(()=>setTimeout(loop,document.hidden?30000:working?2500:8000))})();
-setInterval(()=>{if(curView==="home")updLabel()},20000);
+setInterval(()=>{if(!document.hidden&&curView==="home")updLabel()},20000);
 
 /* 往期 */
 let histLoading=false;
