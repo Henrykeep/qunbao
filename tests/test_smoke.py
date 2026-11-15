@@ -3819,3 +3819,8 @@ def test_env_str_blank_falls_back(monkeypatch):
     monkeypatch.setenv("QB_X", '  ""  ')
     assert env_str("QB_X", "me") == "me"
     assert env_str("QB_X") == ""
+
+
+def test_norm_url_fullwidth():
+    from envutil import norm_url
+    assert norm_url("http：／／napcat:3000/") == "http://napcat:3000"
