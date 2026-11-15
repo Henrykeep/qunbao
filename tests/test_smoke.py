@@ -3777,3 +3777,9 @@ def test_flag_parses_string_switches():
     import app
     assert app._flag("false") is False and app._flag("0") is False and app._flag("") is False
     assert app._flag("true") is True and app._flag(1) is True and app._flag(None) is False
+
+
+def test_clean_invisible_chars():
+    import app as a
+    assert a._clean("计科\u200b2201\ufeff") == "计科2201"
+    assert a._clean(None) == ""
