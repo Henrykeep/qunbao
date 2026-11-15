@@ -46,7 +46,7 @@ def env_str(name, default=""):
     v = v.translate({0x201c: 0x22, 0x201d: 0x22, 0x2018: 0x27, 0x2019: 0x27})  # 中文输入法的弯引号
     if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
         v = v[1:-1].strip()
-    return v
+    return v or str(default).strip()  # 写成空值（LLM_MODEL= / WEB_USER=）等于没写，用默认值
 
 
 def env_url(name, default=""):
