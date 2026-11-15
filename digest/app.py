@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.695"
+VERSION="0.39.696"
 
 
 
@@ -1470,8 +1470,8 @@ async def make_headline(body, s, weekly=False, stats=None) -> str:
         try:
             out = str(json.loads(out).get("headline") or "")
         except (json.JSONDecodeError, AttributeError):
-            m = re.search(r'"headline"\s*:\s*"([^"]+)', out)  # 被截断的 JSON 也能捞出标题，不把花括号当头条
-            out = m.group(1) if m else ""
+            m = re.search(r'"headline"\s*:\s*"((?:[^"\\]|\\.)+)', out)  # 被截断的 JSON 也能捞出标题，不把花括号当头条
+            out = m.group(1).replace('\\"', '"').replace("\\n", " ") if m else ""
     return tidy_headline((out.splitlines() or [""])[0]) or "群里没什么要你管的"
 
 
