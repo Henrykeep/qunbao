@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.705"
+VERSION="0.39.706"
 
 
 
@@ -484,7 +484,7 @@ def mentions_me(text, s) -> bool:
 
 
 async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
-    text = (text or "").strip()
+    text = str(text or "").strip()  # 非字符串正文（数字/列表）也不抛错
     if not text:
         return
     chat = (str(chat or "").strip() or "未知群")[:60]  # 群名/发送人是各入口共用的入库口：限长去空白，空群名不再写成空串
