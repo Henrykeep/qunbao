@@ -3,10 +3,12 @@ import math
 import os
 
 
-def env_int(name, default, lo=None):
-    """lo：下限；写成 0/负数会让并发=0 卡死、分块=0 死循环，低于下限回退默认值。"""
+def env_int(name, default, lo=None, hi=None):
+    """lo/hi：范围；写成 0/负数会让并发=0 卡死、分块=0 死循环，DIGEST_HOUR=25 永不触发，越界回退默认值。"""
     v = _int(name, default)
-    return int(default) if lo is not None and v < lo else v
+    if (lo is not None and v < lo) or (hi is not None and v > hi):
+        return int(default)
+    return v
 
 
 def _int(name, default):
