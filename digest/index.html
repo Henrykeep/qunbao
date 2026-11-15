@@ -1915,7 +1915,7 @@ $("#s-logout").onclick=async e=>{if(!confirm("退出登录？这台设备下次�
     try{Object.keys(localStorage).filter(k=>k.startsWith("qb_")).forEach(lsDel)}catch(e){}
     location.replace("/login")})};
 function netUI(){$("#offbar").hidden=navigator.onLine}
-window.addEventListener("online",()=>{netUI();pollRev();retryNow();pollChat()});
+window.addEventListener("online",()=>{netUI();wake()});  // 与切回前台共用同一套补拉（含 refreshQuiet）
 window.addEventListener("offline",netUI);netUI();
 if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js").catch(()=>{});
 wpInit();
