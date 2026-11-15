@@ -55,3 +55,9 @@ def env_url(name, default=""):
     if v and "://" not in v:
         v = "http://" + v
     return v.rstrip("/")
+
+
+def env_token(name, default=""):
+    """口令/密钥类配置：env_str 之外再去掉从文档复制带来的 Bearer 前缀。"""
+    import re
+    return re.sub(r"^bearer\s+", "", env_str(name, default), flags=re.I)
