@@ -72,4 +72,5 @@ def norm_url(raw):
 def env_token(name, default=""):
     """口令/密钥类配置：env_str 之外再去掉从文档复制带来的 Bearer 前缀。"""
     import re
-    return re.sub(r"^bearer\s+", "", env_str(name, default), flags=re.I)
+    v = re.sub(r"^bearer\s+", "", env_str(name, default), flags=re.I)
+    return "".join(v.split())  # 密钥不含空白；从网页复制折行/夹空格会导致 401
