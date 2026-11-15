@@ -25,9 +25,10 @@ def _int(name, default):
     return int(default)
 
 
-def env_float(name, default, lo=None):
+def env_float(name, default, lo=None, hi=None):
+    """hi：LLM_TIMEOUT=6000 这类多写个 0 会让一个群卡住整整一小时，越界回退默认值。"""
     v = _float(name, default)
-    return float(default) if lo is not None and v < lo else v
+    return float(default) if (lo is not None and v < lo) or (hi is not None and v > hi) else v
 
 
 def _float(name, default):
