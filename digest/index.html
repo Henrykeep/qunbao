@@ -774,7 +774,7 @@ let _rejAt=0;addEventListener("unhandledrejection",ev=>{ev.preventDefault();if(D
 const typing=()=>{const a=document.activeElement;return /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable};
 const TABS=["home","msgs","set"],tabStep=d=>go(TABS[(TABS.indexOf(curView)+d+3)%3]);
 const KEYHELP=["快捷键：1今日 2原文 3设置","[ ] 切页","/ 搜索","a 问群报","j/k 翻页","t/b 顶/底","r 或 . 刷新","Esc 回今日","Backspace 返回","其余常见键（方向键、空格、Home/End 等）也可用"].join("　");
-const SCR=f=>()=>scrollBy({top:innerHeight*f,behavior:RPT?"auto":"smooth"});let RPT=false;
+const SCR=f=>()=>scrollBy({top:innerHeight*f,behavior:SMOOTH()});
 const REFRESH=()=>{curView==="msgs"?loadChats():curView==="set"?loadSettings():load();toast("已刷新")};
 const SMOOTH=()=>matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth";
 const KEYS={1:()=>go(TABS[0]),2:()=>go(TABS[1]),3:()=>go(TABS[2]),p:()=>tabStep(-1),n:()=>tabStep(1),t:()=>scrollTo({top:0,behavior:SMOOTH()}),b:()=>scrollTo({top:document.documentElement.scrollHeight,behavior:SMOOTH()}),j:SCR(.8),k:SCR(-.8),d:SCR(.4),u:SCR(-.4),"?":()=>toast(KEYHELP),F1:()=>toast(KEYHELP),r:REFRESH,".":REFRESH,g:()=>{go(TABS[0]);KEYS.t()},Backspace:()=>{if(NAV.length)history.back()},"/":()=>{go("msgs");const i=$("#sq");if(i)i.focus()},a:()=>{go(TABS[0]);const i=$("#q");if(i)i.focus()}};
