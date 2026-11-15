@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.699"
+VERSION="0.39.700"
 
 
 
@@ -843,6 +843,8 @@ async def llm(messages, as_json=False):
                 r.raise_for_status()
                 out_j = r.json()
                 out = out_j["choices"][0]["message"]["content"]
+                if not isinstance(out, str):
+                    raise ValueError("empty content")
                 LLM_STATE.update(ok=True, err="", ts=_now(), code=0, fail_since=0)
                 LLM_LAST_OK[0] = _clock()
                 kv_add("llm_calls", 1)
@@ -865,6 +867,9 @@ async def llm(messages, as_json=False):
         except httpx.TimeoutException:
             code = 0
             err = "大模型接口超时：服务商可能拥堵，稍后会自动重试"
+        except (ValueError, KeyError, IndexError, TypeError, AttributeError):
+            code = 0
+            err = "大模型返回了无法识别的内容（可能是网关错误页）：稍后会自动重试，持续出现请检查 LLM_BASE_URL"
         except httpx.HTTPError as ex:
             err = f"连不上大模型接口（{LLM_BASE}）：检查服务器网络或 LLM_BASE_URL。{str(ex)[:80]}"
         if attempt < 1:
