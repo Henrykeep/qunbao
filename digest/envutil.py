@@ -11,13 +11,21 @@ def env_int(name, default, lo=None, hi=None):
     return v
 
 
+def _num(name, default):
+    """数字字符串：全角数字转半角，去掉末尾单位（30s/30秒/8点），中文输入法常见。"""
+    import re
+    v = env_str(name, default).translate({0xff10 + i: 0x30 + i for i in range(10)})
+    v = v.replace("．", ".").replace("－", "-")
+    return re.sub(r"\s*(?:s|sec|秒|点|个|次|分钟|min)$", "", v, flags=re.I)
+
+
 def _int(name, default):
     try:
-        return int(env_str(name, default))
+        return int(_num(name, default))
     except (TypeError, ValueError):
         pass
     try:  # "30.0" 这类写法按整数取
-        v = float(env_str(name, default))
+        v = float(_num(name, default))
         if math.isfinite(v):
             return int(v)
     except (TypeError, ValueError):
@@ -33,7 +41,7 @@ def env_float(name, default, lo=None, hi=None):
 
 def _float(name, default):
     try:
-        v = float(env_str(name, default))
+        v = float(_num(name, default))
     except (TypeError, ValueError):
         return float(default)
     # nan/inf 能被 float() 解析，但当超时/间隔用会让服务卡死或立即超时
