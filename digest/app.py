@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.716"
+VERSION="0.39.717"
 
 
 
@@ -166,7 +166,9 @@ def save_settings(new: dict):
     for k, v in new.items():
         if k in DEFAULTS:
             s[k] = v
-    s["auto_on"] = bool(s.get("auto_on"))
+    for k in ("auto_on", "weekly_digest", "push_at", "push_digest", "modes_tip_done"):  # 开关类统一成真布尔（客户端传 "false"/0 也不会被当成开）
+        v = s.get(k)
+        s[k] = (v.strip().lower() not in ("", "0", "false", "no", "off", "null")) if isinstance(v, str) else bool(v)
     s["remind_hours"] = min(168, max(0, _int(s.get("remind_hours")) or 0))  # 脏值（空串/文字/过大）不进库，提醒循环才不会被拖崩
     s["keep_days"] = min(3650, max(1, _int(s.get("keep_days")) or KEEP_DAYS))  # 保留天数同口径：至少 1 天、至多 10 年
     for k, lo, dflt in (("digest_hour", 0, DEFAULTS["digest_hour"]), ("digest_hour2", -1, -1),
@@ -184,6 +186,9 @@ def save_settings(new: dict):
     s["profile"] = str(s.get("profile") or "").strip()[:2000]
     if s.get("default_mode") not in MODES:
         s["default_mode"] = "normal"
+    for k in ("modes", "chat_pins"):  # 字典类：非字典（null/列表）收敛为空，下面 .items() 才不会炸
+        if not isinstance(s.get(k), dict):
+            s[k] = {}
     s["modes"] = {k: v for k, v in (s.get("modes") or {}).items() if v in MODES and "|" in k}
     s["chat_pins"] = {k: v for k, v in (s.get("chat_pins") or {}).items() if "|" in k and isinstance(v, (int, float))}
     with db() as c:
