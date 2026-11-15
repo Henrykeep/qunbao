@@ -47,7 +47,7 @@ def env_str(name, default=""):
 
 def env_url(name, default=""):
     """地址：漏写 http:// 的补上（NAPCAT_HTTP=napcat:3000 否则请求直接报错），去尾斜杠。"""
-    v = env_str(name, default)
+    v = "".join(env_str(name, default).split())  # 复制地址常夹带空格/换行
     if v and "://" not in v:
         v = "http://" + v
     return v.rstrip("/")
