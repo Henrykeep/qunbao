@@ -3731,3 +3731,11 @@ def test_env_int_hi(monkeypatch):
     assert env_int("X_H", 21, lo=0, hi=23) == 21
     monkeypatch.setenv("X_H", "7")
     assert env_int("X_H", 21, lo=0, hi=23) == 7
+
+
+def test_env_float_hi(monkeypatch):
+    from digest.envutil import env_float
+    monkeypatch.setenv("X_T", "6000")
+    assert env_float("X_T", 60, lo=1, hi=600) == 60.0
+    monkeypatch.setenv("X_T", "30")
+    assert env_float("X_T", 60, lo=1, hi=600) == 30.0
