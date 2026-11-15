@@ -1852,7 +1852,7 @@ function focusTodo(id,tries=0){
   const el=$(`.todo[data-ik="item:${id}"]`);
   if(!el){if(tries<32){setTimeout(()=>focusTodo(id,tries+1),250);return}toast("这件事已经处理完或过期了");return}
   if(el.classList.contains("done")){$("#todos")?.classList.remove("fold");updateProg()}
-  el.scrollIntoView({block:"center"});el.classList.remove("fresh");void el.offsetWidth;el.classList.add("fresh");
+  el.scrollIntoView({block:"center",behavior:SMOOTH()});el.classList.remove("fresh");void el.offsetWidth;el.classList.add("fresh");
   if(!el.classList.contains("open")){el.classList.add("open");navPush({t:"todo",el,close:()=>el.classList.remove("open")})}
 }
 (function(){const h=location.hash;if(!h)return;history.replaceState({qb:0},"",location.pathname+location.search);routeHash(h,false)})();
