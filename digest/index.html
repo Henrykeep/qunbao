@@ -1544,8 +1544,10 @@ function updToLatest(){const b=$("#tolatestmsg");if(atBottom())NEWBELOW=0;b.text
 $("#tolatestmsg").onclick=()=>{tick();window.scrollTo({top:document.documentElement.scrollHeight,behavior:SMOOTH()})};
 window.addEventListener("scroll",debounce(updToLatest,120),{passive:true});
 /* 群聊打开时每 20 秒只拉新消息并追加；用户不在底部就不跳 */
+let POLLING=false;
 async function pollChat(){
-  if(document.hidden||curView!=="msgs"||$("#msgs-chat").hidden||!chatName||!CHATTAIL.id)return;
+  if(POLLING||document.hidden||curView!=="msgs"||$("#msgs-chat").hidden||!chatName||!CHATTAIL.id)return;
+  POLLING=true;
   const name=chatName,src=chatSrc;
   try{const ms=await api(`/api/messages?chat=${encodeURIComponent(name)}&after=${CHATTAIL.id}&limit=200${src?`&source=${encodeURIComponent(src)}`:""}`);
     if(!ms.length||name!==chatName)return;
@@ -1553,7 +1555,7 @@ async function pollChat(){
     $("#cmsgs").insertAdjacentHTML("beforeend",r.h);if(SENDERF)applySF();
     readSet(RK(),CHATTAIL.id);
     if(stick)window.scrollTo(0,document.documentElement.scrollHeight);else{NEWBELOW+=ms.length;updToLatest()}
-  }catch(e){}
+  }catch(e){}finally{POLLING=false}
 }
 setInterval(pollChat,20000);
 // 图片链接过期：先找服务器换个新链接（QQ 上图片还在，只是链接里的 key 过期了），换不了才显示失效
