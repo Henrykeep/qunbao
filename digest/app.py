@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.696"
+VERSION="0.39.697"
 
 
 
@@ -2342,6 +2342,13 @@ def auto_log(limit: int = 100):
             "llm_hour": llm_calls_since(3600)}
 
 
+def _flag(v) -> bool:
+    """JSON 里的开关统一解析：字符串 "false"/"0"/"off"/"no"/空 视为假，不再被 bool() 当成真。"""
+    if isinstance(v, str):
+        return v.strip().lower() not in ("", "0", "false", "off", "no", "null", "none")
+    return bool(v)
+
+
 def _toint(v, default=0):
     """脏值（None/空串/非数字）一律回落默认值，避免 500。"""
     try:
@@ -2354,7 +2361,7 @@ def _toint(v, default=0):
 async def digest_now(req: Request):
     d = await json_obj(req)
     hours = _toint(d.get("hours"), 24)
-    return await make_digest(max(1, min(hours, 168)), full=bool(d.get("full")))
+    return await make_digest(max(1, min(hours, 168)), full=_flag(d.get("full")))
 
 
 @app.get("/api/digests", dependencies=[Depends(auth)])
@@ -2455,8 +2462,8 @@ async def chat_pin_api(req: Request):
     d = await json_obj(req)
     if not d.get("chat"):
         raise HTTPException(400, "没有选群")
-    set_chat_pin(str(d.get("source") or "QQ"), str(d["chat"]), bool(d.get("pin")))
-    return {"ok": True, "pin": bool(d.get("pin"))}
+    set_chat_pin(str(d.get("source") or "QQ"), str(d["chat"]), _flag(d.get("pin")))
+    return {"ok": True, "pin": _flag(d.get("pin"))}
 
 
 @app.get("/api/chats", dependencies=[Depends(auth)])
