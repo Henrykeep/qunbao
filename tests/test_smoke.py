@@ -3810,3 +3810,12 @@ def test_save_settings_bools_and_dicts():
 def test_clean_settings_bark_url_non_string():
     import app as a
     assert a.clean_settings({**a.DEFAULTS, "bark_url": ["x"]})["bark_url"] == ""
+
+
+def test_env_str_blank_falls_back(monkeypatch):
+    import sys
+    sys.path.insert(0, "digest")
+    from envutil import env_str
+    monkeypatch.setenv("QB_X", '  ""  ')
+    assert env_str("QB_X", "me") == "me"
+    assert env_str("QB_X") == ""
