@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.659"
+VERSION="0.39.660"
 
 
 
@@ -94,7 +94,7 @@ DEFAULTS = {
     "modes_tip_done": False,   # 首页「给群分档」引导已处理
     # 以下为 0.30 及以前的旧字段，启动时迁移进 modes 后清空
     "only_mode": False, "allowed": [], "muted": [], "levels": {},
-    "digest_hour": env_int("DIGEST_HOUR", 21),
+    "digest_hour": env_int("DIGEST_HOUR", 21, lo=0, hi=23),
     "digest_hour2": -1,        # 第二次整理时间（早报+晚报）；-1 = 关闭
     "bark_url": env_str("BARK_URL", ""),   # 例：https://api.day.app/你的key
     "site_url": env_url("SITE_URL", ""),   # 推送点开后跳转的群报地址
