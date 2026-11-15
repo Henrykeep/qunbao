@@ -3798,3 +3798,10 @@ def test_save_settings_lists_clean():
     s = A.save_settings({"vip": "张三，李四, 张三\n", "my_names": None, "keywords": ["考试", "", None, " ddl "], "profile": None})
     assert s["vip"] == ["张三", "李四"] and s["my_names"] == []
     assert s["keywords"] == ["考试", "ddl"] and s["profile"] == ""
+
+
+def test_save_settings_bools_and_dicts():
+    import app as A
+    s = A.save_settings({"push_at": "false", "weekly_digest": 0, "push_digest": "1", "modes": None, "chat_pins": []})
+    assert s["push_at"] is False and s["weekly_digest"] is False and s["push_digest"] is True
+    assert s["modes"] == {} and s["chat_pins"] == {}
