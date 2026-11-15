@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.706"
+VERSION="0.39.707"
 
 
 
@@ -489,7 +489,7 @@ async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
         return
     chat = (str(chat or "").strip() or "未知群")[:60]  # 群名/发送人是各入口共用的入库口：限长去空白，空群名不再写成空串
     sender = str(sender or "").strip()[:60]
-    source = str(source or "").strip()[:20] or "未知来源"
+    source = str(source or "").replace("|", " ").strip()[:20] or "未知来源"  # 「|」是 来源|群名 键的分隔符，来源里不能出现
     imgs = str(imgs or "")
     s = settings()
     at_me = bool(at_me) or mentions_me(text, s)
