@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.680"
+VERSION="0.39.681"
 
 
 
@@ -661,6 +661,17 @@ async def read_body(req: Request, limit: int = 256 * 1024) -> bytes:
     return body
 
 
+async def json_obj(req: Request) -> dict:
+    """登录后 POST 接口统一取 JSON 对象：坏 JSON / 非对象 一律 400，不再 500。"""
+    try:
+        d = json.loads(await read_body(req))
+    except ValueError:
+        raise HTTPException(400, "请求不是有效 JSON")
+    if not isinstance(d, dict):
+        raise HTTPException(400, "请求应为 JSON 对象")
+    return d
+
+
 @app.post("/onebot")
 async def onebot(req: Request):
     if ONEBOT_TOKEN:
@@ -921,7 +932,7 @@ def annotate_todos(body: dict) -> dict:
 
 @app.post("/api/todo/snooze", dependencies=[Depends(auth)])
 async def todo_snooze(req: Request):
-    d = await req.json()
+    d = await json_obj(req)
     h = d.get("hours")
     now = _nowdt()
     at = snooze_until(h, now)
@@ -2317,7 +2328,7 @@ def _toint(v, default=0):
 
 @app.post("/api/digest", dependencies=[Depends(auth)])
 async def digest_now(req: Request):
-    d = await req.json()
+    d = await json_obj(req)
     hours = _toint(d.get("hours"), 24)
     return await make_digest(max(1, min(hours, 168)), full=bool(d.get("full")))
 
@@ -2344,7 +2355,7 @@ def digests(limit: int = 30):
 
 @app.post("/api/todo", dependencies=[Depends(auth)])
 async def todo(req: Request):
-    d = await req.json()
+    d = await json_obj(req)
     it = _item_from_key(d.get("key"))
     if it is not None:  # 新版：直接改事项状态
         with db() as c:
@@ -2417,7 +2428,7 @@ def set_chat_pin(source, chat, on):
 @app.post("/api/chat_pin", dependencies=[Depends(auth)])
 async def chat_pin_api(req: Request):
     """置顶 / 取消置顶一个群：{"source":"QQ","chat":"群名","pin":true}"""
-    d = await req.json()
+    d = await json_obj(req)
     if not d.get("chat"):
         raise HTTPException(400, "没有选群")
     set_chat_pin(str(d.get("source") or "QQ"), str(d["chat"]), bool(d.get("pin")))
@@ -2492,7 +2503,7 @@ def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, sour
 @app.post("/api/chat_mode", dependencies=[Depends(auth)])
 async def chat_mode_api(req: Request):
     """设某个（或一批）群怎么盯：{"chats":[{"source":"QQ","chat":"群名"}], "mode":"atonly"}"""
-    d = await req.json()
+    d = await json_obj(req)
     mode = d.get("mode")
     if mode not in MODES:
         raise HTTPException(400, "档位只能是 focus / normal / atonly / off")
@@ -2566,7 +2577,7 @@ def export_all():
 
 @app.post("/api/settings", dependencies=[Depends(auth)])
 async def post_settings(req: Request):
-    return save_settings(await req.json())
+    return save_settings(await json_obj(req))
 
 
 @app.get("/api/push/key", dependencies=[Depends(auth)])
@@ -2586,7 +2597,7 @@ MAX_SUBS = 20
 @app.post("/api/push/sub", dependencies=[Depends(auth)])
 async def push_sub(req: Request):
     """存一台设备的订阅（PushSubscription.toJSON()）；同一 endpoint 覆盖。带 remove:true 等同删除。"""
-    d = await req.json()
+    d = await json_obj(req)
     sub = d.get("sub") or d
     ep = str(sub.get("endpoint") or "")
     if d.get("remove"):
@@ -2612,15 +2623,15 @@ def push_unsub_ep(ep: str):
 
 @app.delete("/api/push/sub", dependencies=[Depends(auth)])
 async def push_unsub(req: Request):
-    d = await req.json()
+    d = await json_obj(req)
     return push_unsub_ep(str((d.get("sub") or d).get("endpoint") or ""))
 
 
 @app.post("/api/push/test", dependencies=[Depends(auth)])
 async def push_test(req: Request):
     try:
-        d = await req.json()
-    except ValueError:
+        d = await json_obj(req)
+    except HTTPException:
         d = {}
     if (d or {}).get("channel") == "web":
         ep = str(d.get("endpoint") or "")
@@ -2694,7 +2705,7 @@ ASK_CACHE_TTL = 600
 async def ask(req: Request):
     """问答。可限定一个群（chat + source；「不看」的群也能问），也可从上次已读位置起（since_id）。
     回答里的引用只能是给定消息的 id，返回 citations 供前端跳到原文。"""
-    body = await req.json()
+    body = await json_obj(req)
     q = str(body.get("q", "")).strip()
     if not q:
         return {"a": "", "citations": []}
@@ -2797,7 +2808,7 @@ async def login(req: Request):
     ip, now = _client_ip(req), _clock()
     if _locked(ip):
         raise HTTPException(429, "错太多次了，10 分钟后再试")
-    d = await req.json()
+    d = await json_obj(req)
     u, p = str(d.get("user") or WEB_USER), str(d.get("password") or "")
     if not (_ceq(u, WEB_USER) and _ceq(p, WEB_PASS)):
         _fail(ip)
