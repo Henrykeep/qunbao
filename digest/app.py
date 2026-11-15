@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.697"
+VERSION="0.39.698"
 
 
 
@@ -2391,10 +2391,10 @@ async def todo(req: Request):
     if it is not None:  # 新版：直接改事项状态
         with db() as c:
             if "pin" in d:
-                c.execute("UPDATE items SET pinned=? WHERE id=?", (int(bool(d["pin"])), it["id"]))
+                c.execute("UPDATE items SET pinned=? WHERE id=?", (int(_flag(d["pin"])), it["id"]))
             else:
                 c.execute("UPDATE items SET status=?, updated_ts=? WHERE id=?",
-                          ("done" if d.get("done") else "open", _now(), it["id"]))
+                          ("done" if _flag(d.get("done")) else "open", _now(), it["id"]))
         head = None
         if "pin" not in d:
             with contextlib.suppress(Exception):
@@ -2402,7 +2402,7 @@ async def todo(req: Request):
         return {"ok": True, "id": it["id"], "headline": head}
     t0, ch0 = split_key(d["key"])
     t = {"title": d.get("title") or t0, "chat": d.get("chat") or ch0, "due": d.get("due") or ""}
-    table, on = ("pins", d["pin"]) if "pin" in d else ("todo_done", d.get("done"))
+    table, on = ("pins", _flag(d["pin"])) if "pin" in d else ("todo_done", _flag(d.get("done")))
     with db() as c:
         if on:
             c.execute(f"INSERT OR REPLACE INTO {table}(k,ts,title,chat,due) VALUES(?,?,?,?,?)",
