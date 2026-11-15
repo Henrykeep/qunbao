@@ -3836,3 +3836,13 @@ def test_env_int_thousands(monkeypatch):
     from digest.envutil import env_int
     monkeypatch.setenv("X_N", "1,000")
     assert env_int("X_N", 5) == 1000
+
+
+def test_env_str_inline_comment(monkeypatch):
+    from digest.envutil import env_str, env_int
+    monkeypatch.setenv("QB_X", "abc  # 注释")
+    assert env_str("QB_X") == "abc"
+    monkeypatch.setenv("QB_N", "30 # 秒")
+    assert env_int("QB_N", 5) == 30
+    monkeypatch.setenv("QB_H", "a#b")
+    assert env_str("QB_H") == "a#b"
