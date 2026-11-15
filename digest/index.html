@@ -1624,7 +1624,6 @@ const saveSet=debounce(async()=>{
   catch(e){toast("保存失败："+e.message)}
 },500);
 /* 切到后台/关页时把还没发出去的设置改动立刻存掉（iOS 主屏应用常被直接挂起） */
-document.addEventListener("visibilitychange",()=>{if(document.hidden)saveSet.flush()});
 addEventListener("pagehide",()=>saveSet.flush());
 /* 群设置：搜索、按 QQ/微信分组、按消息量排序、多选批量设档、吵闹群建议 */
 let GSEL=new Set();
@@ -1905,7 +1904,7 @@ if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("messag
   document.addEventListener("touchend",end,{capture:true});document.addEventListener("touchcancel",end,{capture:true});
 })();
 const retryNow=()=>{const r=$("#retry");if(r)r.click()};  // 首页停在「连不上服务器」时，网络恢复/切回前台立刻重试
-const wake=()=>{if(!document.hidden){pollRev();refreshQuiet();retryNow();pollChat()}};
+const wake=()=>{if(document.hidden){saveSet.flush();return}pollRev();refreshQuiet();retryNow();pollChat()};
 document.addEventListener("visibilitychange",wake);
 window.addEventListener("pageshow",e=>{if(e.persisted)wake()});// 从后退缓存恢复也要补拉
 $("#s-logout").onclick=async e=>{if(!confirm("退出登录？这台设备下次打开要重新输入密码。"))return;
