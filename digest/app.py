@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.692"
+VERSION="0.39.693"
 
 
 
@@ -2133,7 +2133,11 @@ def todo_diff(cur: dict, prev: dict | None) -> dict | None:
 
 def body_of(row) -> dict:
     """digests 行的 body JSON 解析只在这一处。"""
-    return json.loads(row["body"])
+    try:
+        b = json.loads(row["body"])
+    except (ValueError, TypeError):
+        return {}
+    return b if isinstance(b, dict) else {}
 
 
 def digest_row(d):
