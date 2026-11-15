@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.719"
+VERSION="0.39.720"
 
 
 
@@ -160,7 +160,7 @@ def settings() -> dict:
 
 def clean_settings(s: dict) -> dict:
     """设置落库前的统一收敛：开关/数字/小时/地址/名单/档位字典，脏值一律回到合法范围（save_settings 只管合并与落库）。"""
-    for k in ("auto_on", "weekly_digest", "push_at", "push_digest", "modes_tip_done"):  # 开关类统一成真布尔（客户端传 "false"/0 也不会被当成开）
+    for k in ("auto_on", "weekly_digest", "push_at", "push_digest", "modes_tip_done", "only_mode"):  # 开关类统一成真布尔（客户端传 "false"/0 也不会被当成开）
         v = s.get(k)
         s[k] = (v.strip().lower() not in ("", "0", "false", "no", "off", "null")) if isinstance(v, str) else bool(v)
     s["remind_hours"] = min(168, max(0, _int(s.get("remind_hours")) or 0))  # 脏值（空串/文字/过大）不进库，提醒循环才不会被拖崩
