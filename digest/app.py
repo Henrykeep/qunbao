@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.707"
+VERSION="0.39.708"
 
 
 
@@ -487,8 +487,8 @@ async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
     text = str(text or "").strip()  # 非字符串正文（数字/列表）也不抛错
     if not text:
         return
-    chat = (str(chat or "").strip() or "未知群")[:60]  # 群名/发送人是各入口共用的入库口：限长去空白，空群名不再写成空串
-    sender = str(sender or "").strip()[:60]
+    chat = (" ".join(str(chat or "").split()) or "未知群")[:60]  # 换行/连续空白折成单空格，标题与键才稳定  # 群名/发送人是各入口共用的入库口：限长去空白，空群名不再写成空串
+    sender = " ".join(str(sender or "").split())[:60]
     source = str(source or "").replace("|", " ").strip()[:20] or "未知来源"  # 「|」是 来源|群名 键的分隔符，来源里不能出现
     imgs = str(imgs or "")
     s = settings()
