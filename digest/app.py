@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.663"
+VERSION="0.39.664"
 
 
 
@@ -66,7 +66,7 @@ _log = logging.getLogger('qunbao')
 from tz import TZ, dt as _tzdt, now as _tznow, clock as _tzclock  # 0.39.627 收敛
 _clock = _tzclock
 LLM_BASE = env_url("LLM_BASE_URL", "https://api.deepseek.com")
-LLM_KEY = env_str("LLM_API_KEY", "")
+LLM_KEY = re.sub(r"^bearer\s+", "", env_str("LLM_API_KEY", ""), flags=re.I)   # 从文档复制常带 Bearer 前缀，再拼一次会 401
 LLM_MODEL = env_str("LLM_MODEL", "deepseek-chat")
 NAPCAT_HTTP = env_url("NAPCAT_HTTP", "http://napcat:3000")
 NAPCAT_TOKEN = env_str("NAPCAT_TOKEN", "")
