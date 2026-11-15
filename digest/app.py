@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.687"
+VERSION="0.39.688"
 
 
 
@@ -755,12 +755,17 @@ def kv_get(k, default=None):
     return r["v"] if r else default
 
 
-def kv_int(k, default=0):
-    """整数型 kv：缺失或被写脏时回 default，不让统计/水位读取抛 500。"""
+def _as_int(v, default=0):
+    """脏值（空串/非数字/inf/nan）一律回 default。"""
     try:
-        return int(float(kv_get(k, default)))
+        return int(float(v))
     except (TypeError, ValueError, OverflowError):
         return default
+
+
+def kv_int(k, default=0):
+    """整数型 kv：缺失或被写脏时回 default，不让统计/水位读取抛 500。"""
+    return _as_int(kv_get(k, default), default)
 
 
 def kv_set(k, v):
@@ -771,10 +776,7 @@ def kv_set(k, v):
 def kv_add(k, n=1):
     with db() as c:
         r = c.execute("SELECT v FROM kv WHERE k=?", (k,)).fetchone()
-        try:
-            cur = int(float(r["v"])) if r else 0
-        except (TypeError, ValueError, OverflowError):
-            cur = 0  # 计数器被写脏了：从 0 重新数，别让收消息的路径 500
+        cur = _as_int(r["v"]) if r else 0  # 计数器被写脏了：从 0 重新数，别让收消息的路径 500
         c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES(?,?)", (k, str(cur + n)))
 LLM_RETRY_WAIT = 2
 from ics import build_ics as ics_build  # noqa: E402
