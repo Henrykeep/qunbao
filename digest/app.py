@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.724"
+VERSION="0.39.725"
 
 
 
@@ -189,7 +189,7 @@ def clean_settings(s: dict) -> dict:
             s[k] = {}
     s["modes"] = {k: v for k, v in (s.get("modes") or {}).items() if v in MODES and "|" in k}
     s["chat_pins"] = {k: v for k, v in (s.get("chat_pins") or {}).items() if "|" in k and isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)}  # 置顶时间必须是有限数字（True/nan/inf 不算）
-    return s
+    return {k: s[k] for k in DEFAULTS if k in s}  # 库里的未知旧字段不再一路带着走
 
 
 def save_settings(new: dict):
