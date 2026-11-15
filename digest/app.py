@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.665"
+VERSION="0.39.666"
 
 
 
@@ -560,6 +560,11 @@ def note_group_name(gid: int, got: str):
         if not twin:
             rename_chat("QQ", old, got)
     kv_set(k, got)
+
+
+def clamp(v, lo: int, hi: int) -> int:
+    """查询参数统一限幅：防 limit/days 传负数或超大值拖垮查询。"""
+    return max(lo, min(int(v), hi))
 
 
 def trim_oldest(ref: dict, ts: dict, *also: dict, cap: int = 2000) -> None:
@@ -2296,7 +2301,7 @@ def rev():
 @app.get("/api/auto/log", dependencies=[Depends(auth)])
 def auto_log(limit: int = 100):
     """自动整理的真实成本：最近每次整理的群 / 原因 / 条数 / 送模型条数 / 调用次数 / 耗时 / 等待，及最近 1 小时、24 小时汇总。"""
-    return {"recent": list(AUTO_LOG)[-max(1, min(limit, 500)):][::-1], "hour": auto_log_summary(3600), "day": auto_log_summary(86400),
+    return {"recent": list(AUTO_LOG)[-clamp(limit, 1, 500):][::-1], "hour": auto_log_summary(3600), "day": auto_log_summary(86400),
             "params": {"quiet": AUTO_QUIET, "burst": AUTO_BURST, "max_wait": AUTO_MAX_WAIT, "force": AUTO_FORCE, "urgent_quiet": AUTO_URGENT_QUIET,
                        "urgent_wait": AUTO_URGENT_WAIT, "min_gap": AUTO_MIN_GAP, "parallel": AUTO_PARALLEL, "rpm": AUTO_RPM},
             "llm_hour": llm_calls_since(3600)}
@@ -2319,8 +2324,9 @@ async def digest_now(req: Request):
 
 @app.get("/api/digests", dependencies=[Depends(auth)])
 def digests(limit: int = 30):
+    limit = clamp(limit, 1, 200)
     with db() as c:
-        rows = c.execute("SELECT * FROM digests ORDER BY ts DESC, id DESC LIMIT ?", (max(limit, 1) * 40,)).fetchall()
+        rows = c.execute("SELECT * FROM digests ORDER BY ts DESC, id DESC LIMIT ?", (limit * 40,)).fetchall()
     out, seen = [], set()
     for r in rows:
         # 往期每天只留一期（当天最新那期；周报单独一期）：旧版每半小时整理一次会存一堆几乎一样的
@@ -2393,7 +2399,7 @@ def activity_stats(days: int = 7, source: str = "", now: int = 0):
 
 @app.get("/api/activity", dependencies=[Depends(auth)])
 def activity(days: int = 7, source: str = ""):
-    return activity_stats(max(1, min(days, 90)), source)
+    return activity_stats(clamp(days, 1, 90), source)
 
 
 def set_chat_pin(source, chat, on):
@@ -2450,8 +2456,8 @@ def chats(hours: int = 168, source: str = ""):
 def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, source: str = "",
              sender: str = "", since: int = 0, until: int = 0, after: int = 0, around: int = 0):
     if around and chat:  # 跳到某条消息：取它前后各一段上下文
-        older = messages(chat=chat, source=source, before=around + 1, limit=min(limit, 100) // 2 + 1)
-        newer = messages(chat=chat, source=source, after=around, limit=min(limit, 100) // 2)
+        older = messages(chat=chat, source=source, before=around + 1, limit=clamp(limit, 2, 100) // 2 + 1)
+        newer = messages(chat=chat, source=source, after=around, limit=clamp(limit, 2, 100) // 2)
         return sorted(older + newer, key=lambda m: (m["ts"], m["id"]))
     sql, args = "SELECT * FROM msgs WHERE 1=1", []
     if chat:
@@ -2470,7 +2476,7 @@ def messages(chat: str = "", q: str = "", before: int = 0, limit: int = 60, sour
         sql += " AND id<?"; args.append(before)
     if after:  # 群聊轮询：只要比这条新的
         sql += " AND id>?"; args.append(after)
-    sql += (" ORDER BY id ASC LIMIT ?" if after else " ORDER BY id DESC LIMIT ?"); args.append(min(limit, 200))
+    sql += (" ORDER BY id ASC LIMIT ?" if after else " ORDER BY id DESC LIMIT ?"); args.append(clamp(limit, 1, 200))
     with db() as c:
         rows = c.execute(sql, args).fetchall()
     out = [{"id": r["id"], "ts": r["ts"], "chat": r["chat"], "sender": r["sender"], "text": r["text"],
