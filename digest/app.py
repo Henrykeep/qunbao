@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.710"
+VERSION="0.39.711"
 
 
 
@@ -502,7 +502,7 @@ async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
     chat = _name(chat, 60) or "未知群"  # 群名/发送人/来源是各入口共用的入库口：折空白、限长、空群名不写成空串
     sender = _name(sender, 60)
     source = _name(str(source or "").replace("|", " "), 20) or "未知来源"  # 「|」是 来源|群名 键的分隔符
-    imgs = str(imgs or "")
+    imgs = _clean(imgs)  # 图片字段同走入库口清洗，脏值不进库
     s = settings()
     at_me = bool(at_me) or mentions_me(text, s)
     if ckey(source, chat) not in (s.get("modes") or {}):  # 新出现的群：记下默认档位
