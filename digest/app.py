@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.702"
+VERSION="0.39.703"
 
 
 
@@ -717,7 +717,8 @@ async def ingest(req: Request):
         if not isinstance(d, dict):  # 纯文本（含「123」「true」这类恰好是合法 JSON 的）一律当正文，不拒收
             d = {"content": raw}
     source = str(d.get("source") or "微信").strip()[:20] or "微信"  # 限长：来源名会进状态表和消息库
-    mark_seen("seen_wx" if source == "微信" else f"seen_{source}")
+    if source == "微信":  # 状态页只读 seen_wx；其他来源名不再各写一个永远没人读的 kv 键
+        mark_seen("seen_wx")
     p = parse_wx(d)
     if not p:
         return {"ok": True, "skipped": True}
