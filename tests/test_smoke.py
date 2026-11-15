@@ -3764,3 +3764,10 @@ def test_settings_dirty_kv_falls_back():
     assert a.settings()["auto_on"] == a.DEFAULTS["auto_on"]
     a.kv_set("settings", "[1]")
     assert isinstance(a.settings(), dict)
+
+
+def test_vapid_corrupt_regenerates():
+    import app as A, webpush as W
+    A.kv_set("vapid", "{坏")
+    k1 = W.vapid_keys()
+    assert W.vapid_keys() == k1
