@@ -3739,3 +3739,11 @@ def test_env_float_hi(monkeypatch):
     assert env_float("X_T", 60, lo=1, hi=600) == 60.0
     monkeypatch.setenv("X_T", "30")
     assert env_float("X_T", 60, lo=1, hi=600) == 30.0
+
+
+def test_vapid_sub_bare_email():
+    import subprocess
+    out = subprocess.run([sys.executable, "-c", "import webpush;print(webpush.VAPID_SUB)"],
+                         env={**os.environ, "VAPID_SUB": "me@example.com"}, cwd="digest",
+                         capture_output=True, text=True).stdout.strip()
+    assert out == "mailto:me@example.com"
