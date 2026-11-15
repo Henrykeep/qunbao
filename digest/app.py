@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.737"
+VERSION="0.39.738"
 
 
 
@@ -71,7 +71,7 @@ LLM_MODEL = "".join(env_str("LLM_MODEL", "deepseek-chat").split())  # 模型名�
 NAPCAT_HTTP = env_url("NAPCAT_HTTP", "http://napcat:3000")
 NAPCAT_TOKEN = env_token("NAPCAT_TOKEN", "")
 WEB_USER = env_str("WEB_USER", "me")
-WEB_PASS = env_str("WEB_PASS", "")
+WEB_PASS = env_str("WEB_PASS", "", literal=True)
 INGEST_TOKEN = env_token("INGEST_TOKEN", "")
 ONEBOT_TOKEN = env_token("ONEBOT_TOKEN", "")
 MAX_CHARS = env_int("MAX_CHARS", 60000, lo=1)
