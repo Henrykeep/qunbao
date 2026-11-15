@@ -3771,3 +3771,9 @@ def test_vapid_corrupt_regenerates():
     A.kv_set("vapid", "{坏")
     k1 = W.vapid_keys()
     assert W.vapid_keys() == k1
+
+
+def test_flag_parses_string_switches():
+    import app
+    assert app._flag("false") is False and app._flag("0") is False and app._flag("") is False
+    assert app._flag("true") is True and app._flag(1) is True and app._flag(None) is False
