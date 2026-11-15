@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.688"
+VERSION="0.39.689"
 
 
 
@@ -318,10 +318,7 @@ def set_modes(pairs, mode):
 
 
 def _held_get() -> list:
-    try:
-        return json.loads(kv_get("held", "[]") or "[]")
-    except json.JSONDecodeError:
-        return []
+    return kv_json("held", [])
 
 
 from quiet import in_quiet, remind_start  # noqa: E402 (0.34.53 拆出)
@@ -766,6 +763,15 @@ def _as_int(v, default=0):
 def kv_int(k, default=0):
     """整数型 kv：缺失或被写脏时回 default，不让统计/水位读取抛 500。"""
     return _as_int(kv_get(k, default), default)
+
+
+def kv_json(k, default):
+    """JSON 型 kv：缺失/脏值/类型不符一律回 default（调用方拿到的永远是同类型）。"""
+    try:
+        v = json.loads(kv_get(k, "") or "")
+    except ValueError:
+        return default
+    return v if isinstance(v, type(default)) else default
 
 
 def kv_set(k, v):
@@ -2185,10 +2191,7 @@ def fix_latest_headline():
 def view_headline(hours, body):
     """3 天 / 7 天视图的头条：今天已为这个范围写过就沿用，否则用规则从未完成事项里挑一句（不调模型）。"""
     today = _today()
-    try:
-        c = json.loads(kv_get(f"head_{hours}", "") or "{}")
-    except ValueError:
-        c = {}
+    c = kv_json(f"head_{hours}", {})
     if c.get("day") == today and c.get("h"):
         return c["h"]
     opens = [t for t in body.get("todos", []) if not t.get("done")] + body.get("notices", [])
