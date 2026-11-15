@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.711"
+VERSION="0.39.712"
 
 
 
@@ -494,7 +494,7 @@ def _name(v, n):
     return " ".join(str(v or "").split())[:n]
 
 
-async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
+async def save(source, chat, sender, text, ts=None, at_me=False, imgs="", dedup=False):
     source, chat, sender = _clean(source), _clean(chat), _clean(sender)
     text = _clean(text).strip()  # 非字符串正文（数字/列表）也不抛错
     if not text:
@@ -503,6 +503,11 @@ async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
     sender = _name(sender, 60)
     source = _name(str(source or "").replace("|", " "), 20) or "未知来源"  # 「|」是 来源|群名 键的分隔符
     imgs = _clean(imgs)  # 图片字段同走入库口清洗，脏值不进库
+    if dedup:  # 通知转发常会重复推同一条：2 分钟内同内容去重；用清洗后的值比，才和库里存的口径一致
+        with db() as c:
+            if c.execute("SELECT 1 FROM msgs WHERE source=? AND chat=? AND sender=? AND text=? AND ts>=?",
+                         (source, chat, sender, text[:4000], _now() - 120)).fetchone():
+                return False
     s = settings()
     at_me = bool(at_me) or mentions_me(text, s)
     if ckey(source, chat) not in (s.get("modes") or {}):  # 新出现的群：记下默认档位
@@ -519,6 +524,7 @@ async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
         brief = re.sub(r"\s+", " ", text)[:120]
         asyncio.create_task(push_msg(cur.lastrowid, f"{why} · {chat}", f"{sender}：{brief}", key=ckey(source, chat),
                                      level=level, gap=60 if level == "timeSensitive" else 600))
+    return True
 
 
 # ---------------- 收消息 ----------------
@@ -739,12 +745,8 @@ async def ingest(req: Request):
     if not p:
         return {"ok": True, "skipped": True}
     chat, sender, text, at_me = p
-    with db() as c:  # 通知转发常会重复推同一条，2 分钟内同内容去重
-        dup = c.execute("SELECT 1 FROM msgs WHERE source=? AND chat=? AND sender=? AND text=? AND ts>=?",
-                        (source, chat, sender, text[:4000], _now() - 120)).fetchone()
-    if dup:
+    if await save(source, chat, sender, text, d.get("ts"), at_me, dedup=True) is False:
         return {"ok": True, "dup": True}
-    await save(source, chat, sender, text, d.get("ts"), at_me)
     return {"ok": True, "chat": chat, "sender": sender}
 
 
