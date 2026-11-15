@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.709"
+VERSION="0.39.710"
 
 
 
@@ -490,14 +490,18 @@ def _clean(v) -> str:  # 入库口统一去零不可见/控制字符：同名群
     return _INVIS.sub("", str(v or ""))
 
 
+def _name(v, n):
+    return " ".join(str(v or "").split())[:n]
+
+
 async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
     source, chat, sender = _clean(source), _clean(chat), _clean(sender)
     text = _clean(text).strip()  # 非字符串正文（数字/列表）也不抛错
     if not text:
         return
-    chat = (" ".join(str(chat or "").split()) or "未知群")[:60]  # 换行/连续空白折成单空格，标题与键才稳定  # 群名/发送人是各入口共用的入库口：限长去空白，空群名不再写成空串
-    sender = " ".join(str(sender or "").split())[:60]
-    source = str(source or "").replace("|", " ").strip()[:20] or "未知来源"  # 「|」是 来源|群名 键的分隔符，来源里不能出现
+    chat = _name(chat, 60) or "未知群"  # 群名/发送人/来源是各入口共用的入库口：折空白、限长、空群名不写成空串
+    sender = _name(sender, 60)
+    source = _name(str(source or "").replace("|", " "), 20) or "未知来源"  # 「|」是 来源|群名 键的分隔符
     imgs = str(imgs or "")
     s = settings()
     at_me = bool(at_me) or mentions_me(text, s)
