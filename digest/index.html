@@ -933,7 +933,8 @@ function setSeg(h,save=true){
 }
 $$("#seg button").forEach(b=>b.onclick=()=>{if(+b.dataset.h===hours&&!viewId)return;setSeg(+b.dataset.h);tick();viewId=null;showRange()});
 // 切时间范围只是换个范围看已经整理好的东西：直接取，不重新整理
-async function showRange(){const m=$("#main");try{const st=await api("/api/state?hours="+hours);m.classList.add("quiet");render(st);setTimeout(()=>m.classList.remove("quiet"),50)}catch(e){toast("没取到："+e.message)}}
+function renderQuiet(st){const m=$("#main");m.classList.add("quiet");render(st);setTimeout(()=>m.classList.remove("quiet"),50)}  // 无入场动画地重绘首页：范围切换/整理完成共用
+async function showRange(){try{renderQuiet(await api("/api/state?hours="+hours))}catch(e){toast("没取到："+e.message)}}
 
 function skeleton(){  // 和真实首页同样的骨架：一行小字、两行头条、三格数字、三张卡
   $("#main").innerHTML=skel("cap")+skel("h")+skel("h2")+skel("box")+skel("card",3);
@@ -1195,7 +1196,7 @@ async function regen(){
   const b=$("#regen");if(b.classList.contains("spin"))return;b.classList.add("spin");
   const p=ST&&ST.pending;$("#updated").textContent=p&&p.msgs?`正在整理 ${p.msgs} 条…`:"正在整理…";
   const wasView=viewId;viewId=null;if(wasView||!ST||!ST.digest)skeleton();
-  try{const r=await api("/api/digest",{hours:24});const m=$("#main");m.classList.add("quiet");render(await api("/api/state?hours="+hours));setTimeout(()=>m.classList.remove("quiet"),50);
+  try{const r=await api("/api/digest",{hours:24});renderQuiet(await api("/api/state?hours="+hours));
     const x=r.stats||{};toast(r.unchanged?(x.new?`看了新消息 ${x.new} 条，没有要更新的事`:"没有新消息，已是最新"):`处理新消息 ${x.new||0} 条 · 涉及 ${x.chats||0} 个群 · ${(+x.secs||0).toFixed(1)} 秒`)}
   catch(e){toast("整理失败："+e.message);load()}finally{b.classList.remove("spin");updLabel()}
 }
