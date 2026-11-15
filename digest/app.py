@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.690"
+VERSION="0.39.691"
 
 
 
@@ -2187,7 +2187,7 @@ def fix_latest_headline():
     fixed = fresh_headline(body)
     if fixed != body.get("headline"):
         with db() as c:
-            cur = json.loads(c.execute("SELECT body FROM digests WHERE id=?", (d["id"],)).fetchone()["body"])
+            cur = body_of(c.execute("SELECT body FROM digests WHERE id=?", (d["id"],)).fetchone())
             cur["headline"] = fixed
             c.execute("UPDATE digests SET body=? WHERE id=?", (json.dumps(cur, ensure_ascii=False), d["id"]))
     return fixed
@@ -2265,7 +2265,7 @@ def state(id: int | None = None, hours: int | None = None):
             body["headline"] = fixed
             if not body.get("view"):  # 存回去：头条说的事已经勾完成/过期了，换成还没做的最要紧的一件
                 with contextlib.suppress(Exception), db() as c:
-                    cur = json.loads(c.execute("SELECT body FROM digests WHERE id=?", (d["id"],)).fetchone()["body"])
+                    cur = body_of(c.execute("SELECT body FROM digests WHERE id=?", (d["id"],)).fetchone())
                     cur["headline"] = fixed
                     c.execute("UPDATE digests SET body=? WHERE id=?", (json.dumps(cur, ensure_ascii=False), d["id"]))
     # done / pins：存着的原始 key + 当前这期里被模糊匹配上的 key（前端两者都认）
