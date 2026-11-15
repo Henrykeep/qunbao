@@ -6,12 +6,12 @@ from inbound import norm_ts, cq_images, clean_cq, parse_wx  # noqa: F401 (0.34.3
 
 import httpx
 import watchdog as _watchdog
-from envutil import env_int, env_float, env_str, env_url
+from envutil import env_int, env_float, env_str, env_url, env_token
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.664"
+VERSION="0.39.665"
 
 
 
@@ -66,14 +66,14 @@ _log = logging.getLogger('qunbao')
 from tz import TZ, dt as _tzdt, now as _tznow, clock as _tzclock  # 0.39.627 收敛
 _clock = _tzclock
 LLM_BASE = env_url("LLM_BASE_URL", "https://api.deepseek.com")
-LLM_KEY = re.sub(r"^bearer\s+", "", env_str("LLM_API_KEY", ""), flags=re.I)   # 从文档复制常带 Bearer 前缀，再拼一次会 401
+LLM_KEY = env_token("LLM_API_KEY", "")   # 去 Bearer 前缀，否则拼两次会 401
 LLM_MODEL = env_str("LLM_MODEL", "deepseek-chat")
 NAPCAT_HTTP = env_url("NAPCAT_HTTP", "http://napcat:3000")
-NAPCAT_TOKEN = env_str("NAPCAT_TOKEN", "")
+NAPCAT_TOKEN = env_token("NAPCAT_TOKEN", "")
 WEB_USER = env_str("WEB_USER", "me")
 WEB_PASS = env_str("WEB_PASS", "")
-INGEST_TOKEN = env_str("INGEST_TOKEN", "")
-ONEBOT_TOKEN = env_str("ONEBOT_TOKEN", "")
+INGEST_TOKEN = env_token("INGEST_TOKEN", "")
+ONEBOT_TOKEN = env_token("ONEBOT_TOKEN", "")
 MAX_CHARS = env_int("MAX_CHARS", 60000, lo=1)
 KEEP_DAYS = env_int("KEEP_DAYS", 30)
 BACKUP_KEEP = max(1, env_int("BACKUP_KEEP", 3))  # 数据库快照保留份数
