@@ -16,6 +16,8 @@ def _num(name, default):
     import re
     v = env_str(name, default).translate({0xff10 + i: 0x30 + i for i in range(10)})
     v = v.replace("．", ".").replace("－", "-")
+    if re.fullmatch(r"\d{1,3}(?:[,，]\d{3})+(?:\.\d+)?", v):
+        v = re.sub(r"[,，]", "", v)  # 千分位 1,000 否则读不出回退默认值
     return re.sub(r"\s*(?:s|sec|秒|点|个|次|分钟|min)$", "", v, flags=re.I)
 
 
