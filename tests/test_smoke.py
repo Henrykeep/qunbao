@@ -3805,3 +3805,8 @@ def test_save_settings_bools_and_dicts():
     s = A.save_settings({"push_at": "false", "weekly_digest": 0, "push_digest": "1", "modes": None, "chat_pins": []})
     assert s["push_at"] is False and s["weekly_digest"] is False and s["push_digest"] is True
     assert s["modes"] == {} and s["chat_pins"] == {}
+
+
+def test_clean_settings_bark_url_non_string():
+    import app as a
+    assert a.clean_settings({**a.DEFAULTS, "bark_url": ["x"]})["bark_url"] == ""
