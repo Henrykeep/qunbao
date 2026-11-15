@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.689"
+VERSION="0.39.690"
 
 
 
@@ -1500,7 +1500,7 @@ async def _make_digest(hours=24, auto=False, full=False):
     if changed or weekly or not latest:
         body["headline"] = await make_headline(body, s, weekly, stats)
     else:  # 只是换了时间范围：沿用上一期头条
-        body["headline"] = json.loads(latest["body"]).get("headline", "")
+        body["headline"] = body_of(latest).get("headline", "")
     if not weekly:  # 模型可能照着群要点又写回已完成的事：头条只能说未完成事项里的一件
         body["headline"] = fresh_headline(body)
     stats["secs"] = _secs(t0)
@@ -1704,7 +1704,7 @@ async def refresh_live(s: dict | None = None, stats: dict | None = None, now: fl
     async with _live_lock:
         with db() as c:
             latest = c.execute("SELECT * FROM digests ORDER BY id DESC LIMIT 1").fetchone()
-        prev = json.loads(latest["body"]) if latest else {}
+        prev = body_of(latest) if latest else {}
         hours = latest["hours"] if latest and latest["hours"] in (24, 72) else 24
         body = build_body(hours, s)
         new, head, opens, want_model = live_head_plan(prev, body, bool(latest), kv_get("head_ts", 0), now, HEAD_GAP, model_head)
@@ -1739,7 +1739,7 @@ async def _model_head(body, s, stats):
             with db() as c:
                 r = c.execute("SELECT body FROM digests WHERE id=?", (body["id"],)).fetchone()
                 if r:
-                    cur = json.loads(r["body"])
+                    cur = body_of(r)
                     mh = fresh_headline({**cur, "headline": mh})  # 模型写好时可能已经有事被勾完成：按当前状态校验
                     cur["headline"] = mh
                     c.execute("UPDATE digests SET ts=?, body=? WHERE id=?", (_now(), json.dumps(cur, ensure_ascii=False), body["id"]))
@@ -1887,7 +1887,7 @@ async def check_reminders():
         d = c.execute("SELECT * FROM digests ORDER BY id DESC LIMIT 1").fetchone()
         done = _records(c, "todo_done")
         seen = _records(c, "reminded")
-    for t in (json.loads(d["body"]).get("todos", []) if d else []):
+    for t in (body_of(d).get("todos", []) if d else []):
         if t.get("id") or find_match(t, done) or find_match(t, seen):
             continue
         if await fire(t):
@@ -1908,7 +1908,7 @@ def migrate_items():
         d = c.execute("SELECT * FROM digests WHERE hours<168 ORDER BY id DESC LIMIT 1").fetchone()
         if not d:
             return 0
-        body = json.loads(d["body"])
+        body = body_of(d)
         done, pins = _records(c, "todo_done"), _records(c, "pins")
         srcs = {r["chat"]: r["source"] for r in c.execute("SELECT chat, source FROM msgs GROUP BY chat")}
         top = c.execute("SELECT MAX(id) i FROM msgs").fetchone()["i"] or 0
@@ -2133,8 +2133,13 @@ def todo_diff(cur: dict, prev: dict | None) -> dict | None:
     return {"new": added, "gone": gone, "kept": len(new) - len(added)}
 
 
+def body_of(row) -> dict:
+    """digests 行的 body JSON 解析只在这一处。"""
+    return json.loads(row["body"])
+
+
 def digest_row(d):
-    body = json.loads(d["body"])
+    body = body_of(d)
     body["id"] = d["id"]
     return body
 
@@ -2172,7 +2177,7 @@ def fix_latest_headline():
         d = c.execute("SELECT * FROM digests ORDER BY id DESC LIMIT 1").fetchone()
     if not d:
         return None
-    body = json.loads(d["body"])
+    body = body_of(d)
     with db() as c:
         st = {r["id"]: r["status"] for r in c.execute("SELECT id, status FROM items")}
     for t in body.get("todos", []):  # 这一期存的 done 是旧的：按事项当前状态
@@ -2249,7 +2254,7 @@ def state(id: int | None = None, hours: int | None = None):
     wx_on = bool(wx_ts and now - wx_ts < 6 * 3600)
     if d and H != d["hours"]:
         vb = build_body(H, settings())
-        vb["headline"] = view_headline(H, vb) or json.loads(d["body"]).get("headline", "")
+        vb["headline"] = view_headline(H, vb) or body_of(d).get("headline", "")
         vb.update(id=d["id"], view=True)
         body = annotate_todos(vb)
     else:
@@ -2292,7 +2297,7 @@ def state(id: int | None = None, hours: int | None = None):
         "llm_calls": kv_int("llm_calls"),
         "llm_tokens": kv_int("llm_tokens"),
         "llm_hour": llm_calls_since(3600),
-        "diff": todo_diff(digest_row(d), json.loads(pv["body"])) if d and pv else None,
+        "diff": todo_diff(digest_row(d), body_of(pv)) if d and pv else None,
         "day_start": _day0(),
         "digest_ts": d["ts"] if d else None,
         "hours": H,
@@ -2364,7 +2369,7 @@ def digests(limit: int = 30):
         seen.add(k)
         if len(out) >= limit:
             break
-        b = json.loads(r["body"])
+        b = body_of(r)
         out.append({"id": r["id"], "ts": r["ts"], "hours": r["hours"], "headline": b.get("headline", ""),
                     "todos": len([t for t in b.get("todos", []) if not t.get("done")]), "count": b.get("count", 0), "auto": bool(b.get("auto"))})
     return out
@@ -2773,7 +2778,7 @@ async def chat_brief(chat: str, source: str = "", since_id: int = 0, refresh: in
         q = "SELECT MAX(id) m FROM msgs WHERE chat=?" + (" AND source=?" if source else "")
         maxid = c.execute(q, (chat, source) if source else (chat,)).fetchone()["m"] or 0
         cached = c.execute("SELECT * FROM chat_brief WHERE source=? AND chat=?", (source, chat)).fetchone()
-    old = json.loads(cached["body"]) if cached else None
+    old = body_of(cached) if cached else None
     if since_id and since_id >= maxid:  # 上次看过之后没有新消息：给上一段要点，不调模型
         return {**(old or {"a": "", "citations": []}), "nothing_new": True, "upto_id": maxid, "cached": bool(old)}
     if cached and not refresh and cached["since_id"] == since_id and cached["upto_id"] == maxid:
