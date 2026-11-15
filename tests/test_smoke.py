@@ -3747,3 +3747,12 @@ def test_vapid_sub_bare_email():
                          env={**os.environ, "VAPID_SUB": "me@example.com"}, cwd="digest",
                          capture_output=True, text=True).stdout.strip()
     assert out == "mailto:me@example.com"
+
+
+def test_bad_json_body_is_400():
+    from fastapi.testclient import TestClient
+    import app as a
+    c = TestClient(a.app)
+    h = {"Authorization": "Basic bWU6cHc="}
+    r = c.post("/api/digest", content=b"{bad", headers=h)
+    assert r.status_code in (400, 401)
