@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.708"
+VERSION="0.39.709"
 
 
 
@@ -483,8 +483,16 @@ def mentions_me(text, s) -> bool:
     return any(n and ("@" + n) in t for n in (s.get("my_names") or []))
 
 
+_INVIS = re.compile("[\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060\ufeff\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def _clean(v) -> str:  # 入库口统一去零不可见/控制字符：同名群不再因隐形字符被拆开，标题不再带乱码方块
+    return _INVIS.sub("", str(v or ""))
+
+
 async def save(source, chat, sender, text, ts=None, at_me=False, imgs=""):
-    text = str(text or "").strip()  # 非字符串正文（数字/列表）也不抛错
+    source, chat, sender = _clean(source), _clean(chat), _clean(sender)
+    text = _clean(text).strip()  # 非字符串正文（数字/列表）也不抛错
     if not text:
         return
     chat = (" ".join(str(chat or "").split()) or "未知群")[:60]  # 换行/连续空白折成单空格，标题与键才稳定  # 群名/发送人是各入口共用的入库口：限长去空白，空群名不再写成空串
