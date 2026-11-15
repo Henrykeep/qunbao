@@ -3783,3 +3783,11 @@ def test_clean_invisible_chars():
     import app as a
     assert a._clean("计科\u200b2201\ufeff") == "计科2201"
     assert a._clean(None) == ""
+
+
+def test_save_settings_clamps_hours():
+    import app as A
+    s = A.save_settings({"digest_hour": "abc", "digest_hour2": 99, "quiet_start": "", "quiet_end": -5})
+    assert (s["digest_hour"], s["digest_hour2"], s["quiet_start"], s["quiet_end"]) == (A.DEFAULTS["digest_hour"], -1, -1, 7)
+    s = A.save_settings({"digest_hour": "8", "quiet_start": 23, "quiet_end": 6})
+    assert (s["digest_hour"], s["quiet_start"], s["quiet_end"]) == (8, 23, 6)
