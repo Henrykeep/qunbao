@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.712"
+VERSION="0.39.713"
 
 
 
@@ -168,6 +168,10 @@ def save_settings(new: dict):
             s[k] = v
     s["auto_on"] = bool(s.get("auto_on"))
     s["remind_hours"] = max(0, _int(s.get("remind_hours")) or 0)  # 脏值（空串/文字）不进库，提醒循环才不会被拖崩
+    for k, lo, dflt in (("digest_hour", 0, DEFAULTS["digest_hour"]), ("digest_hour2", -1, -1),
+                        ("quiet_start", -1, -1), ("quiet_end", 0, 7)):  # 小时类脏值（空串/越界）收敛到合法范围，调度和免打扰才不会算错
+        v = _int(s.get(k))
+        s[k] = v if v is not None and lo <= v <= 23 else dflt
     if "bark_url" in new and s.get("bark_url"):  # 存的就是清洗后的地址：设置页回显干净，发送时不必再猜
         s["bark_url"] = bark_mod.norm_bark_url(str(s["bark_url"]))
     if s.get("default_mode") not in MODES:
