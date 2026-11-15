@@ -3756,3 +3756,11 @@ def test_bad_json_body_is_400():
     h = {"Authorization": "Basic bWU6cHc="}
     r = c.post("/api/digest", content=b"{bad", headers=h)
     assert r.status_code in (400, 401)
+
+
+def test_settings_dirty_kv_falls_back():
+    import app as a
+    a.kv_set("settings", "{bad json")
+    assert a.settings()["auto_on"] == a.DEFAULTS["auto_on"]
+    a.kv_set("settings", "[1]")
+    assert isinstance(a.settings(), dict)
