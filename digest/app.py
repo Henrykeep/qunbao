@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.718"
+VERSION="0.39.719"
 
 
 
@@ -177,6 +177,11 @@ def clean_settings(s: dict) -> dict:
         raw = s.get(k)
         raw = re.split(r"[,，、\n]", raw) if isinstance(raw, str) else (raw if isinstance(raw, list) else [])
         s[k] = list(dict.fromkeys(x for x in (str(i).strip() for i in raw if i is not None) if x))[:200]
+    for k in ("allowed", "muted"):  # 旧字段：非列表（脏值）收敛为空，迁移代码迭代时才不会炸
+        if not isinstance(s.get(k), list):
+            s[k] = []
+    if not isinstance(s.get("levels"), dict):
+        s["levels"] = {}
     s["profile"] = str(s.get("profile") or "").strip()[:2000]
     if s.get("default_mode") not in MODES:
         s["default_mode"] = "normal"
