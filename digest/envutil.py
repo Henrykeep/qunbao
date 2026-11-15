@@ -55,7 +55,7 @@ def env_url(name, default=""):
 
 
 def norm_url(raw):
-    v = "".join(str(raw or "").split())  # 复制地址常夹带空格/换行
+    v = "".join(str(raw or "").split()).replace("：", ":").replace("／", "/")  # 复制地址常夹带空格/换行；中文输入法的全角冒号斜杠
     if v and "://" not in v:
         v = "http://" + v
     return v.rstrip("/")
