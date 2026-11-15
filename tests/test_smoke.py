@@ -3830,3 +3830,9 @@ def test_env_num_fullwidth_and_unit(monkeypatch):
     from digest.envutil import env_int, env_float
     monkeypatch.setenv("X_A", "\uff13\uff10"); monkeypatch.setenv("X_B", "45s"); monkeypatch.setenv("X_C", "8点")
     assert env_int("X_A", 1) == 30 and env_float("X_B", 1) == 45.0 and env_int("X_C", 1) == 8
+
+
+def test_env_int_thousands(monkeypatch):
+    from digest.envutil import env_int
+    monkeypatch.setenv("X_N", "1,000")
+    assert env_int("X_N", 5) == 1000
