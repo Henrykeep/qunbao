@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.715"
+VERSION="0.39.716"
 
 
 
@@ -177,6 +177,11 @@ def save_settings(new: dict):
         s["bark_url"] = bark_mod.norm_bark_url(str(s["bark_url"]))
     if "site_url" in new:  # 同 env_url 口径：设置页里漏写 http:// 的跳转地址补全，推送点开才不会失效
         s["site_url"] = norm_url(s.get("site_url"))
+    for k in ("my_names", "vip", "keywords"):  # 名单类：脏值（字符串/null/空项/重复）收敛成干净的字符串列表，匹配逻辑才不会对着非列表迭代出错
+        raw = s.get(k)
+        raw = re.split(r"[,，、\n]", raw) if isinstance(raw, str) else (raw if isinstance(raw, list) else [])
+        s[k] = list(dict.fromkeys(x for x in (str(i).strip() for i in raw if i is not None) if x))[:200]
+    s["profile"] = str(s.get("profile") or "").strip()[:2000]
     if s.get("default_mode") not in MODES:
         s["default_mode"] = "normal"
     s["modes"] = {k: v for k, v in (s.get("modes") or {}).items() if v in MODES and "|" in k}
