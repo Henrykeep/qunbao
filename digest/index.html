@@ -489,7 +489,7 @@ details.howto[open] summary svg{transform:rotate(180deg)}
 .dragging{position:relative;z-index:2;min-height:100vh;min-height:100dvh;background:var(--bg);box-shadow:var(--shadow-edge);will-change:transform}
 :focus-visible{outline:var(--bw-l) solid var(--accent);outline-offset:var(--s0)}
 input:focus-visible,textarea:focus-visible{outline-offset:0}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.m.flash .bub{box-shadow:0 0 0 var(--s0) var(--amber)}}
 .gd-top{margin-top:var(--s3)}.ci2.qq{background:var(--qq)}.ci2.wx{background:var(--wx)}.row.last{border:0}
 .sr-copy{position:fixed;left:-9999px;top:0;opacity:0}
 </style>
@@ -1503,7 +1503,7 @@ function pinMsg(el,smooth){
   const ro=new ResizeObserver(()=>at()),stop=()=>{ro.disconnect();removeEventListener("touchstart",stop);removeEventListener("wheel",stop)};
   ro.observe($("#cmsgs"));ro.observe($("#brief"));addEventListener("touchstart",stop,{passive:true});addEventListener("wheel",stop,{passive:true});setTimeout(stop,3000);
 }
-function flashMsg(el){el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash");el.addEventListener("animationend",()=>el.classList.remove("flash"),{once:true})}
+function flashMsg(el){el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash");const off=()=>el.classList.remove("flash");el.addEventListener("animationend",off,{once:true});if(SMOOTH()==="auto")setTimeout(off,2000)}
 /* 跳到某条消息：已加载就滚过去高亮 2 秒，没加载就按 id 取它前后的上下文 */
 async function jumpTo(id,chat,src){
   if(chat&&(chat!==chatName||(src&&src!==chatSrc)||$("#msgs-chat").hidden))return openChat(chat,null,src,id);
