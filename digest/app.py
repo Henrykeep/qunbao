@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.681"
+VERSION="0.39.682"
 
 
 
@@ -763,7 +763,11 @@ def kv_set(k, v):
 def kv_add(k, n=1):
     with db() as c:
         r = c.execute("SELECT v FROM kv WHERE k=?", (k,)).fetchone()
-        c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES(?,?)", (k, str(int(float(r["v"]) if r else 0) + n)))
+        try:
+            cur = int(float(r["v"])) if r else 0
+        except (TypeError, ValueError, OverflowError):
+            cur = 0  # 计数器被写脏了：从 0 重新数，别让收消息的路径 500
+        c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES(?,?)", (k, str(cur + n)))
 LLM_RETRY_WAIT = 2
 from ics import build_ics as ics_build  # noqa: E402
 from llm_errors import is_censored, llm_short, REJECT_CODES, LLM_FATAL_CODES  # noqa: E402
