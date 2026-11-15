@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.728"
+VERSION="0.39.729"
 
 
 
@@ -75,7 +75,7 @@ WEB_PASS = env_str("WEB_PASS", "")
 INGEST_TOKEN = env_token("INGEST_TOKEN", "")
 ONEBOT_TOKEN = env_token("ONEBOT_TOKEN", "")
 MAX_CHARS = env_int("MAX_CHARS", 60000, lo=1)
-KEEP_DAYS = env_int("KEEP_DAYS", 30, lo=1)   # 0.39.728 0 或负数会让清理删光消息
+KEEP_DAYS = env_int("KEEP_DAYS", 30, lo=1)   # 0.39.729 0 或负数会让清理删光消息
 BACKUP_KEEP = env_int("BACKUP_KEEP", 3, lo=1)  # 数据库快照保留份数
 NAPCAT_DATA = env_str("NAPCAT_DATA", "/napcat_qq")   # NapCat 的 QQ 数据目录（docker-compose 挂进来），用来清图片缓存
 SESSION_DAYS = env_int("SESSION_DAYS", 30, lo=1)  # 网页登录保持天数
