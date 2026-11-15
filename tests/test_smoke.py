@@ -3824,3 +3824,9 @@ def test_env_str_blank_falls_back(monkeypatch):
 def test_norm_url_fullwidth():
     from envutil import norm_url
     assert norm_url("http：／／napcat:3000/") == "http://napcat:3000"
+
+
+def test_env_num_fullwidth_and_unit(monkeypatch):
+    from digest.envutil import env_int, env_float
+    monkeypatch.setenv("X_A", "\uff13\uff10"); monkeypatch.setenv("X_B", "45s"); monkeypatch.setenv("X_C", "8点")
+    assert env_int("X_A", 1) == 30 and env_float("X_B", 1) == 45.0 and env_int("X_C", 1) == 8
