@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.698"
+VERSION="0.39.699"
 
 
 
@@ -673,12 +673,7 @@ async def onebot(req: Request):
         auth = req.headers.get("Authorization", "")
         tok = auth[7:] if auth.lower().startswith("bearer ") else (req.query_params.get("token") or "")
         _token_gate(req, tok, ONEBOT_TOKEN)
-    try:
-        e = json.loads((await read_body(req)).decode("utf-8", "ignore"))
-    except json.JSONDecodeError:
-        raise HTTPException(400, "需要 JSON")
-    if not isinstance(e, dict):
-        raise HTTPException(400, "需要 JSON 对象")
+    e = await json_obj(req)
     if e.get("post_type") == "meta_event":
         with db() as c:
             c.execute("INSERT OR REPLACE INTO kv(k,v) VALUES('heartbeat',?)", (str(_now()),))
