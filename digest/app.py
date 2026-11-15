@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.723"
+VERSION="0.39.724"
 
 
 
@@ -181,7 +181,7 @@ def clean_settings(s: dict) -> dict:
         if not isinstance(s.get(k), list):
             s[k] = []
     s["levels"] = {k: v for k, v in (s["levels"] if isinstance(s.get("levels"), dict) else {}).items() if v in ("important", "atonly")}  # 旧档位字典：只留迁移能认的取值
-    s["profile"] = str(s.get("profile") or "").strip()[:2000]
+    s["profile"] = (s["profile"].strip() if isinstance(s.get("profile"), str) else "")[:2000]  # 非字符串（列表/字典/数字）不再被 str() 成乱码塞进提示词
     if s.get("default_mode") not in MODES:
         s["default_mode"] = "normal"
     for k in ("modes", "chat_pins"):  # 字典类：非字典（null/列表）收敛为空，下面 .items() 才不会炸
