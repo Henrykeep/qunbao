@@ -27,21 +27,29 @@ def _b64u(b: bytes) -> str:
     return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
 
 
+def _vapid_saved():
+    """读已存的 VAPID 密钥；缺失或写坏回 None（调用方重新生成，不 500）。"""
+    try:
+        d = json.loads(kv_get("vapid") or "")
+        return d["priv"], d["pub"]
+    except (ValueError, TypeError, KeyError):
+        return None
+
+
 def vapid_keys() -> tuple[str, str]:
     """(私钥：32 字节 raw 的 base64url, 公钥：非压缩点的 base64url，给浏览器 applicationServerKey 用)"""
-    v = kv_get("vapid")
-    if v:
-        d = json.loads(v)
-        return d["priv"], d["pub"]
+    d = _vapid_saved()
+    if d:
+        return d
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import ec
     k = ec.generate_private_key(ec.SECP256R1())
     priv = _b64u(k.private_numbers().private_value.to_bytes(32, "big"))
     pub = _b64u(k.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint))
-    with db() as c:  # 并发启动时只认第一份
+    with db() as c:  # 并发启动时只认第一份；写坏的旧值先清掉
+        c.execute("DELETE FROM kv WHERE k='vapid'")
         c.execute("INSERT OR IGNORE INTO kv(k,v) VALUES('vapid',?)", (json.dumps({"priv": priv, "pub": pub}),))
-    d = json.loads(kv_get("vapid"))
-    return d["priv"], d["pub"]
+    return _vapid_saved() or (priv, pub)
 
 
 def _wp_send(sub: dict, data: str, priv: str):
