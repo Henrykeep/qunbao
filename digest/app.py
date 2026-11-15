@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.721"
+VERSION="0.39.722"
 
 
 
@@ -188,7 +188,7 @@ def clean_settings(s: dict) -> dict:
         if not isinstance(s.get(k), dict):
             s[k] = {}
     s["modes"] = {k: v for k, v in (s.get("modes") or {}).items() if v in MODES and "|" in k}
-    s["chat_pins"] = {k: v for k, v in (s.get("chat_pins") or {}).items() if "|" in k and isinstance(v, (int, float))}
+    s["chat_pins"] = {k: v for k, v in (s.get("chat_pins") or {}).items() if "|" in k and isinstance(v, (int, float)) and not isinstance(v, bool)}  # 置顶时间必须是数字（True 不算）
     return s
 
 
