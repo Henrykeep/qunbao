@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.700"
+VERSION="0.39.701"
 
 
 
@@ -686,7 +686,8 @@ async def onebot(req: Request):
     s = e.get("sender", {}) or {}
     sender = s.get("card") or s.get("nickname") or str(e.get("user_id"))
     if e.get("message_type") == "group":
-        chat = await group_name(int(e["group_id"]))
+        gid = _as_int(e.get("group_id"))
+        chat = await group_name(gid) if gid else "QQ群"  # group_id 缺失/脏值：归到「QQ群」，别让 /onebot 500 导致 NapCat 反复重投
     else:
         chat, at_me = f"私聊·{sender}", True
     await save("QQ", chat, sender, clean_cq(raw, self_id), e.get("time"), at_me, cq_images(raw))
