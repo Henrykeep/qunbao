@@ -3723,3 +3723,11 @@ def test_env_str_curly_quotes(monkeypatch):
     from digest import envutil
     monkeypatch.setenv("X_Q", "\u201cabc\u201d")
     assert envutil.env_str("X_Q") == "abc"
+
+
+def test_env_int_hi(monkeypatch):
+    from digest.envutil import env_int
+    monkeypatch.setenv("X_H", "25")
+    assert env_int("X_H", 21, lo=0, hi=23) == 21
+    monkeypatch.setenv("X_H", "7")
+    assert env_int("X_H", 21, lo=0, hi=23) == 7
