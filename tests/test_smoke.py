@@ -3717,3 +3717,9 @@ def test_env_url_strips_inner_whitespace(monkeypatch):
     from digest.envutil import env_url
     monkeypatch.setenv("X_URL", "napcat: 3000/\n")
     assert env_url("X_URL") == "http://napcat:3000"
+
+
+def test_env_str_curly_quotes(monkeypatch):
+    from digest import envutil
+    monkeypatch.setenv("X_Q", "\u201cabc\u201d")
+    assert envutil.env_str("X_Q") == "abc"
