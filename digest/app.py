@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.661"
+VERSION="0.39.662"
 
 
 
@@ -65,7 +65,7 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')  # 0.39.634 日志
 _log = logging.getLogger('qunbao')
 from tz import TZ, dt as _tzdt, now as _tznow, clock as _tzclock  # 0.39.627 收敛
 _clock = _tzclock
-LLM_BASE = env_str("LLM_BASE_URL", "https://api.deepseek.com").rstrip("/")
+LLM_BASE = env_url("LLM_BASE_URL", "https://api.deepseek.com")
 LLM_KEY = env_str("LLM_API_KEY", "")
 LLM_MODEL = env_str("LLM_MODEL", "deepseek-chat")
 NAPCAT_HTTP = env_url("NAPCAT_HTTP", "http://napcat:3000")
@@ -96,7 +96,7 @@ DEFAULTS = {
     "only_mode": False, "allowed": [], "muted": [], "levels": {},
     "digest_hour": env_int("DIGEST_HOUR", 21, lo=0, hi=23),
     "digest_hour2": -1,        # 第二次整理时间（早报+晚报）；-1 = 关闭
-    "bark_url": env_str("BARK_URL", ""),   # 例：https://api.day.app/你的key
+    "bark_url": env_url("BARK_URL", ""),   # 例：https://api.day.app/你的key
     "site_url": env_url("SITE_URL", ""),   # 推送点开后跳转的群报地址
     "push_at": True,           # @我 / 重要的人 / 关键词 实时推送
     "push_digest": True,       # 每日总结推送
