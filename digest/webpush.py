@@ -18,6 +18,8 @@ def bind(db_fn, kv_get_fn):
 # VAPID 密钥第一次启动自动生成，存在数据库 kv 表里（不用配置）。订阅按设备存在 push_subs，
 # 推送服务回 404/410（用户删了 App、关了通知、换了设备）就自动删掉。
 VAPID_SUB = env_str("VAPID_SUB", "mailto:qunbao@users.noreply.github.com")   # 联系方式：mailto: 或不带路径的 https 域名；苹果拒收 localhost
+if "@" in VAPID_SUB and not VAPID_SUB.lower().startswith(("mailto:", "http")):
+    VAPID_SUB = "mailto:" + VAPID_SUB   # 只写了邮箱：补 mailto:，否则苹果推送 403
 
 
 def _b64u(b: bytes) -> str:
