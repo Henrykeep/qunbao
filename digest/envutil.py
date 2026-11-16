@@ -82,3 +82,8 @@ def env_token(name, default=""):
     import re
     v = re.sub(r"^bearer\s+", "", env_str(name, default), flags=re.I)
     return "".join(v.split())  # 密钥不含空白；从网页复制折行/夹空格会导致 401
+
+
+def env_path(name, default=""):
+    """路径：中文输入法的全角斜杠转半角（DB_PATH=／data／qunbao.db 否则建库失败）。"""
+    return env_str(name, default).replace("／", "/")
