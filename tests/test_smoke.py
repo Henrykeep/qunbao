@@ -3853,3 +3853,9 @@ def test_env_str_literal_keeps_password(monkeypatch):
     monkeypatch.setenv("PW_X", "it\u2019s ab #1")
     assert env_str("PW_X", literal=True) == "it\u2019s ab #1"
     assert env_str("PW_X") != "it\u2019s ab #1"
+
+
+def test_my_profile_literal(monkeypatch):
+    from envutil import env_str
+    monkeypatch.setenv("MY_PROFILE", "大三 #计算机 “学生会”")
+    assert env_str("MY_PROFILE", "", literal=True) == "大三 #计算机 “学生会”"
