@@ -1,5 +1,5 @@
 """NapCat 的 QQ 媒体缓存清理（图片不存服务器，缓存只留几小时）。"""
-from envutil import env_str
+from envutil import env_path
 from tz import clock as _clock
 import contextlib, logging, os, time
 log = logging.getLogger("qunbao.qqcache")
@@ -8,7 +8,7 @@ QQ_CACHE_DIRS = {"Pic", "Video", "Ptt", "Thumb"}
 
 
 def clean_qq_cache(root=None, max_age=6 * 3600, now=None):
-    root = root or env_str("NAPCAT_DATA", "/napcat_qq")
+    root = root or env_path("NAPCAT_DATA", "/napcat_qq")
     now = now or _clock()
     freed = files = 0
     if not root or not os.path.isdir(root):
