@@ -26,6 +26,9 @@ def _num(name, default, unit=None):
     v = v.replace("．", ".").replace("－", "-")
     if re.fullmatch(r"\d{1,3}(?:[,，]\d{3})+(?:\.\d+)?", v):
         v = re.sub(r"[,，]", "", v)  # 千分位 1,000 否则读不出回退默认值
+    m = re.fullmatch(r"(\d+)\s*(?:个?小时|h)\s*(\d+)\s*(?:分钟|分|min)?", v, flags=re.I)
+    if m:  # 1小时30分 → 90分钟
+        v = f"{int(m.group(1)) * 60 + int(m.group(2))}分钟"
     v = re.sub(r"^一刻钟$", "15分钟", v)
     v = re.sub(r"^半\s*个?(?=小时|分钟|天)", "0.5", v)  # 半小时
     v = re.sub(r"^([一二两三四五六七八九十])个半(?=小时|分钟|天)", lambda m: str(_CN[m.group(1)] + 0.5), v)  # 一个半小时
