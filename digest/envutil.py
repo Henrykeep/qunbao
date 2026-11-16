@@ -32,6 +32,7 @@ def _num(name, default, unit=None):
     m = re.fullmatch(r"(\d+)\s*(?:天|d)\s*(\d+)\s*(?:个?小时|h)?", v, flags=re.I)
     if m:  # 1天12小时 → 36小时
         v = f"{int(m.group(1)) * 24 + int(m.group(2))}小时"
+    v = re.sub(r"^(\d+)\s*个?(?=小时|天)(小时|天)半$", lambda m: str(int(m.group(1)) + 0.5) + m.group(2), v)  # 2小时半
     v = re.sub(r"^一刻钟$", "15分钟", v)
     v = re.sub(r"^半\s*个?(?=小时|分钟|天)", "0.5", v)  # 半小时
     v = re.sub(r"^([一二两三四五六七八九十])个半(?=小时|分钟|天)", lambda m: str(_CN[m.group(1)] + 0.5), v)  # 一个半小时
