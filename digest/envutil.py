@@ -3,31 +3,44 @@ import math
 import os
 
 
-def env_int(name, default, lo=None, hi=None):
+def env_int(name, default, lo=None, hi=None, unit=None):
     """lo/hi：范围；写成 0/负数会让并发=0 卡死、分块=0 死循环，DIGEST_HOUR=25 永不触发，越界回退默认值。"""
-    v = _int(name, default)
+    v = _int(name, default, unit)
     if (lo is not None and v < lo) or (hi is not None and v > hi):
         return int(default)
     return v
 
 
-def _num(name, default):
+_SEC = {"s": 1, "sec": 1, "秒钟": 1, "秒": 1, "分钟": 60, "分": 60, "min": 60,
+        "小时": 3600, "h": 3600, "天": 86400, "d": 86400}
+
+
+def _num(name, default, unit=None):
     """数字字符串：全角数字转半角，去掉末尾单位（30s/30秒/8点），中文输入法常见。"""
     import re
     v = env_str(name, default).translate({0xff10 + i: 0x30 + i for i in range(10)})
     v = v.replace("．", ".").replace("－", "-")
     if re.fullmatch(r"\d{1,3}(?:[,，]\d{3})+(?:\.\d+)?", v):
         v = re.sub(r"[,，]", "", v)  # 千分位 1,000 否则读不出回退默认值
-    return re.sub(r"\s*个?\s*(?:s|sec|秒钟|秒|点|个|次|分钟|分|min|小时|h|天|d)$", "", v, flags=re.I)
+    m = re.fullmatch(r"(.*?)\s*个?\s*(s|sec|秒钟|秒|点|个|次|分钟|分|min|小时|h|天|d)", v, flags=re.I)
+    if not m:
+        return v
+    num, u = m.group(1), m.group(2).lower()
+    if unit in _SEC and u in _SEC:  # 写「2分钟」而变量以秒计：换算，不能直接丢单位
+        try:
+            return repr(float(num) * _SEC[u] / _SEC[unit])
+        except ValueError:
+            pass
+    return num
 
 
-def _int(name, default):
+def _int(name, default, unit=None):
     try:
-        return int(_num(name, default))
+        return int(_num(name, default, unit))
     except (TypeError, ValueError):
         pass
     try:  # "30.0" 这类写法按整数取
-        v = float(_num(name, default))
+        v = float(_num(name, default, unit))
         if math.isfinite(v):
             return int(v)
     except (TypeError, ValueError):
@@ -35,15 +48,15 @@ def _int(name, default):
     return int(default)
 
 
-def env_float(name, default, lo=None, hi=None):
+def env_float(name, default, lo=None, hi=None, unit=None):
     """hi：LLM_TIMEOUT=6000 这类多写个 0 会让一个群卡住整整一小时，越界回退默认值。"""
-    v = _float(name, default)
+    v = _float(name, default, unit)
     return float(default) if (lo is not None and v < lo) or (hi is not None and v > hi) else v
 
 
-def _float(name, default):
+def _float(name, default, unit=None):
     try:
-        v = float(_num(name, default))
+        v = float(_num(name, default, unit))
     except (TypeError, ValueError):
         return float(default)
     # nan/inf 能被 float() 解析，但当超时/间隔用会让服务卡死或立即超时
