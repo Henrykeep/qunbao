@@ -15,6 +15,10 @@ _SEC = {"s": 1, "sec": 1, "秒钟": 1, "秒": 1, "分钟": 60, "分": 60, "min":
         "小时": 3600, "h": 3600, "天": 86400, "d": 86400}
 
 
+_CN = {c: i for i, c in enumerate('零一二三四五六七八九十')}
+_CN['两'] = 2
+
+
 def _num(name, default, unit=None):
     """数字字符串：全角数字转半角，去掉末尾单位（30s/30秒/8点），中文输入法常见。"""
     import re
@@ -23,6 +27,8 @@ def _num(name, default, unit=None):
     if re.fullmatch(r"\d{1,3}(?:[,，]\d{3})+(?:\.\d+)?", v):
         v = re.sub(r"[,，]", "", v)  # 千分位 1,000 否则读不出回退默认值
     v = re.sub(r"^半\s*个?(?=小时|分钟|天)", "0.5", v)  # 半小时
+    v = re.sub(r"^([一二两三四五六七八九十])个半(?=小时|分钟|天)", lambda m: str(_CN[m.group(1)] + 0.5), v)  # 一个半小时
+    v = re.sub(r"^([一二两三四五六七八九十])(?=\s*个?\s*(?:小时|分钟|分|秒钟|秒|天)$)", lambda m: str(_CN[m.group(1)]), v)  # 三分钟
     m = re.fullmatch(r"(.*?)\s*个?\s*(s|sec|秒钟|秒|点|个|次|分钟|分|min|小时|h|天|d)", v, flags=re.I)
     if not m:
         return v
