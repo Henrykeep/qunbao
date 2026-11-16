@@ -87,3 +87,9 @@ def env_token(name, default=""):
 def env_path(name, default=""):
     """路径：中文输入法的全角斜杠转半角（DB_PATH=／data／qunbao.db 否则建库失败）。"""
     return env_str(name, default).replace("／", "/")
+
+
+def env_name(name, default=""):
+    """模型名等标识符：全角转半角，不含空白（复制折行/夹空格会 404）。"""
+    import unicodedata
+    return "".join(unicodedata.normalize("NFKC", env_str(name, default)).split())
