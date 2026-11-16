@@ -3904,3 +3904,11 @@ def test_env_half_hour(monkeypatch):
     from envutil import env_int
     monkeypatch.setenv("X_T", "半小时")
     assert env_int("X_T", 5, unit="s") == 1800
+
+
+def test_env_chinese_numerals(monkeypatch):
+    from digest import envutil
+    monkeypatch.setenv("X_T", "一个半小时")
+    assert envutil.env_float("X_T", 1, unit="s") == 5400
+    monkeypatch.setenv("X_T", "三分钟")
+    assert envutil.env_int("X_T", 1, unit="s") == 180
