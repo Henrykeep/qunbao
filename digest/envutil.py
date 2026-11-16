@@ -18,7 +18,7 @@ def _num(name, default):
     v = v.replace("．", ".").replace("－", "-")
     if re.fullmatch(r"\d{1,3}(?:[,，]\d{3})+(?:\.\d+)?", v):
         v = re.sub(r"[,，]", "", v)  # 千分位 1,000 否则读不出回退默认值
-    return re.sub(r"\s*(?:s|sec|秒钟|秒|点|个|次|分钟|分|min|小时|h|天|d)$", "", v, flags=re.I)
+    return re.sub(r"\s*个?\s*(?:s|sec|秒钟|秒|点|个|次|分钟|分|min|小时|h|天|d)$", "", v, flags=re.I)
 
 
 def _int(name, default):
