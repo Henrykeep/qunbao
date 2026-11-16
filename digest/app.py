@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.746"
+VERSION="0.39.747"
 
 
 
@@ -75,10 +75,10 @@ WEB_PASS = env_str("WEB_PASS", "", literal=True)
 INGEST_TOKEN = env_token("INGEST_TOKEN", "")
 ONEBOT_TOKEN = env_token("ONEBOT_TOKEN", "")
 MAX_CHARS = env_int("MAX_CHARS", 60000, lo=1)
-KEEP_DAYS = env_int("KEEP_DAYS", 30, lo=1)   # 0 或负数会让清理删光消息
+KEEP_DAYS = env_int("KEEP_DAYS", 30, lo=1, unit="d")   # 0 或负数会让清理删光消息
 BACKUP_KEEP = env_int("BACKUP_KEEP", 3, lo=1)  # 数据库快照保留份数
 NAPCAT_DATA = env_path("NAPCAT_DATA", "/napcat_qq")   # NapCat 的 QQ 数据目录（docker-compose 挂进来），用来清图片缓存
-SESSION_DAYS = env_int("SESSION_DAYS", 30, lo=1)  # 网页登录保持天数
+SESSION_DAYS = env_int("SESSION_DAYS", 30, lo=1, unit="d")  # 网页登录保持天数
 
 # 网页「设置」里可以改的项；.env 里的值只作为第一次启动时的默认值
 DEFAULTS = {
@@ -836,7 +836,7 @@ def llm_err_text(code: int, text: str) -> str:
 
 
 
-LLM_TIMEOUT = env_float("LLM_TIMEOUT", 60, lo=1, hi=600)  # 单次调用最多等这么久（以前 180 秒，超时再重试一次，一个群能「正在整理」6 分钟）
+LLM_TIMEOUT = env_float("LLM_TIMEOUT", 60, lo=1, hi=600, unit="s")  # 单次调用最多等这么久（以前 180 秒，超时再重试一次，一个群能「正在整理」6 分钟）
 LLM_TRIES = 5                 # 429 最多等 4 轮（3/8/20/45 秒，或按服务商的 Retry-After）
 LLM_429_WAITS = (3, 8, 20, 45)
 LLM_LAST_OK = [0.0]            # 最近一次调用成功的时间：判断「模型是好的，只是拒收这一块」还是「配置错了」
@@ -1573,7 +1573,7 @@ AUTO_QUIET = 5                # 普通消息：群里安静 5 秒就整理（一
 AUTO_BURST = 20               # 或攒满 20 条
 AUTO_MAX_WAIT = 15            # 持续刷屏也最多等 15 秒
 AUTO_FORCE = 30               # 兜底：任何一条非噪音消息等了 30 秒，不管最小间隔，立刻排上（排在最前）
-AUTO_RUN_LIMIT = env_int("AUTO_RUN_LIMIT", 100, lo=1)  # 单个群一次自动整理最多跑这么久，超时算失败，不让「正在整理」挂着不动
+AUTO_RUN_LIMIT = env_int("AUTO_RUN_LIMIT", 100, lo=1, unit="s")  # 单个群一次自动整理最多跑这么久，超时算失败，不让「正在整理」挂着不动
 AUTO_GIVEUP_N = 3             # 同一个群连续失败 3 次、而别的群期间整理成功过（模型是好的，是这几条有问题）：
 AUTO_GIVEUP_SECS = 180        # 或待整理消息已等 3 分钟且失败过 2 次：按规则兜底提取待办后跳过，水位前进，待整理清零
 AUTO_GIVEUP_HARD = 600        # 硬上限：任何待整理消息最多挂 10 分钟（模型整体故障也一样；余额不足/密钥错这类要你处理的除外）
