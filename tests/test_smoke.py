@@ -3885,3 +3885,15 @@ def test_env_int_ge_hour_suffix(monkeypatch):
     from digest.envutil import env_int
     monkeypatch.setenv("X_T", "6个小时")
     assert env_int("X_T", 9) == 6
+
+
+def test_env_time_unit_converted(monkeypatch):
+    import sys; sys.path.insert(0, "digest")
+    from envutil import env_int, env_float
+    monkeypatch.setenv("X_T", "2分钟")
+    assert env_int("X_T", 5, unit="s") == 120
+    assert env_float("X_T", 5, unit="s") == 120.0
+    monkeypatch.setenv("X_T", "2天")
+    assert env_int("X_T", 5, unit="d") == 2
+    monkeypatch.setenv("X_T", "30秒")
+    assert env_int("X_T", 5) == 30
