@@ -3859,3 +3859,9 @@ def test_my_profile_literal(monkeypatch):
     from envutil import env_str
     monkeypatch.setenv("MY_PROFILE", "大三 #计算机 “学生会”")
     assert env_str("MY_PROFILE", "", literal=True) == "大三 #计算机 “学生会”"
+
+
+def test_env_int_seconds_suffix(monkeypatch):
+    from digest.envutil import env_int
+    monkeypatch.setenv("X_T", "30秒钟")
+    assert env_int("X_T", 5) == 30
