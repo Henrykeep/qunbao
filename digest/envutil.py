@@ -22,6 +22,7 @@ def _num(name, default, unit=None):
     v = v.replace("．", ".").replace("－", "-")
     if re.fullmatch(r"\d{1,3}(?:[,，]\d{3})+(?:\.\d+)?", v):
         v = re.sub(r"[,，]", "", v)  # 千分位 1,000 否则读不出回退默认值
+    v = re.sub(r"^半\s*个?(?=小时|分钟|天)", "0.5", v)  # 半小时
     m = re.fullmatch(r"(.*?)\s*个?\s*(s|sec|秒钟|秒|点|个|次|分钟|分|min|小时|h|天|d)", v, flags=re.I)
     if not m:
         return v
