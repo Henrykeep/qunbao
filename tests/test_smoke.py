@@ -3897,3 +3897,10 @@ def test_env_time_unit_converted(monkeypatch):
     assert env_int("X_T", 5, unit="d") == 2
     monkeypatch.setenv("X_T", "30秒")
     assert env_int("X_T", 5) == 30
+
+
+def test_env_half_hour(monkeypatch):
+    import sys; sys.path.insert(0, "digest")
+    from envutil import env_int
+    monkeypatch.setenv("X_T", "半小时")
+    assert env_int("X_T", 5, unit="s") == 1800
