@@ -6,12 +6,12 @@ from inbound import norm_ts, cq_images, clean_cq, parse_wx  # noqa: F401 (0.34.3
 
 import httpx
 import watchdog as _watchdog
-from envutil import env_int, env_float, env_str, env_url, env_token, norm_url
+from envutil import env_int, env_float, env_str, env_path, env_url, env_token, norm_url
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.739"
+VERSION="0.39.740"
 
 
 
@@ -77,7 +77,7 @@ ONEBOT_TOKEN = env_token("ONEBOT_TOKEN", "")
 MAX_CHARS = env_int("MAX_CHARS", 60000, lo=1)
 KEEP_DAYS = env_int("KEEP_DAYS", 30, lo=1)   # 0 或负数会让清理删光消息
 BACKUP_KEEP = env_int("BACKUP_KEEP", 3, lo=1)  # 数据库快照保留份数
-NAPCAT_DATA = env_str("NAPCAT_DATA", "/napcat_qq")   # NapCat 的 QQ 数据目录（docker-compose 挂进来），用来清图片缓存
+NAPCAT_DATA = env_path("NAPCAT_DATA", "/napcat_qq")   # NapCat 的 QQ 数据目录（docker-compose 挂进来），用来清图片缓存
 SESSION_DAYS = env_int("SESSION_DAYS", 30, lo=1)  # 网页登录保持天数
 
 # 网页「设置」里可以改的项；.env 里的值只作为第一次启动时的默认值
