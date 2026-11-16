@@ -3918,3 +3918,9 @@ def test_env_days_hours_compound(monkeypatch):
     from digest import envutil
     monkeypatch.setenv("X_T", "1天12小时")
     assert envutil.env_int("X_T", 5, unit="小时") == 36
+
+
+def test_env_half_suffix(monkeypatch):
+    from envutil import env_int
+    monkeypatch.setenv("X_H", "2小时半")
+    assert env_int("X_H", 1, unit="s") == 9000
