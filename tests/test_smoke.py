@@ -3865,3 +3865,11 @@ def test_env_int_seconds_suffix(monkeypatch):
     from digest.envutil import env_int
     monkeypatch.setenv("X_T", "30秒钟")
     assert env_int("X_T", 5) == 30
+
+
+def test_env_int_hour_day_suffix(monkeypatch):
+    from digest.envutil import env_int
+    monkeypatch.setenv("X_T", "6小时")
+    assert env_int("X_T", 1) == 6
+    monkeypatch.setenv("X_T", "30d")
+    assert env_int("X_T", 1) == 30
