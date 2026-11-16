@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import PlainTextResponse, FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
 HERE = os.path.dirname(__file__)
-VERSION="0.39.738"
+VERSION="0.39.739"
 
 
 
@@ -84,7 +84,7 @@ SESSION_DAYS = env_int("SESSION_DAYS", 30, lo=1)  # 网页登录保持天数
 DEFAULTS = {
     "weekly_digest": True,
     "keep_days": KEEP_DAYS,    # 消息保留天数
-    "profile": env_str("MY_PROFILE", ""),
+    "profile": env_str("MY_PROFILE", "", literal=True),
     "my_names": [],            # 我的昵称/群名片：文本里出现 @昵称 就算 @我（微信通知常识别不出）
     "vip": [],                 # 重要的人（昵称/群名片），他们说话一律值得看
     "keywords": ["截止", "ddl", "提交", "开会", "考试", "缴费", "通知", "报名", "@全体成员"],
