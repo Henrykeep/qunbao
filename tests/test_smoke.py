@@ -3932,3 +3932,5 @@ def test_env_half_suffix(monkeypatch):
     assert env_int("X_H", 1, unit="s") == 150
     monkeypatch.setenv("X_H", "3分半钟")
     assert env_int("X_H", 1, unit="s") == 210
+    monkeypatch.setenv("X_H", "一刻钟")
+    assert env_int("X_H", 1, unit="s") == 900
